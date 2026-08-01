@@ -19,6 +19,18 @@
             padding: 16px;
             color: #fff;
         }
+        .menu-bg {
+            position: fixed; inset: 0; z-index: -1;
+            background-image:
+                linear-gradient(rgba(100,200,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(100,200,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            animation: gridScroll 20s linear infinite;
+        }
+        @keyframes gridScroll {
+            0% { background-position: 0 0; }
+            100% { background-position: 40px 40px; }
+        }
 
         /* ─── SCREEN SYSTEM ─── */
         .screen { display: none; width: 100%; max-width: 900px; }
@@ -84,6 +96,22 @@
             box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(247, 183, 49, 0.15);
         }
         .game-card:active { transform: scale(0.98); }
+        .game-card[data-genre="action"]:hover { border-color: rgba(255,107,107,0.5); box-shadow: 0 18px 40px rgba(0,0,0,0.5), 0 0 30px rgba(255,107,107,0.15); }
+        .game-card[data-genre="action"]::after { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:#ff6b6b; border-radius: 4px 0 0 4px; }
+        .game-card[data-genre="creative"]:hover { border-color: rgba(255,107,157,0.5); box-shadow: 0 18px 40px rgba(0,0,0,0.5), 0 0 30px rgba(255,107,157,0.15); }
+        .game-card[data-genre="creative"]::after { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:#ff6b9d; border-radius: 4px 0 0 4px; }
+        .game-card[data-genre="strategy"]:hover { border-color: rgba(0,240,255,0.5); box-shadow: 0 18px 40px rgba(0,0,0,0.5), 0 0 30px rgba(0,240,255,0.15); }
+        .game-card[data-genre="strategy"]::after { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:#00f0ff; border-radius: 4px 0 0 4px; }
+        .game-card[data-genre="puzzle"]:hover { border-color: rgba(239,71,111,0.5); box-shadow: 0 18px 40px rgba(0,0,0,0.5), 0 0 30px rgba(239,71,111,0.15); }
+        .game-card[data-genre="puzzle"]::after { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:#ef476f; border-radius: 4px 0 0 4px; }
+        .game-card[data-genre="classic"]:hover { border-color: rgba(6,214,160,0.5); box-shadow: 0 18px 40px rgba(0,0,0,0.5), 0 0 30px rgba(6,214,160,0.15); }
+        .game-card[data-genre="classic"]::after { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:#06d6a0; border-radius: 4px 0 0 4px; }
+        .game-card[data-genre="arcade"]:hover { border-color: rgba(255,215,0,0.5); box-shadow: 0 18px 40px rgba(0,0,0,0.5), 0 0 30px rgba(255,215,0,0.15); }
+        .game-card[data-genre="arcade"]::after { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:#ffd700; border-radius: 4px 0 0 4px; }
+        .game-card[data-genre="casual"]:hover { border-color: rgba(58,134,255,0.5); box-shadow: 0 18px 40px rgba(0,0,0,0.5), 0 0 30px rgba(58,134,255,0.15); }
+        .game-card[data-genre="casual"]::after { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:#3a86ff; border-radius: 4px 0 0 4px; }
+        .game-card[data-genre="shooter"]:hover { border-color: rgba(199,125,255,0.5); box-shadow: 0 18px 40px rgba(0,0,0,0.5), 0 0 30px rgba(199,125,255,0.15); }
+        .game-card[data-genre="shooter"]::after { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:#c77dff; border-radius: 4px 0 0 4px; }
         .card-icon { font-size: 64px; text-align: center; margin-bottom: 10px; display: block; }
         .card-title {
             font-size: 26px;
@@ -260,6 +288,44 @@
             .btn { padding: 5px 12px; font-size: 12px; }
         }
 
+        /* ─── PAUSE OVERLAY ─── */
+        .pause-overlay {
+            display: none; position: absolute; inset: 0;
+            background: rgba(0,0,0,0.75); z-index: 100;
+            justify-content: center; align-items: center;
+            flex-direction: column; border-radius: inherit;
+        }
+        .pause-overlay.active { display: flex; }
+        .pause-overlay h2 { font-size: 36px; color: #fff; margin-bottom: 12px; text-shadow: 0 0 20px rgba(255,255,255,0.5); }
+        .pause-overlay p { font-size: 14px; color: #b8d4e8; }
+
+        /* ─── TOUCH CONTROLS ─── */
+        .touch-controls {
+            display: none; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap;
+        }
+        @media (max-width: 860px) { .touch-controls { display: flex; } }
+        .touch-btn {
+            width: 56px; height: 56px; border-radius: 50%;
+            background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
+            color: #fff; font-size: 20px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;
+        }
+        .touch-btn:active { background: rgba(255,255,255,0.3); transform: scale(0.9); }
+        .touch-btn.action { background: rgba(247,183,49,0.3); border-color: rgba(247,183,49,0.5); }
+
+        /* ─── SEARCH BAR ─── */
+        .search-bar {
+            width: 100%; max-width: 400px; margin: 0 auto 24px;
+            padding: 10px 18px; border-radius: 30px;
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(100,200,255,0.2);
+            color: #fff; font-size: 14px; outline: none;
+            transition: all 0.2s;
+        }
+        .search-bar::placeholder { color: #6a8fa8; }
+        .search-bar:focus { border-color: rgba(100,200,255,0.5); box-shadow: 0 0 20px rgba(100,200,255,0.1); }
+        .game-card.hidden { display: none; }
+
         /* ─── HYPER CHESS ─── */
         .chess-wrap { display: flex; gap: 18px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
         .chess-side {
@@ -405,6 +471,7 @@
     </style>
 </head>
 <body>
+    <div class="menu-bg"></div>
 
     <!-- ═══════════════════════════════════════════════════════════ -->
     <!-- MENU -->
@@ -413,46 +480,47 @@
         <div class="menu-wrap">
             <h1 class="menu-title">🎮 GAME ARCADE</h1>
             <p class="menu-sub">Choose a game to play</p>
+            <input type="text" class="search-bar" id="gameSearch" placeholder="🔍 Filter games..." oninput="filterGames(this.value)">
             <div class="game-cards">
-                <div class="game-card" onclick="showScreen('bridge')">
+                <div class="game-card" onclick="showScreen('bridge'); trackPlay('bridge')" data-genre="action">
                     <span class="card-icon">🏃‍♂️</span>
-                    <div class="card-title">Bridge Race</div>
+                    <div class="card-title">Bridge Race <sup style="color:#ff6b6b;font-size:11px;" id="play-bridge">0</sup></div>
                     <div class="card-desc">
                         Run, jump, and build bridges out of wooden planks.
                         Cross every gap before the finish line — don't fall!
                     </div>
                     <button class="card-btn">▶ PLAY</button>
                 </div>
-                <div class="game-card" onclick="showScreen('princess')">
+                <div class="game-card" onclick="showScreen('princess'); trackPlay('princess')" data-genre="creative">
                     <span class="card-icon">👗</span>
-                    <div class="card-title">Fashion Princess</div>
+                    <div class="card-title">Fashion Princess <sup style="color:#ff6b9d;font-size:11px;" id="play-princess">0</sup></div>
                     <div class="card-desc">
                         Dress up a princess with gorgeous outfits, hairstyles,
                         crowns, shoes and accessories. Mix & match!
                     </div>
                     <button class="card-btn">▶ PLAY</button>
                 </div>
-                <div class="game-card" onclick="showScreen('chess')">
+                <div class="game-card" onclick="showScreen('chess'); trackPlay('chess')" data-genre="strategy">
                     <span class="card-icon">♟️</span>
-                    <div class="card-title">Hyper Chess</div>
+                    <div class="card-title">Hyper Chess <sup style="color:#00f0ff;font-size:11px;" id="play-chess">0</sup></div>
                     <div class="card-desc">
                         Neon chess on a glowing 8×8 board. Click a piece,
                         see legal moves light up, crush the AI. Hyper-fast.
                     </div>
                     <button class="card-btn">▶ PLAY</button>
                 </div>
-                <div class="game-card" onclick="showScreen('tetris')">
+                <div class="game-card" onclick="showScreen('tetris'); trackPlay('tetris')" data-genre="puzzle">
                     <span class="card-icon">🧱</span>
-                    <div class="card-title">Neon Tetris</div>
+                    <div class="card-title">Neon Tetris <sup style="color:#ef476f;font-size:11px;" id="play-tetris">0</sup></div>
                     <div class="card-desc">
                         Classic falling-block action with a neon glow.
                         Clear lines, chase high scores, speed escalates.
                     </div>
                     <button class="card-btn">▶ PLAY</button>
                 </div>
-                <div class="game-card" onclick="showScreen('snake')">
+                <div class="game-card" onclick="showScreen('snake'); trackPlay('snake')" data-genre="classic">
     <span class="card-icon">🐍</span>
-    <div class="card-title">Neon Snake</div>
+    <div class="card-title">Neon Snake <sup style="color:#06d6a0;font-size:11px;" id="play-snake">0</sup></div>
     <div class="card-desc">
         Chase the glowing pellet through a grid of pure neon.
         Arrow keys or WASD — every bite grows you longer and
@@ -460,18 +528,18 @@
     </div>
     <button class="card-btn">▶ PLAY</button>
 </div>
-                <div class="game-card" onclick="showScreen('breakout')">
+                <div class="game-card" onclick="showScreen('breakout'); trackPlay('breakout')" data-genre="arcade">
     <span class="card-icon">🧱</span>
-    <div class="card-title">Neon Breakout</div>
+    <div class="card-title">Neon Breakout <sup style="color:#ffd700;font-size:11px;" id="play-breakout">0</sup></div>
     <div class="card-desc">
         Classic brick-smashing with a neon glow. Angle your shots off the
         paddle, clear the grid row by row, and chase the high score!
     </div>
     <button class="card-btn">▶ PLAY</button>
 </div>
-                <div class="game-card" onclick="showScreen('flappy')">
+                <div class="game-card" onclick="showScreen('flappy'); trackPlay('flappy')" data-genre="casual">
     <span class="card-icon">🐤</span>
-    <div class="card-title">Neon Flappy</div>
+    <div class="card-title">Neon Flappy <sup style="color:#3a86ff;font-size:11px;" id="play-flappy">0</sup></div>
     <div class="card-desc">
         Glide a glowing neon bird through a synthwave skyline.
         Tap, click, or press Space to flap — dodge the pipes,
@@ -479,9 +547,9 @@
     </div>
     <button class="card-btn">▶ PLAY</button>
 </div>
-                <div class="game-card" onclick="showScreen('shooter')">
+                <div class="game-card" onclick="showScreen('shooter'); trackPlay('shooter')" data-genre="shooter">
     <span class="card-icon">🚀</span>
-    <div class="card-title">Neon Space Shooter</div>
+    <div class="card-title">Neon Space Shooter <sup style="color:#c77dff;font-size:11px;" id="play-shooter">0</sup></div>
     <div class="card-desc">
         Pilot a neon fighter through an alien swarm. Dodge enemy
         fire, blast waves of drones, and chase the high score!
@@ -498,6 +566,7 @@
     <!-- ═══════════════════════════════════════════════════════════ -->
     <div id="bridgeScreen" class="screen">
         <div class="game-wrapper">
+            <div class="pause-overlay" id="bridge-overlay"><h2>⏸ PAUSED</h2><p>Press P to resume</p></div>
             <canvas id="bridgeCanvas" width="800" height="500"></canvas>
             <div class="hud">
                 <div class="hud-left">
@@ -510,6 +579,12 @@
                     <button class="btn btn-primary" id="bridgeRestart">🔄 Restart</button>
                 </div>
             </div>
+            <div class="touch-controls" data-game="bridge">
+                <button class="touch-btn" data-action="left">←</button>
+                <button class="touch-btn" data-action="right">→</button>
+                <button class="touch-btn" data-action="up">↑</button>
+                <button class="touch-btn action" data-action="action">●</button>
+            </div>
         </div>
     </div>
 
@@ -518,6 +593,7 @@
     <!-- ═══════════════════════════════════════════════════════════ -->
     <div id="princessScreen" class="screen">
         <div class="game-wrapper" style="background: linear-gradient(145deg, #2a1844, #1a0f30); border-color: rgba(255, 107, 157, 0.2);">
+            <div class="pause-overlay" id="princess-overlay"><h2>⏸ PAUSED</h2><p>Press P to resume</p></div>
             <canvas id="princessCanvas" width="800" height="500" style="cursor: default; image-rendering: auto;"></canvas>
             <div class="princess-controls">
                 <div class="cat-card">
@@ -574,6 +650,7 @@
     <!-- ═══════════════════════════════════════════════════════════ -->
     <div id="chessScreen" class="screen">
         <div class="game-wrapper" style="background: linear-gradient(145deg, #051218, #020a0e); border-color: rgba(0,255,170,0.18);">
+            <div class="pause-overlay" id="chess-overlay"><h2>⏸ PAUSED</h2><p>Press P to resume</p></div>
             <div class="chess-wrap">
                 <div class="chess-side">
                     <h3>♟️ White (You)</h3>
@@ -600,6 +677,7 @@
     <!-- ═══════════════════════════════════════════════════════════ -->
     <div id="tetrisScreen" class="screen">
         <div class="game-wrapper" style="background: linear-gradient(145deg, #120612, #060309); border-color: rgba(255,45,117,0.22);">
+            <div class="pause-overlay" id="tetris-overlay"><h2>⏸ PAUSED</h2><p>Press P to resume</p></div>
             <div class="tetris-wrap">
                 <div class="tetris-side">
                     <h3>📊 STATS</h3>
@@ -624,11 +702,18 @@
                     </div>
                 </div>
             </div>
+            <div class="touch-controls" data-game="tetris">
+                <button class="touch-btn" data-action="left">←</button>
+                <button class="touch-btn" data-action="right">→</button>
+                <button class="touch-btn" data-action="down">↓</button>
+                <button class="touch-btn action" data-action="rotate">↻</button>
+            </div>
         </div>
     </div>
 
     <div id="snakeScreen" class="screen">
     <div class="game-wrapper">
+        <div class="pause-overlay" id="snake-overlay"><h2>⏸ PAUSED</h2><p>Press P to resume</p></div>
         <canvas id="snakeCanvas" width="480" height="480"></canvas>
         <div class="hud">
             <div class="hud-left">
@@ -640,10 +725,18 @@
                 <button class="btn btn-primary" id="snakeRestart">🔄 Restart</button>
             </div>
         </div>
-    </div>
+            <div class="touch-controls" data-game="snake">
+                <button class="touch-btn" data-action="left">←</button>
+                <button class="touch-btn" data-action="right">→</button>
+                <button class="touch-btn" data-action="up">↑</button>
+                <button class="touch-btn" data-action="down">↓</button>
+            </div>
+        </div>
+</div>
 </div>
     <div id="breakoutScreen" class="screen">
     <div class="game-wrapper" style="background: linear-gradient(145deg, #0b1a2e, #050810); border-color: rgba(0, 240, 255, 0.22);">
+        <div class="pause-overlay" id="breakout-overlay"><h2>⏸ PAUSED</h2><p>Press P to resume</p></div>
         <canvas id="breakoutCanvas" width="480" height="600"></canvas>
         <div class="hud">
             <div class="hud-left">
@@ -655,10 +748,17 @@
                 <button class="btn btn-primary" id="boRestart">🔄 Restart</button>
             </div>
         </div>
-    </div>
+            <div class="touch-controls" data-game="breakout">
+                <button class="touch-btn" data-action="left">←</button>
+                <button class="touch-btn" data-action="right">→</button>
+                <button class="touch-btn action" data-action="action">●</button>
+            </div>
+        </div>
+</div>
 </div>
     <div id="flappyScreen" class="screen">
     <div class="game-wrapper">
+        <div class="pause-overlay" id="flappy-overlay"><h2>⏸ PAUSED</h2><p>Press P to resume</p></div>
         <canvas id="flappyCanvas" width="480" height="600"></canvas>
         <div class="hud">
             <div class="hud-left">
@@ -670,10 +770,15 @@
                 <button class="btn btn-primary" id="flappyRestart">🔄 Restart</button>
             </div>
         </div>
-    </div>
+            <div class="touch-controls" data-game="flappy">
+                <button class="touch-btn action" data-action="flap">↑</button>
+            </div>
+        </div>
+</div>
 </div>
     <div id="shooterScreen" class="screen">
     <div class="game-wrapper" style="background: linear-gradient(145deg, #0b1226, #04060f); border-color: rgba(0, 240, 255, 0.22);">
+        <div class="pause-overlay" id="shooter-overlay"><h2>⏸ PAUSED</h2><p>Press P to resume</p></div>
         <canvas id="shooterCanvas" width="480" height="600"></canvas>
         <div class="hud">
             <div class="hud-left">
@@ -685,7 +790,13 @@
                 <button class="btn btn-primary" id="ssRestart">🔄 Restart</button>
             </div>
         </div>
-    </div>
+            <div class="touch-controls" data-game="shooter">
+                <button class="touch-btn" data-action="left">←</button>
+                <button class="touch-btn" data-action="right">→</button>
+                <button class="touch-btn action" data-action="shoot">●</button>
+            </div>
+        </div>
+</div>
 </div>
     <!-- NEW-SCREENS-HERE -->
     <script>
@@ -723,6 +834,26 @@
     // Init audio on first interaction
     document.addEventListener('click', ()=>ensureAudio(), { once:true });
     document.addEventListener('keydown', ()=>ensureAudio(), { once:true });
+
+    /* ════════════════════════════════════════════════════════════════
+       AMBIENT PARTICLES — floating background stars/dust
+       ════════════════════════════════════════════════════════════════ */
+    const _ambientCount = 30;
+    let _ambientParticles = [];
+    for (let i = 0; i < _ambientCount; i++) {
+        _ambientParticles.push({ x: Math.random()*900, y: Math.random()*600, vx: (Math.random()-0.5)*0.3, vy: (Math.random()-0.5)*0.15, size: 1+Math.random()*1.5, alpha: 0.1+Math.random()*0.25, twinkle: Math.random()*Math.PI*2 });
+    }
+    function drawAmbient(ctx) {
+        for (const p of _ambientParticles) {
+            p.x += p.vx; p.y += p.vy;
+            if (p.x < -5) p.x = 905; if (p.x > 905) p.x = -5;
+            if (p.y < -5) p.y = 605; if (p.y > 605) p.y = -5;
+            p.twinkle += 0.02;
+            const a = p.alpha * (0.6 + 0.4*Math.sin(p.twinkle));
+            ctx.fillStyle = `rgba(150,200,255,${a})`;
+            ctx.fillRect(p.x, p.y, p.size, p.size);
+        }
+    }
 
     /* ════════════════════════════════════════════════════════════════
        SCREEN ROUTER
@@ -910,6 +1041,7 @@
                 if (Math.abs(dx) < 32 && Math.abs(dy) < 30) {
                     plank.collected = true;
                     G.planks++;
+                    SFX.collect();
                     spawnParticles(plank.x - G.camX, plank.y, 10, '#d4a373', 3, 20);
                     updateBridgeHUD();
                 }
@@ -925,6 +1057,7 @@
                 gap.crossed = true; G.gapCount++;
                 if (G.bridgeBuilt >= 100) {
                     G.planks += 3;
+                    SFX.collect();
                     spawnParticles(p.x + p.w / 2, p.y, 20, '#ffd700', 5, 30);
                     updateBridgeHUD();
                 }
@@ -970,7 +1103,8 @@
         if (p.y < 50) p.y = 50;
 
         if (G.distance > G.levelLength) {
-            G.won = true; G.running = false;
+                G.won = true; G.running = false;
+                SFX.win();
             spawnParticles(bW / 2, bH / 2, 80, '#ffd700', 8, 60);
             spawnParticles(bW / 2, bH / 2, 60, '#ff6b6b', 6, 50);
             spawnParticles(bW / 2, bH / 2, 60, '#4ecdc4', 6, 50);
@@ -992,12 +1126,17 @@
 
     function gameOver(won, msg) {
         G.running = false; G.over = true; G.won = won;
+        if (!won) SFX.hit();
         G.overMsg = msg; G.overAt = G.frame;
     }
 
     function bridgeDraw() {
         const ctx = bCtx;
         ctx.clearRect(0, 0, bW, bH);
+        drawAmbient(ctx);
+
+        // --- particles glow wrapper ---
+        const _pg = (ctx, fn) => { ctx.save(); ctx.shadowColor='rgba(255,255,255,0.4)'; ctx.shadowBlur=6; fn(); ctx.restore(); };
 
         const skyGrad = ctx.createLinearGradient(0, 0, 0, bH);
         skyGrad.addColorStop(0, '#4a90d9');
@@ -1232,16 +1371,17 @@
             e.preventDefault();
             if (G.running && G.player.grounded) {
                 G.player.vy = -8.5; G.player.grounded = false;
+                SFX.jump();
             }
         }
     });
 
     bCanvas.addEventListener('click', () => {
-        if (G.running && G.player.grounded) { G.player.vy = -8.5; G.player.grounded = false; }
+        if (G.running && G.player.grounded) { G.player.vy = -8.5; G.player.grounded = false; SFX.jump(); }
     });
     bCanvas.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        if (G.running && G.player.grounded) { G.player.vy = -8.5; G.player.grounded = false; }
+        if (G.running && G.player.grounded) { G.player.vy = -8.5; G.player.grounded = false; SFX.jump(); }
     }, { passive: false });
 
 
@@ -1333,6 +1473,7 @@
         for (let i = 0; i < 18; i++) spawnSparkle(cx + prand(-40, 40), cy + prand(-100, 100));
         flashMessage(arr[P[key]].name + ' ✨');
         updatePrincessLabels();
+        SFX.ui();
     }
 
     document.querySelectorAll('.arrow').forEach(btn => {
@@ -1352,12 +1493,14 @@
         for (let i = 0; i < 30; i++) spawnSparkle(400 + prand(-80, 80), 280 + prand(-150, 150));
         flashMessage('🎲 Random Look!');
         updatePrincessLabels();
+        SFX.powerup();
     });
 
     document.getElementById('resetBtn').addEventListener('click', () => {
         Object.assign(P, defaults);
         flashMessage('↺ Reset!');
         updatePrincessLabels();
+        SFX.ui();
     });
 
     updatePrincessLabels();
@@ -2170,6 +2313,10 @@
         const t = performance.now();
         const ctx = pCtx;
         ctx.clearRect(0, 0, pW, pH);
+        drawAmbient(ctx);
+
+        // --- particles glow wrapper ---
+        const _pg = (ctx, fn) => { ctx.save(); ctx.shadowColor='rgba(255,255,255,0.4)'; ctx.shadowBlur=6; fn(); ctx.restore(); };
 
         drawBg(ctx, t);
         drawShadow(ctx);
@@ -2378,8 +2525,8 @@
         if (!chess || chess.over) return;
         const moves = allLegalMoves(chess.board, 'b');
         if (moves.length === 0) {
-            if (inCheck(chess.board, 'b')) { chess.over = true; chess.winner = 'w'; chess.status = '\u265A Checkmate \u2014 White wins!'; }
-            else { chess.over = true; chess.winner = 'draw'; chess.status = '\u{1F91D} Stalemate \u2014 Draw'; }
+            if (inCheck(chess.board, 'b')) { chess.over = true; chess.winner = 'w'; chess.status = '\u265A Checkmate \u2014 White wins!'; SFX.win(); }
+            else { chess.over = true; chess.winner = 'draw'; chess.status = '\u{1F91D} Stalemate \u2014 Draw'; SFX.hit(); }
             return;
         }
         const VAL = { p:1, n:3, b:3, r:5, q:9, k:0 };
@@ -2395,12 +2542,12 @@
             if (score > bestScore) { bestScore = score; best = m; }
         }
         const cap = applyMove(chess.board, best);
-        if (cap) chess.blackCap.push(cap.type);
+        if (cap) { chess.blackCap.push(cap.type); SFX.explode(); } else SFX.dash();
         chess.turn = 'w';
         if (inCheck(chess.board, 'w')) {
             const wm = allLegalMoves(chess.board, 'w');
-            if (wm.length === 0) { chess.over = true; chess.winner = 'b'; chess.status = '\u265A Checkmate \u2014 Black wins!'; }
-            else chess.status = '\u26A0\uFE0F Check!';
+            if (wm.length === 0) { chess.over = true; chess.winner = 'b'; chess.status = '\u265A Checkmate \u2014 Black wins!'; SFX.lose(); }
+            else { chess.status = '\u26A0\uFE0F Check!'; SFX.tick(); }
         } else chess.status = 'Your move';
     }
 
@@ -2426,12 +2573,12 @@
             const mv = chess.legal.find(m => m.tr === r && m.tc === c);
             if (mv) {
                 const cap = applyMove(chess.board, mv);
-                if (cap) chess.whiteCap.push(cap.type);
+                if (cap) { chess.whiteCap.push(cap.type); SFX.explode(); } else SFX.dash();
                 chess.sel = null; chess.legal = [];
                 chess.turn = 'b';
                 if (inCheck(chess.board, 'b')) {
                     const bm = allLegalMoves(chess.board, 'b');
-                    if (bm.length === 0) { chess.over = true; chess.winner = 'w'; chess.status = '\u265A Checkmate \u2014 White wins!'; return; }
+                    if (bm.length === 0) { chess.over = true; chess.winner = 'w'; chess.status = '\u265A Checkmate \u2014 White wins!'; SFX.win(); }
                     else chess.status = '\u26A0\uFE0F Check!';
                 } else chess.status = 'Thinking\u2026';
                 setTimeout(aiMove, 500);
@@ -2451,6 +2598,7 @@
     function chessDraw() {
         if (!chess) return;
         const ctx = cCtx;
+        drawAmbient(ctx);
         chess.glow += 0.05;
         const pulse = 0.5 + 0.5 * Math.sin(chess.glow);
         for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
@@ -2571,6 +2719,7 @@
             tetris.score += [0, 100, 300, 500, 800][cleared] * tetris.level;
             tetris.lines += cleared;
             tetris.level = Math.floor(tetris.lines / 10) + 1;
+            SFX.powerup();
         }
     }
 
@@ -2582,7 +2731,7 @@
         tetris.type = tetris.next;
         tetris.next = PTYPES[Math.floor(Math.random()*7)];
         tetris.x = 3; tetris.y = 0; tetris.rot = 0;
-        if (collide(tetris.type, tetris.rot, tetris.x, tetris.y)) tetris.over = true;
+        if (collide(tetris.type, tetris.rot, tetris.x, tetris.y)) { tetris.over = true; SFX.lose(); }
     }
 
     function moveDown() {
@@ -2593,6 +2742,7 @@
     function hardDrop() {
         while (!collide(tetris.type, tetris.rot, tetris.x, tetris.y + 1)) { tetris.y++; tetris.score += 2; }
         lockPiece();
+        SFX.dash();
     }
 
     function tryMove(dx) {
@@ -2601,9 +2751,9 @@
 
     function tryRotate() {
         const nr = (tetris.rot+1)%4;
-        if (!collide(tetris.type, nr, tetris.x, tetris.y)) tetris.rot = nr;
-        else if (!collide(tetris.type, nr, tetris.x+1, tetris.y)) { tetris.rot = nr; tetris.x++; }
-        else if (!collide(tetris.type, nr, tetris.x-1, tetris.y)) { tetris.rot = nr; tetris.x--; }
+        if (!collide(tetris.type, nr, tetris.x, tetris.y)) { tetris.rot = nr; SFX.rotate(); }
+        else if (!collide(tetris.type, nr, tetris.x+1, tetris.y)) { tetris.rot = nr; tetris.x++; SFX.rotate(); }
+        else if (!collide(tetris.type, nr, tetris.x-1, tetris.y)) { tetris.rot = nr; tetris.x--; SFX.rotate(); }
     }
 
     function tetrisInit() {
@@ -2656,6 +2806,7 @@
         tCtx.clearRect(0,0,tCanvas.width,tCanvas.height);
         tCtx.fillStyle = '#0a0610';
         tCtx.fillRect(0,0,tCanvas.width,tCanvas.height);
+        drawAmbient(tCtx);
         tCtx.strokeStyle = 'rgba(255,255,255,0.04)';
         for (let i=0;i<=TCOLS;i++) { tCtx.beginPath(); tCtx.moveTo(i*TCELL,0); tCtx.lineTo(i*TCELL,TROWS*TCELL); tCtx.stroke(); }
         for (let r=0;r<TROWS;r++) for (let c=0;c<TCOLS;c++) {
@@ -2825,6 +2976,7 @@
             try { localStorage.setItem(KEY_BEST, String(best)); } catch (e) {}
         }
         if (bestEl) bestEl.textContent = String(best);
+        SFX.hit();
     }
 
     function step() {
@@ -2848,6 +3000,7 @@
             burst(hx * CELL + CELL / 2, hy * CELL + CELL / 2);
             tickInterval = Math.max(65, tickInterval * 0.97);
             spawnFood();
+            SFX.collect();
         } else {
             snake.pop();
         }
@@ -2859,6 +3012,8 @@
         g.addColorStop(1, '#050810');
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, W, H);
+        drawAmbient(ctx);
+        drawAmbient(ctx);
 
         var i, x, y;
 
@@ -3264,6 +3419,7 @@ function boCollideBricks() {
             boUpdateHUD();
             boSpawnParticles(b.x, b.y, 14, br.color, 4, 30);
             boSpawnParticles(b.x, b.y, 6, '#ffffff', 2.5, 20);
+            SFX.explode();
 
             const oL = (b.x + b.r) - br.x;
             const oR = (br.x + br.w) - (b.x - b.r);
@@ -3287,6 +3443,7 @@ function boCollideBricks() {
         boSpawnParticles(boW / 2, boH / 2, 60, '#ffd700', 6, 60);
         boSpawnParticles(boW / 2, boH / 2, 40, '#00f0ff', 5, 50);
         boSpawnParticles(boW / 2, boH / 2, 40, '#ff2d75', 5, 50);
+        SFX.win();
     }
 }
 
@@ -3331,8 +3488,10 @@ function boUpdate() {
         if (b.y - b.r > boH) {
             bo.lives--;
             boUpdateHUD();
+            SFX.hit();
             if (bo.lives <= 0) {
                 bo.over = true; bo.won = false;
+                SFX.lose();
             } else {
                 boResetBall(true);
             }
@@ -3363,6 +3522,7 @@ function boDraw() {
     bg.addColorStop(1, '#050810');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, boW, boH);
+    drawAmbient(ctx);
 
     // faint grid
     ctx.strokeStyle = 'rgba(0, 240, 255, 0.05)';
@@ -3650,6 +3810,7 @@ document.getElementById('boRestart').addEventListener('click', breakoutInit);
             if (state === STATE_READY) state = STATE_PLAY;
             bird.v = -6.4;
             flapPulse = 1;
+            SFX.jump();
         }
     }
 
@@ -3660,6 +3821,7 @@ document.getElementById('boRestart').addEventListener('click', breakoutInit);
         newBest = score > best;
         if (newBest) { best = score; try { localStorage.setItem(KEY, String(best)); } catch (e) {} }
         if (bestEl) bestEl.textContent = best;
+        SFX.hit();
     }
 
     function update(dt) {
@@ -3699,6 +3861,7 @@ document.getElementById('boRestart').addEventListener('click', breakoutInit);
                 p.scored = true;
                 score++;
                 if (titleEl) titleEl.textContent = score;
+                SFX.collect();
             }
         }
         if (pipes.length === 0 || pipes[pipes.length - 1].x < W - 250) spawnPipe();
@@ -3736,10 +3899,10 @@ document.getElementById('boRestart').addEventListener('click', breakoutInit);
             var hr = bird.r * 0.78;
             if (hx + hr > p2.x && hx - hr < p2.x + p2.w) {
                 var topB = p2.gapY, botB = p2.gapY + p2.gapH;
-                if (hy - hr < topB || hy + hr > botB) { die(); break; }
+                if (hy - hr < topB || hy + hr > botB) { SFX.hit(); die(); break; }
             }
         }
-        if (state === STATE_PLAY && bird.y + bird.r > GROUND_Y) { die(); }
+        if (state === STATE_PLAY && bird.y + bird.r > GROUND_Y) { SFX.hit(); die(); }
     }
 
     function drawBackground() {
@@ -4255,6 +4418,7 @@ function ssFire() {
     ss.fireCd = 9;
     const p = ss.player;
     ss.bullets.push({ x: p.x, y: p.y - p.h / 2 - 6, vx: 0, vy: -8.5, r: 3 });
+    SFX.shoot();
 }
 
 function ssEnemyFire(e) {
@@ -4279,6 +4443,7 @@ function ssKillEnemy(idx, x, y) {
     ssSpawnParticles(e.x, e.y, 8, '#ffffff', 2.5, 18);
     ss.rings.push({ x: e.x, y: e.y, r: 4, grow: 2.4, life: 22, color: e.color });
     ss.enemies.splice(idx, 1);
+    SFX.explode();
 }
 
 function ssHitPlayer(enemyIdx, x, y) {
@@ -4288,6 +4453,7 @@ function ssHitPlayer(enemyIdx, x, y) {
     ssSpawnParticles(x, y, 12, '#ffffff', 3, 22);
     ss.shake = 14;
     ss.invuln = 100;
+    SFX.hit();
     if (enemyIdx >= 0) {
         const e = ss.enemies[enemyIdx];
         ssSpawnParticles(e.x, e.y, 18, e.color, 4.5, 30);
@@ -4296,6 +4462,7 @@ function ssHitPlayer(enemyIdx, x, y) {
     }
     if (ss.lives <= 0) {
         ss.over = true;
+        SFX.lose();
         if (ss.score > ssBest) {
             ssBest = ss.score;
             try { window.localStorage.setItem('shooterBest', String(ssBest)); } catch (e) {}
@@ -4582,6 +4749,7 @@ function ssDraw() {
     if (ss.shake > 0) {
         ctx.translate((Math.random() - 0.5) * ss.shake * 0.7, (Math.random() - 0.5) * ss.shake * 0.7);
     }
+    drawAmbient(ctx);
 
     const bg = ctx.createLinearGradient(0, 0, 0, ssH);
     bg.addColorStop(0, '#0a0f22');
@@ -4774,6 +4942,109 @@ ssCanvas.addEventListener('touchend', (e) => {
 }, { passive: false });
 
 document.getElementById('ssRestart').addEventListener('click', shooterInit);
+
+    /* ════════════════════════════════════════════════════════════════
+       MENU: play counter + search filter
+       ════════════════════════════════════════════════════════════════ */
+    function trackPlay(game) {
+        const key = 'arcade_plays_' + game;
+        const count = parseInt(localStorage.getItem(key) || '0') + 1;
+        localStorage.setItem(key, count);
+        const badge = document.getElementById('play-' + game);
+        if (badge) badge.textContent = count;
+        SFX.ui();
+    }
+    // Load saved play counts on startup
+    (function loadPlays() {
+        const games = ['bridge','princess','chess','tetris','snake','breakout','flappy','shooter'];
+        for (const g of games) {
+            const key = 'arcade_plays_' + g;
+            const count = localStorage.getItem(key) || '0';
+            const badge = document.getElementById('play-' + g);
+            if (badge) badge.textContent = count;
+        }
+    })();
+
+    function filterGames(query) {
+        const q = query.toLowerCase().trim();
+        document.querySelectorAll('.game-card').forEach(card => {
+            const title = card.querySelector('.card-title').textContent.toLowerCase();
+            const desc = card.querySelector('.card-desc').textContent.toLowerCase();
+            card.classList.toggle('hidden', q && !title.includes(q) && !desc.includes(q));
+        });
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       UNIVERSAL PAUSE — P key toggles pause overlay on any active game
+       ════════════════════════════════════════════════════════════════ */
+    let _pausedScreen = null;
+    document.addEventListener('keydown', (e) => {
+        if ((e.key === 'p' || e.key === 'P') && currentScreen !== 'menu') {
+            const screenEl = document.getElementById(currentScreen + 'Screen');
+            if (!screenEl) return;
+            const overlay = screenEl.querySelector('.pause-overlay');
+            if (!overlay) return;
+            e.preventDefault();
+            overlay.classList.toggle('active');
+            _pausedScreen = overlay.classList.contains('active') ? currentScreen : null;
+            SFX.ui();
+        }
+    });
+
+    /* ════════════════════════════════════════════════════════════════
+       TOUCH CONTROLS — unified handler dispatching to per-game functions
+       ════════════════════════════════════════════════════════════════ */
+    document.querySelectorAll('.touch-btn').forEach(btn => {
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const action = btn.dataset.action;
+            const game = btn.closest('[data-game]')?.dataset.game;
+            if (!game || !action) return;
+            const handler = window['_tc_' + game + '_' + action];
+            if (handler) handler();
+            else if (window['_tc_' + game]) window['_tc_' + game](action);
+        }, { passive: false });
+    });
+
+    // ─── Bridge touch handlers ───
+    window._tc_bridge_left = () => { if (G.running && G.player.grounded) G.keys.left = true; };
+    window._tc_bridge_right = () => { if (G.running && G.player.grounded) G.keys.right = true; };
+    window._tc_bridge_up = () => { if (G.running && G.player.grounded) { G.player.vy = -8.5; G.player.grounded = false; SFX.jump(); } };
+    window._tc_bridge_action = window._tc_bridge_up;
+
+    // ─── Snake touch handlers ───
+    window._tc_snake_left = () => { if (snake.dir.x !== 1) snake.dir = {x:-1,y:0}; SFX.dash(); };
+    window._tc_snake_right = () => { if (snake.dir.x !== -1) snake.dir = {x:1,y:0}; SFX.dash(); };
+    window._tc_snake_up = () => { if (snake.dir.y !== 1) snake.dir = {x:0,y:-1}; SFX.dash(); };
+    window._tc_snake_down = () => { if (snake.dir.y !== -1) snake.dir = {x:0,y:1}; SFX.dash(); };
+
+    // ─── Breakout touch handlers ───
+    window._tc_breakout_left = () => { bo.paddle.vx = -6; };
+    window._tc_breakout_right = () => { bo.paddle.vx = 6; };
+    window._tc_breakout_action = () => { bo.ball.vy = -Math.abs(bo.ball.vy); };
+
+    // ─── Flappy touch handlers ───
+    window._tc_flappy_flap = () => { if (!fp.over && fp.running) { fp.vy = -7; SFX.jump(); } };
+
+    // ─── Shooter touch handlers ───
+    window._tc_shooter_left = () => { ss.player.vx = -4; };
+    window._tc_shooter_right = () => { ss.player.vx = 4; };
+    window._tc_shooter_shoot = () => { ss.firing = true; };
+
+    // ─── Tetris touch handlers ───
+    window._tc_tetris_left = () => { if (currentScreen === 'tetris' && tetris && !tetris.over) tryMove(-1); };
+    window._tc_tetris_right = () => { if (currentScreen === 'tetris' && tetris && !tetris.over) tryMove(1); };
+    window._tc_tetris_down = () => { if (currentScreen === 'tetris' && tetris && !tetris.over) moveDown(); };
+    window._tc_tetris_rotate = () => { if (currentScreen === 'tetris' && tetris && !tetris.over) tryRotate(); };
+
+    // ─── Pause overlay click-to-resume ───
+    document.querySelectorAll('.pause-overlay').forEach(ov => {
+        ov.addEventListener('click', () => {
+            ov.classList.remove('active');
+            _pausedScreen = null;
+            SFX.ui();
+        });
+    });
     // NEW-JS-HERE
     </script>
 </body>
