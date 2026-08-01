@@ -1,0 +1,107 @@
+[gd_scene load_steps=18 format=3 uid="uid://main"]
+
+[ext_resource type="Script" path="res://scripts/player.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/care_package.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/dropoff_zone.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/hud.gd" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/ConfettiTrap.tscn" id="5"]
+[ext_resource type="Script" path="res://scripts/game_manager.gd" id="6"]
+[ext_resource type="Script" path="res://scripts/main_control.gd" id="7"]
+[ext_resource type="Shader" path="res://scripts/pulse_shader.gdshader" id="8"]
+[ext_resource type="Texture2D" path="res://sprites/player1.png" id="9"]
+[ext_resource type="Texture2D" path="res://sprites/player2.png" id="10"]
+[ext_resource type="Texture2D" path="res://sprites/care_package.png" id="11"]
+[ext_resource type="Texture2D" path="res://sprites/dropoff_zone.png" id="12"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+size = Vector2(1150, 50)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_2"]
+size = Vector2(50, 750)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_3"]
+size = Vector2(200, 50)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_5"]
+size = Vector2(50, 50)
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1"]
+shader = ExtResource("8")
+
+[node name="Main" type="Node2D"]
+script = ExtResource("7")
+
+[node name="Walls" type="StaticBody2D" parent="."]
+[node name="Top" type="CollisionShape2D" parent="Walls"]
+shape = SubResource("RectangleShape2D_1")
+position = Vector2(0, -350)
+[node name="Bottom" type="CollisionShape2D" parent="Walls"]
+shape = SubResource("RectangleShape2D_1")
+position = Vector2(0, 350)
+[node name="Left" type="CollisionShape2D" parent="Walls"]
+shape = SubResource("RectangleShape2D_2")
+position = Vector2(-550, 0)
+[node name="Right" type="CollisionShape2D" parent="Walls"]
+shape = SubResource("RectangleShape2D_2")
+position = Vector2(550, 0)
+
+[node name="Player1" type="CharacterBody2D" parent="."]
+position = Vector2(-200, 0)
+script = ExtResource("1")
+player_id = 1
+trap_scene = ExtResource("5")
+[node name="Sprite2D" type="Sprite2D" parent="Player1"]
+texture = ExtResource("9")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player1"]
+shape = SubResource("RectangleShape2D_5")
+
+[node name="Player2" type="CharacterBody2D" parent="."]
+position = Vector2(200, 0)
+script = ExtResource("1")
+player_id = 2
+trap_scene = ExtResource("5")
+[node name="Sprite2D" type="Sprite2D" parent="Player2"]
+texture = ExtResource("10")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player2"]
+shape = SubResource("RectangleShape2D_5")
+
+[node name="CarePackage" type="Area2D" parent="."]
+position = Vector2(0, 0)
+script = ExtResource("2")
+[node name="Sprite2D" type="Sprite2D" parent="CarePackage"]
+modulate = Color(1, 0.8, 0, 1)
+texture = ExtResource("11")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CarePackage"]
+shape = SubResource("RectangleShape2D_5")
+
+[node name="DropoffZone_Top" type="Area2D" parent="."]
+position = Vector2(0, -300)
+script = ExtResource("3")
+zone_owner = 1
+[node name="Sprite2D" type="Sprite2D" parent="DropoffZone_Top"]
+modulate = Color(1, 1, 1, 0.5)
+scale = Vector2(5, 0.5)
+material = SubResource("ShaderMaterial_1")
+texture = ExtResource("12")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DropoffZone_Top"]
+shape = SubResource("RectangleShape2D_3")
+
+[node name="DropoffZone_Bottom" type="Area2D" parent="."]
+position = Vector2(0, 300)
+script = ExtResource("3")
+zone_owner = 2
+[node name="Sprite2D" type="Sprite2D" parent="DropoffZone_Bottom"]
+modulate = Color(0, 0, 0, 0.5)
+scale = Vector2(5, 0.5)
+material = SubResource("ShaderMaterial_1")
+texture = ExtResource("12")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DropoffZone_Bottom"]
+shape = SubResource("RectangleShape2D_3")
+
+[node name="GameManager" type="Node" parent="."]
+script = ExtResource("6")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("4")
+[node name="Label" type="Label" parent="HUD"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 20.0
+text = "📦 Grab the Package in the middle!"
+horizontal_alignment = 1

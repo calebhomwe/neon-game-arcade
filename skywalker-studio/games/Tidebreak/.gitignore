@@ -1,0 +1,4 @@
+.godot/
+*.import
+browser-playable.html
+generate_assets.ps1

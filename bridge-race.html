@@ -1,0 +1,2620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🎮 Bridge Race</title>
+    <style>
+        /* ─── RESET & BASE ─── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background: #0b1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            overflow: hidden;
+        }
+
+        /* ─── GAME WRAPPER ─── */
+        .game-wrapper {
+            background: linear-gradient(145deg, #1a2f44, #0f1f30);
+            border-radius: 40px;
+            padding: 20px 20px 25px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(100, 200, 255, 0.05);
+            border: 1px solid rgba(100, 200, 255, 0.15);
+        }
+
+        canvas {
+            display: block;
+            width: 800px;
+            height: 500px;
+            border-radius: 24px;
+            background: #87CEEB;
+            box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 150, 255, 0.2);
+            cursor: pointer;
+            image-rendering: pixelated;
+        }
+
+        /* ─── HUD ─── */
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 14px;
+            padding: 0 10px;
+            color: #fff;
+            font-weight: 700;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        }
+
+        .hud-left {
+            display: flex;
+            gap: 30px;
+            font-size: 18px;
+            letter-spacing: 0.5px;
+        }
+
+        .hud-left span {
+            background: rgba(0, 0, 0, 0.35);
+            padding: 6px 18px;
+            border-radius: 40px;
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .hud-left .icon {
+            font-size: 20px;
+        }
+
+        .hud-right {
+            display: flex;
+            gap: 14px;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            padding: 8px 24px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            backdrop-filter: blur(6px);
+            letter-spacing: 0.3px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.18);
+            transform: scale(1.04);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-primary {
+            background: #f7b731;
+            border-color: #f7b731;
+            color: #1a2f44;
+        }
+        .btn-primary:hover {
+            background: #ffcd5a;
+            border-color: #ffcd5a;
+        }
+
+        /* ─── GAME TABS ─── */
+        .game-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .game-tab {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            padding: 10px 26px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            backdrop-filter: blur(6px);
+            letter-spacing: 0.3px;
+        }
+
+        .game-tab:hover {
+            background: rgba(255, 255, 255, 0.18);
+        }
+
+        .game-tab.active {
+            background: linear-gradient(145deg, #f7b731, #ff9f1a);
+            border-color: #f7b731;
+            color: #1a2f44;
+        }
+
+        .game-section {
+            display: none;
+        }
+
+        .game-section.active {
+            display: block;
+        }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 860px) {
+            canvas {
+                width: 100%;
+                height: auto;
+                aspect-ratio: 800/500;
+            }
+            .game-wrapper {
+                padding: 12px;
+                border-radius: 28px;
+                margin: 10px;
+                width: 95vw;
+            }
+            .hud {
+                flex-wrap: wrap;
+                gap: 10px;
+                justify-content: center;
+            }
+            .hud-left {
+                font-size: 15px;
+                gap: 14px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .hud-right .btn {
+                padding: 6px 16px;
+                font-size: 13px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hud-left span {
+                padding: 4px 12px;
+                font-size: 13px;
+            }
+            .btn {
+                padding: 5px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-wrapper">
+        <div class="game-tabs">
+            <button class="game-tab active" data-game="bridge">🏃 Bridge Race</button>
+            <button class="game-tab" data-game="princess">👑 Fashion Princess</button>
+        </div>
+
+        <!-- ━━━━ BRIDGE RACE ━━━━ -->
+        <div class="game-section active" id="bridgeSection">
+            <canvas id="gameCanvas" width="800" height="500"></canvas>
+            <div class="hud">
+                <div class="hud-left">
+                    <span><span class="icon">🪵</span> Planks: <strong id="plankCount">0</strong></span>
+                    <span><span class="icon">🏗️</span> Bridge: <strong id="bridgeProgress">0%</strong></span>
+                    <span><span class="icon">📏</span> Distance: <strong id="distanceCount">0</strong>m</span>
+                </div>
+                <div class="hud-right">
+                    <button class="btn btn-primary" id="restartBtn">🔄 Restart</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ━━━━ FASHION PRINCESS ━━━━ -->
+        <div class="game-section" id="princessSection">
+            <canvas id="princessCanvas" width="800" height="500"></canvas>
+            <div class="hud">
+                <div class="hud-left">
+                    <span><span class="icon">👗</span> Dress: <strong id="dressName">Royal Gown</strong></span>
+                    <span><span class="icon">💇</span> Hair: <strong id="hairName">Long Flowing</strong></span>
+                </div>
+                <div class="hud-right">
+                    <button class="btn" id="randomBtn">🎲 Surprise Me</button>
+                    <button class="btn btn-primary" id="resetBtn">🔄 Reset</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           GAME SWITCHER
+           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        let currentGame = 'bridge';
+
+        document.querySelectorAll('.game-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const game = tab.dataset.game;
+                if (game === currentGame) return;
+                document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.querySelectorAll('.game-section').forEach(s => s.classList.remove('active'));
+                document.getElementById(game + 'Section').classList.add('active');
+                currentGame = game;
+            });
+        });
+    </script>
+
+    <script>
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  BRIDGE RACE  –  Full Game
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const W = 800,
+            H = 500;
+
+        // ─── DOM refs ───
+        const plankSpan = document.getElementById('plankCount');
+        const bridgeSpan = document.getElementById('bridgeProgress');
+        const distSpan = document.getElementById('distanceCount');
+
+        // ─── GAME STATE ───
+        const G = {
+            running: false,
+            over: false,
+            won: false,
+            planks: 0,
+            distance: 0,
+            bridgeBuilt: 0, // 0..100
+            targetBridge: 100,
+            speed: 3.2,
+            maxSpeed: 7.5,
+            gapCount: 0,
+            totalGaps: 6,
+            spawnTimer: 0,
+            plankSpawnInterval: 45,
+            particles: [],
+            obstacles: [],
+            planksOnGround: [],
+            gaps: [],
+            bridgePlanks: [],
+            bgOffset: 0,
+            clouds: [],
+            trees: [],
+            // player
+            player: {
+                x: 110,
+                y: 340,
+                w: 28,
+                h: 40,
+                vy: 0,
+                grounded: true,
+                targetY: 340,
+                bob: 0,
+                legSwing: 0,
+            },
+            // camera
+            camX: 0,
+            // level length
+            levelLength: 3800,
+            // bridge building
+            building: false,
+            buildTimer: 0,
+            buildDuration: 20,
+            // auto-run
+            autoRun: true,
+            // time
+            frame: 0,
+        };
+
+        // ─── INIT ───
+        function initGame() {
+            G.running = true;
+            G.over = false;
+            G.won = false;
+            G.planks = 0;
+            G.distance = 0;
+            G.bridgeBuilt = 0;
+            G.speed = 3.2;
+            G.gapCount = 0;
+            G.spawnTimer = 0;
+            G.particles = [];
+            G.obstacles = [];
+            G.planksOnGround = [];
+            G.gaps = [];
+            G.bridgePlanks = [];
+            G.camX = 0;
+            G.building = false;
+            G.buildTimer = 0;
+            G.frame = 0;
+            G.player.y = 340;
+            G.player.vy = 0;
+            G.player.grounded = true;
+            G.player.bob = 0;
+            G.player.legSwing = 0;
+
+            generateLevel();
+            generateClouds();
+            generateTrees();
+
+            updateHUD();
+        }
+
+        // ─── LEVEL GENERATION ───
+        function generateLevel() {
+            // gaps at various positions
+            const gapPositions = [];
+            let pos = 400;
+            for (let i = 0; i < G.totalGaps; i++) {
+                const gapLen = 80 + Math.random() * 60;
+                const gapStart = pos + 120 + Math.random() * 160;
+                gapPositions.push({ start: gapStart, end: gapStart + gapLen, crossed: false });
+                pos = gapStart + gapLen + 100;
+            }
+            G.gaps = gapPositions;
+            G.levelLength = Math.max(pos + 600, 3200);
+
+            // planks on ground
+            G.planksOnGround = [];
+            for (let i = 0; i < 50; i++) {
+                let x = 60 + Math.random() * (G.levelLength - 120);
+                // avoid placing inside gaps
+                let insideGap = false;
+                for (const g of G.gaps) {
+                    if (x > g.start - 20 && x < g.end + 20) { insideGap = true; break; }
+                }
+                if (!insideGap) {
+                    G.planksOnGround.push({
+                        x: x,
+                        y: 412 + Math.random() * 6 - 3,
+                        collected: false,
+                        size: 14 + Math.random() * 6,
+                        bob: Math.random() * Math.PI * 2,
+                    });
+                }
+            }
+        }
+
+        function generateClouds() {
+            G.clouds = [];
+            for (let i = 0; i < 14; i++) {
+                G.clouds.push({
+                    x: Math.random() * 900 - 100,
+                    y: 20 + Math.random() * 140,
+                    w: 70 + Math.random() * 100,
+                    speed: 0.15 + Math.random() * 0.25,
+                    opacity: 0.4 + Math.random() * 0.4,
+                });
+            }
+        }
+
+        function generateTrees() {
+            G.trees = [];
+            for (let i = 0; i < 30; i++) {
+                let x = 40 + Math.random() * (G.levelLength - 80);
+                let insideGap = false;
+                for (const g of G.gaps) {
+                    if (x > g.start - 30 && x < g.end + 30) { insideGap = true; break; }
+                }
+                if (!insideGap) {
+                    G.trees.push({
+                        x: x,
+                        size: 16 + Math.random() * 18,
+                        shade: 0.2 + Math.random() * 0.3,
+                    });
+                }
+            }
+        }
+
+        // ─── HUD UPDATE ───
+        function updateHUD() {
+            plankSpan.textContent = G.planks;
+            bridgeSpan.textContent = Math.min(100, Math.floor(G.bridgeBuilt)) + '%';
+            distSpan.textContent = Math.floor(G.distance);
+        }
+
+        // ─── HELPERS ───
+        function lerp(a, b, t) { return a + (b - a) * t; }
+
+        function rand(min, max) { return min + Math.random() * (max - min); }
+
+        // ─── PARTICLES ───
+        function spawnParticles(x, y, count, color, speed, life) {
+            for (let i = 0; i < count; i++) {
+                const angle = rand(0, Math.PI * 2);
+                const spd = rand(0.5, speed);
+                G.particles.push({
+                    x,
+                    y,
+                    vx: Math.cos(angle) * spd,
+                    vy: Math.sin(angle) * spd - 0.5,
+                    life: rand(life * 0.5, life),
+                    maxLife: life,
+                    size: rand(2, 6),
+                    color: color,
+                    gravity: 0.05,
+                });
+            }
+        }
+
+        function spawnBridgeParticles(x, y) {
+            spawnParticles(x, y, 18, '#f7b731', 4, 30);
+            spawnParticles(x, y, 10, '#ffdd77', 3, 20);
+            spawnParticles(x, y, 6, '#ffffff', 2, 15);
+        }
+
+        // ─── COLLISION ───
+        function rectCollide(ax, ay, aw, ah, bx, by, bw, bh) {
+            return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+        }
+
+        // ─── GAME LOGIC ───
+        function update() {
+            if (!G.running || G.over) return;
+            G.frame++;
+
+            const p = G.player;
+
+            // ── auto-run ──
+            if (G.autoRun) {
+                G.distance += G.speed * 0.6;
+                G.camX += G.speed * 0.6;
+            }
+
+            // ── speed up gradually ──
+            if (G.distance > 200 && G.speed < G.maxSpeed) {
+                G.speed += 0.003;
+            }
+
+            // ── player bob ──
+            p.bob += 0.06 * G.speed;
+            p.legSwing += 0.08 * G.speed;
+
+            // ── collect planks ──
+            const pWorldX = p.x + G.camX;
+            for (const plank of G.planksOnGround) {
+                if (!plank.collected) {
+                    const dx = pWorldX - plank.x;
+                    const dy = (p.y + p.h / 2) - plank.y;
+                    if (Math.abs(dx) < 32 && Math.abs(dy) < 30) {
+                        plank.collected = true;
+                        G.planks++;
+                        spawnParticles(plank.x - G.camX, plank.y, 10, '#d4a373', 3, 20);
+                        updateHUD();
+                    }
+                }
+            }
+
+            // ── gaps & bridge building ──
+            let inGap = false;
+            let currentGap = null;
+            for (const gap of G.gaps) {
+                if (!gap.crossed && pWorldX + p.w > gap.start && pWorldX < gap.end) {
+                    inGap = true;
+                    currentGap = gap;
+                    break;
+                }
+                if (!gap.crossed && pWorldX + p.w > gap.end + 20) {
+                    gap.crossed = true;
+                    G.gapCount++;
+                    // bonus planks for crossing
+                    if (G.bridgeBuilt >= 100) {
+                        G.planks += 3;
+                        spawnParticles(p.x + p.w / 2, p.y, 20, '#ffd700', 5, 30);
+                        updateHUD();
+                    }
+                }
+            }
+
+            if (inGap && currentGap) {
+                // build bridge
+                if (!G.building) {
+                    G.building = true;
+                    G.buildTimer = 0;
+                }
+                G.buildTimer++;
+                const buildSpeed = 0.8 + G.planks * 0.04;
+                G.bridgeBuilt = Math.min(100, G.bridgeBuilt + buildSpeed);
+
+                // consume planks as we build
+                if (G.frame % 3 === 0 && G.planks > 0 && G.bridgeBuilt < 100) {
+                    G.planks--;
+                    spawnBridgeParticles(
+                        p.x + p.w / 2 + rand(-20, 20),
+                        p.y + p.h + rand(0, 10)
+                    );
+                    updateHUD();
+                }
+
+                // if bridge is complete
+                if (G.bridgeBuilt >= 100) {
+                    G.building = false;
+                    // mark gap as crossed
+                    currentGap.crossed = true;
+                    G.gapCount++;
+                    // big celebration
+                    spawnParticles(p.x + p.w / 2, p.y, 30, '#ffd700', 6, 40);
+                    spawnParticles(p.x + p.w / 2, p.y, 20, '#ff6b6b', 5, 30);
+                    spawnParticles(p.x + p.w / 2, p.y, 20, '#4ecdc4', 5, 30);
+                    // bonus
+                    G.planks += 5;
+                    updateHUD();
+                }
+            } else {
+                G.building = false;
+                // if not in a gap, slowly decrease bridge (maintenance)
+                if (G.bridgeBuilt > 0 && G.frame % 10 === 0) {
+                    G.bridgeBuilt = Math.max(0, G.bridgeBuilt - 0.15);
+                    updateHUD();
+                }
+            }
+
+            // ── check if fell ──
+            if (inGap && G.bridgeBuilt < 40 && G.planks < 2) {
+                // not enough planks to build - fall!
+                p.vy += 0.5;
+                p.y += p.vy;
+                if (p.y > H + 50) {
+                    gameOver('💀 You fell into the gap!');
+                }
+                return;
+            }
+
+            // ── gravity ──
+            if (!p.grounded) {
+                p.vy += 0.4;
+                p.y += p.vy;
+            }
+
+            // ── ground collision ──
+            const groundY = 420;
+            if (p.y + p.h >= groundY) {
+                p.y = groundY - p.h;
+                p.vy = 0;
+                p.grounded = true;
+            } else {
+                p.grounded = false;
+            }
+
+            // ── keep player in bounds ──
+            if (p.y < 50) p.y = 50;
+
+            // ── check win ──
+            if (G.distance > G.levelLength) {
+                G.won = true;
+                G.running = false;
+                spawnParticles(W / 2, H / 2, 80, '#ffd700', 8, 60);
+                spawnParticles(W / 2, H / 2, 60, '#ff6b6b', 6, 50);
+                spawnParticles(W / 2, H / 2, 60, '#4ecdc4', 6, 50);
+                setTimeout(() => {
+                    gameOver('🏆 YOU WIN! 🎉', true);
+                }, 300);
+                return;
+            }
+
+            // ── update particles ──
+            for (let i = G.particles.length - 1; i >= 0; i--) {
+                const pt = G.particles[i];
+                pt.x += pt.vx;
+                pt.y += pt.vy;
+                pt.vy += pt.gravity;
+                pt.life--;
+                if (pt.life <= 0 || pt.y > H + 20) {
+                    G.particles.splice(i, 1);
+                }
+            }
+
+            // ── update clouds ──
+            for (const cloud of G.clouds) {
+                cloud.x += cloud.speed * 0.2;
+                if (cloud.x > 900) cloud.x = -cloud.w;
+            }
+
+            // ── update HUD ──
+            updateHUD();
+        }
+
+        // ─── GAME OVER ───
+        function gameOver(msg, won = false) {
+            G.running = false;
+            G.over = true;
+            G.won = won;
+            // show message on canvas via draw
+        }
+
+        // ─── DRAW ───
+        function draw() {
+            ctx.clearRect(0, 0, W, H);
+
+            // ── sky gradient ──
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+            skyGrad.addColorStop(0, '#4a90d9');
+            skyGrad.addColorStop(0.55, '#87CEEB');
+            skyGrad.addColorStop(0.85, '#b8d4e8');
+            skyGrad.addColorStop(1, '#d4e8f0');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, W, H);
+
+            // ── sun ──
+            ctx.save();
+            const sunX = 700,
+                sunY = 70;
+            const grad = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 90);
+            grad.addColorStop(0, 'rgba(255,255,220,1)');
+            grad.addColorStop(0.3, 'rgba(255,235,150,0.9)');
+            grad.addColorStop(1, 'rgba(255,200,100,0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, 90, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fffbe6';
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, 38, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff9d0';
+            ctx.beginPath();
+            ctx.arc(sunX - 8, sunY - 8, 28, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // ── clouds ──
+            for (const cloud of G.clouds) {
+                const cx = cloud.x - G.camX * 0.08;
+                const cy = cloud.y;
+                ctx.globalAlpha = cloud.opacity;
+                ctx.fillStyle = '#ffffff';
+                const w = cloud.w;
+                const h = w * 0.3;
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(cx - w * 0.25, cy + 6, w * 0.28, h * 0.4, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(cx + w * 0.25, cy + 4, w * 0.3, h * 0.38, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+
+            // ── ground ──
+            const groundY = 420;
+            ctx.fillStyle = '#6d8a5e';
+            ctx.fillRect(0, groundY, W, H - groundY);
+            // grass top
+            ctx.fillStyle = '#7ba36b';
+            ctx.fillRect(0, groundY - 4, W, 8);
+
+            // ── draw gaps ──
+            for (const gap of G.gaps) {
+                if (gap.crossed) continue;
+                const gx = gap.start - G.camX;
+                const gw = gap.end - gap.start;
+                if (gx + gw > -20 && gx < W + 20) {
+                    // dark void
+                    const grad2 = ctx.createLinearGradient(0, groundY, 0, H);
+                    grad2.addColorStop(0, '#3d2b1f');
+                    grad2.addColorStop(0.5, '#1a0f0a');
+                    grad2.addColorStop(1, '#0a0505');
+                    ctx.fillStyle = grad2;
+                    ctx.fillRect(gx, groundY + 2, gw, H - groundY - 2);
+
+                    // glow at edges
+                    ctx.fillStyle = 'rgba(255,200,100,0.08)';
+                    ctx.fillRect(gx, groundY, 8, 20);
+                    ctx.fillRect(gx + gw - 8, groundY, 8, 20);
+
+                    // bridge progress shown in gap
+                    if (G.bridgeBuilt > 0 && G.building && !gap.crossed) {
+                        const bw = (G.bridgeBuilt / 100) * gw;
+                        ctx.fillStyle = 'rgba(180,130,80,0.6)';
+                        ctx.fillRect(gx, groundY - 6, bw, 12);
+                        ctx.fillStyle = 'rgba(220,180,120,0.4)';
+                        ctx.fillRect(gx, groundY - 3, bw, 6);
+                        // planks
+                        for (let i = 0; i < Math.floor(G.bridgeBuilt / 15); i++) {
+                            const px = gx + (i / (100 / 15)) * gw;
+                            ctx.fillStyle = '#b8956a';
+                            ctx.fillRect(px, groundY - 8, 6, 14);
+                            ctx.fillStyle = '#d4a373';
+                            ctx.fillRect(px + 1, groundY - 6, 4, 10);
+                        }
+                    }
+                }
+            }
+
+            // ── draw trees ──
+            for (const tree of G.trees) {
+                const tx = tree.x - G.camX;
+                if (tx > -40 && tx < W + 40) {
+                    const s = tree.size;
+                    // trunk
+                    ctx.fillStyle = `rgba(90,70,50,${0.6 + tree.shade * 0.4})`;
+                    ctx.fillRect(tx - s * 0.08, groundY - s * 0.7, s * 0.16, s * 0.7);
+                    // canopy
+                    ctx.fillStyle = `rgba(50,130,50,${0.5 + tree.shade * 0.5})`;
+                    ctx.beginPath();
+                    ctx.arc(tx, groundY - s * 0.8, s * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = `rgba(60,150,60,${0.3 + tree.shade * 0.3})`;
+                    ctx.beginPath();
+                    ctx.arc(tx - s * 0.25, groundY - s * 0.65, s * 0.35, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(tx + s * 0.3, groundY - s * 0.7, s * 0.32, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // ── draw planks on ground ──
+            for (const plank of G.planksOnGround) {
+                if (plank.collected) continue;
+                const px = plank.x - G.camX;
+                if (px > -20 && px < W + 20) {
+                    const bobOffset = Math.sin(plank.bob + G.frame * 0.04) * 2;
+                    ctx.save();
+                    ctx.translate(px, plank.y + bobOffset);
+                    ctx.fillStyle = '#b8956a';
+                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                    ctx.shadowBlur = 8;
+                    ctx.fillRect(-plank.size / 2, -3, plank.size, 6);
+                    ctx.fillStyle = '#d4a373';
+                    ctx.shadowBlur = 4;
+                    ctx.fillRect(-plank.size / 2 + 2, -1.5, plank.size - 4, 3);
+                    // shine
+                    ctx.fillStyle = 'rgba(255,255,200,0.15)';
+                    ctx.fillRect(-plank.size / 2 + 2, -2, plank.size * 0.3, 1.5);
+                    ctx.restore();
+                    // glow
+                    ctx.shadowColor = 'rgba(255,200,100,0.15)';
+                    ctx.shadowBlur = 20;
+                    ctx.fillStyle = 'rgba(255,200,100,0.05)';
+                    ctx.beginPath();
+                    ctx.arc(px, plank.y + bobOffset, 14, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+            }
+
+            // ── draw player ──
+            const p = G.player;
+            const px = p.x;
+            const py = p.y + Math.sin(p.bob) * 1.5;
+
+            ctx.save();
+            ctx.translate(px + p.w / 2, py + p.h / 2);
+
+            // shadow
+            ctx.shadowColor = 'rgba(0,0,0,0.2)';
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.beginPath();
+            ctx.ellipse(0, p.h / 2 + 4, 18, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // body
+            const bodyGrad = ctx.createLinearGradient(-12, -18, 12, 18);
+            bodyGrad.addColorStop(0, '#5b9bd5');
+            bodyGrad.addColorStop(0.5, '#4a8bc2');
+            bodyGrad.addColorStop(1, '#2d6f9e');
+            ctx.fillStyle = bodyGrad;
+            ctx.shadowColor = 'rgba(0,0,0,0.2)';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.roundRect(-12, -18, 24, 32, 6);
+            ctx.fill();
+
+            // head
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = '#ffddb0';
+            ctx.beginPath();
+            ctx.arc(0, -22, 14, 0, Math.PI * 2);
+            ctx.fill();
+
+            // hair
+            ctx.fillStyle = '#8b5a2b';
+            ctx.beginPath();
+            ctx.arc(0, -28, 15, Math.PI, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(-14, -32, 28, 10);
+
+            // eyes
+            ctx.fillStyle = '#2d1b0e';
+            ctx.beginPath();
+            ctx.arc(-5, -24, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(5, -24, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(-4, -26, 1.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(6, -26, 1.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // mouth - smile
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(0, -18, 6, 0.1, Math.PI - 0.1);
+            ctx.stroke();
+
+            // hat (hard hat)
+            ctx.fillStyle = '#f7b731';
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.ellipse(0, -32, 18, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(-14, -38, 28, 8);
+            ctx.fillStyle = '#ffd966';
+            ctx.fillRect(-10, -38, 20, 3);
+
+            // legs
+            ctx.shadowBlur = 4;
+            const legSwing = Math.sin(p.legSwing) * 3;
+            ctx.fillStyle = '#2d4a6e';
+            ctx.fillRect(-8, 14 + legSwing * 0.5, 5, 10);
+            ctx.fillRect(3, 14 - legSwing * 0.5, 5, 10);
+            // boots
+            ctx.fillStyle = '#5a3a2a';
+            ctx.fillRect(-9, 22 + legSwing * 0.5, 7, 4);
+            ctx.fillRect(2, 22 - legSwing * 0.5, 7, 4);
+
+            // tool belt
+            ctx.fillStyle = '#8b6b4b';
+            ctx.fillRect(-10, 4, 20, 4);
+            ctx.fillStyle = '#d4a373';
+            ctx.fillRect(-6, 4, 3, 6);
+            ctx.fillRect(3, 4, 3, 6);
+
+            ctx.shadowBlur = 0;
+            ctx.restore();
+
+            // ── particles ──
+            for (const pt of G.particles) {
+                const alpha = pt.life / pt.maxLife;
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = pt.color;
+                ctx.shadowColor = pt.color;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, pt.size * alpha, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+
+            // ── building indicator ──
+            if (G.building && G.bridgeBuilt < 100) {
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(10, 10, 200, 28);
+                ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                ctx.fillRect(12, 12, 196, 24);
+                ctx.fillStyle = '#f7b731';
+                ctx.fillRect(14, 14, (G.bridgeBuilt / 100) * 192, 20);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.fillText('🏗️ BUILDING BRIDGE...', 20, 29);
+            }
+
+            // ── win / game over overlay ──
+            if (G.over) {
+                ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                ctx.fillRect(0, 0, W, H);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const msg = G.won ? '🏆 YOU WIN!' : '💀 GAME OVER';
+                ctx.font = 'bold 58px sans-serif';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 30;
+                ctx.fillStyle = G.won ? '#ffd700' : '#ff6b6b';
+                ctx.fillText(msg, W / 2, H / 2 - 20);
+                ctx.font = '22px sans-serif';
+                ctx.fillStyle = '#fff';
+                ctx.shadowBlur = 10;
+                ctx.fillText('Tap "Restart" to try again', W / 2, H / 2 + 52);
+                ctx.shadowBlur = 0;
+            }
+
+            // ── distance marker ──
+            if (!G.over) {
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(W - 160, 12, 145, 26);
+                ctx.fillStyle = '#fff';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`🏁 ${Math.floor(G.distance)} / ${Math.floor(G.levelLength)}m`, W - 22, 26);
+            }
+
+            // ── controls hint ──
+            if (G.running && G.distance < 200) {
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.font = '15px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText('⬆️ Collect planks  •  Build bridges  •  Reach the finish!', W / 2, H - 14);
+            }
+        }
+
+        // ─── ROUND RECT POLYFILL ───
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                if (r > w / 2) r = w / 2;
+                if (r > h / 2) r = h / 2;
+                this.moveTo(x + r, y);
+                this.lineTo(x + w - r, y);
+                this.quadraticCurveTo(x + w, y, x + w, y + r);
+                this.lineTo(x + w, y + h - r);
+                this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                this.lineTo(x + r, y + h);
+                this.quadraticCurveTo(x, y + h, x, y + h - r);
+                this.lineTo(x, y + r);
+                this.quadraticCurveTo(x, y, x + r, y);
+                return this;
+            };
+        }
+
+        // ─── GAME LOOP ───
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ─── RESTART ───
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            initGame();
+        });
+
+        // ─── KEYBOARD (jump) ───
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (G.running && G.player.grounded) {
+                    G.player.vy = -8.5;
+                    G.player.grounded = false;
+                }
+            }
+        });
+
+        // ─── TAP / CLICK (jump) ───
+        canvas.addEventListener('click', (e) => {
+            if (G.running && G.player.grounded) {
+                G.player.vy = -8.5;
+                G.player.grounded = false;
+            }
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (G.running && G.player.grounded) {
+                G.player.vy = -8.5;
+                G.player.grounded = false;
+            }
+        }, { passive: false });
+
+        // ─── START ───
+        initGame();
+        gameLoop();
+    </script>
+
+    <script>
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           FASHION PRINCESS — Dress-Up Game
+           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        const pCanvas = document.getElementById('princessCanvas');
+        const pCtx = pCanvas.getContext('2d');
+        const PW = 800, PH = 500;
+
+        const dressNameEl = document.getElementById('dressName');
+        const hairNameEl = document.getElementById('hairName');
+
+        // ─── Princess State ───
+        const F = {
+            dress: 0,
+            hair: 0,
+            shoes: 0,
+            accessory: 0,
+            bg: 0,
+            category: 'dresses',
+            particles: [],
+            sparkleAnim: 0,
+            bobbleAnim: 0,
+            blinkTimer: 0,
+            eyeOpen: true,
+            lastBlink: 0,
+            feedback: '',
+            feedbackTimer: 0,
+        };
+
+        // ─── Item Database ───
+        const items = {
+            dresses: [
+                { name: 'Royal Gown',     c1: '#e91e63', c2: '#ad1457', accent: '#ffd700', skirt: 'ballgown',  pattern: 'stars' },
+                { name: 'Princess Pink',  c1: '#ff8ec7', c2: '#ff1493', accent: '#ffffff', skirt: 'princess',  pattern: 'rings' },
+                { name: 'Ice Queen',      c1: '#a8e6ff', c2: '#0277bd', accent: '#e1f5fe', skirt: 'ice',       pattern: 'snow' },
+                { name: 'Forest Nymph',   c1: '#81c784', c2: '#2e7d32', accent: '#dcedc8', skirt: 'flowing',   pattern: 'leaves' },
+                { name: 'Sunset Gold',    c1: '#ffd54f', c2: '#ff6f00', accent: '#ffffff', skirt: 'princess',  pattern: 'sparkles' },
+                { name: 'Midnight Star',  c1: '#5c6bc0', c2: '#1a237e', accent: '#ffd700', skirt: 'starry',    pattern: 'stars' },
+                { name: 'Rose Petals',    c1: '#ff80ab', c2: '#c2185b', accent: '#fce4ec', skirt: 'ruffle',    pattern: 'petals' },
+                { name: 'Crystal Blue',   c1: '#4fc3f7', c2: '#01579b', accent: '#b3e5fc', skirt: 'flowing',   pattern: 'waves' },
+            ],
+            hair: [
+                { name: 'Long Flowing',   style: 'long',     color: '#6d4c2a' },
+                { name: 'Royal Bun',      style: 'bun',      color: '#daa520' },
+                { name: 'Braided Crown',  style: 'braids',   color: '#4a2c17' },
+                { name: 'Ponytail',       style: 'pony',     color: '#c2185b' },
+                { name: 'Pixie Cut',      style: 'short',    color: '#ffd700' },
+                { name: 'Curly Locks',    style: 'curly',    color: '#5e35b1' },
+                { name: 'Twin Tails',     style: 'twintails',color: '#ec407a' },
+                { name: 'Elegant Updo',   style: 'updo',     color: '#8b0000' },
+            ],
+            shoes: [
+                { name: 'Glass Slippers',type: 'heels',   color: '#e0f7fa', accent: '#b3e5fc' },
+                { name: 'Ruby Heels',     type: 'heels',   color: '#d32f2f', accent: '#ffcdd2' },
+                { name: 'Ballet Flats',   type: 'flats',   color: '#f8bbd0', accent: '#ffffff' },
+                { name: 'Royal Boots',    type: 'boots',   color: '#6a1b9a', accent: '#ffd700' },
+                { name: 'Sandals',        type: 'sandals', color: '#ffb74d', accent: '#ffe0b2' },
+                { name: 'Combat Boots',   type: 'combat',  color: '#212121', accent: '#424242' },
+                { name: 'Pearl Pumps',    type: 'heels',   color: '#fce4ec', accent: '#ffffff' },
+                { name: 'Barefoot',       type: 'none',    color: 'transparent', accent: 'transparent' },
+            ],
+            accessory: [
+                { name: 'None',           type: 'none' },
+                { name: 'Diamond Tiara',  type: 'tiara',   color: '#e1f5fe', gem: '#b3e5fc' },
+                { name: 'Royal Scepter',  type: 'scepter', color: '#ffd700', gem: '#e91e63' },
+                { name: 'Fairy Wings',    type: 'wings',   color: '#e1bee7', accent: '#ce93d8' },
+                { name: 'Pearl Necklace', type: 'necklace',color: '#fafafa', gem: '#ffe0b2' },
+                { name: 'Ruby Crown',     type: 'crown',   color: '#b71c1c', gem: '#ffd700' },
+                { name: 'Butterfly Wings',type: 'wings',   color: '#ffb74d', accent: '#fff176' },
+                { name: 'Magic Wand',     type: 'wand',    color: '#9c27b0', gem: '#ffd700' },
+            ],
+            bg: [
+                { name: 'Castle',         c1: '#ffd1dc', c2: '#ffb6c1', decor: 'castle' },
+                { name: 'Garden',         c1: '#dcedc8', c2: '#aed581', decor: 'garden' },
+                { name: 'Sunset',         c1: '#ffab91', c2: '#ff7043', decor: 'sunset' },
+                { name: 'Royal Hall',     c1: '#ce93d8', c2: '#8e24aa', decor: 'columns' },
+                { name: 'Ocean',          c1: '#80deea', c2: '#00acc1', decor: 'waves' },
+                { name: 'Snow',           c1: '#e0f7fa', c2: '#b2ebf2', decor: 'snow' },
+            ],
+        };
+
+        // ─── Layout ───
+        const PRINCESS_X = 260;
+        const PRINCESS_GROUND = 430;
+        const SIDEBAR_X = 460;
+        const SIDEBAR_W = 320;
+
+        // ─── Helper ───
+        function randP(min, max) { return min + Math.random() * (max - min); }
+
+        // ─── Particles ───
+        function spawnSparkles(x, y, count = 18) {
+            const palette = ['#ffd700', '#ff80ab', '#80d8ff', '#b388ff', '#ffffff'];
+            for (let i = 0; i < count; i++) {
+                const angle = randP(0, Math.PI * 2);
+                const spd = randP(0.5, 4);
+                F.particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * spd,
+                    vy: Math.sin(angle) * spd - 1.5,
+                    life: randP(25, 50),
+                    maxLife: 50,
+                    size: randP(2, 5),
+                    color: palette[Math.floor(Math.random() * palette.length)],
+                    gravity: 0.04,
+                    type: 'sparkle',
+                });
+            }
+        }
+
+        function updatePrincess() {
+            F.sparkleAnim += 0.05;
+            F.bobbleAnim += 0.04;
+
+            // Blink logic
+            F.lastBlink++;
+            if (F.lastBlink > 180 && F.eyeOpen) {
+                F.eyeOpen = false;
+                F.blinkTimer = 8;
+            }
+            if (!F.eyeOpen) {
+                F.blinkTimer--;
+                if (F.blinkTimer <= 0) {
+                    F.eyeOpen = true;
+                    F.lastBlink = 0;
+                }
+            }
+
+            // Particles
+            for (let i = F.particles.length - 1; i >= 0; i--) {
+                const pt = F.particles[i];
+                pt.x += pt.vx;
+                pt.y += pt.vy;
+                pt.vy += pt.gravity;
+                pt.life--;
+                if (pt.life <= 0) F.particles.splice(i, 1);
+            }
+
+            // Feedback text fade
+            if (F.feedbackTimer > 0) F.feedbackTimer--;
+        }
+
+        // ─── DRAW: Background ───
+        function drawBackground() {
+            const bg = items.bg[F.bg];
+            const grad = pCtx.createLinearGradient(0, 0, PW, PH);
+            grad.addColorStop(0, bg.c1);
+            grad.addColorStop(1, bg.c2);
+            pCtx.fillStyle = grad;
+            pCtx.fillRect(0, 0, PW, PH);
+
+            // Vignette
+            const vig = pCtx.createRadialGradient(PW / 2, PH / 2, 100, PW / 2, PH / 2, 600);
+            vig.addColorStop(0, 'rgba(0,0,0,0)');
+            vig.addColorStop(1, 'rgba(0,0,0,0.25)');
+            pCtx.fillStyle = vig;
+            pCtx.fillRect(0, 0, PW, PH);
+
+            // Decor based on background
+            switch (bg.decor) {
+                case 'castle': drawCastleDecor(); break;
+                case 'garden': drawGardenDecor(); break;
+                case 'sunset': drawSunsetDecor(); break;
+                case 'columns': drawColumnsDecor(); break;
+                case 'waves': drawWavesDecor(); break;
+                case 'snow': drawSnowDecor(); break;
+            }
+        }
+
+        function drawCastleDecor() {
+            pCtx.fillStyle = 'rgba(255,255,255,0.3)';
+            pCtx.beginPath();
+            pCtx.moveTo(60, 360);
+            pCtx.lineTo(60, 280);
+            pCtx.lineTo(80, 280); pCtx.lineTo(80, 260);
+            pCtx.lineTo(100, 260); pCtx.lineTo(100, 290);
+            pCtx.lineTo(140, 290); pCtx.lineTo(140, 250);
+            pCtx.lineTo(160, 250); pCtx.lineTo(160, 220);
+            pCtx.lineTo(180, 220); pCtx.lineTo(180, 260);
+            pCtx.lineTo(220, 260); pCtx.lineTo(220, 290);
+            pCtx.lineTo(260, 290); pCtx.lineTo(260, 300);
+            pCtx.lineTo(60, 300);
+            pCtx.closePath();
+            pCtx.fill();
+        }
+
+        function drawGardenDecor() {
+            const flowers = [
+                [80, 410, '#ff4081'], [120, 415, '#ffeb3b'], [160, 410, '#e91e63'],
+                [340, 415, '#9c27b0'], [380, 410, '#ff5722'], [420, 415, '#ffeb3b'],
+            ];
+            for (const [fx, fy, col] of flowers) {
+                pCtx.fillStyle = '#2e7d32';
+                pCtx.fillRect(fx - 1, fy, 2, 20);
+                pCtx.fillStyle = col;
+                for (let i = 0; i < 5; i++) {
+                    const a = (i / 5) * Math.PI * 2;
+                    pCtx.beginPath();
+                    pCtx.arc(fx + Math.cos(a) * 5, fy + Math.sin(a) * 5, 4, 0, Math.PI * 2);
+                    pCtx.fill();
+                }
+                pCtx.fillStyle = '#fff176';
+                pCtx.beginPath();
+                pCtx.arc(fx, fy, 3, 0, Math.PI * 2);
+                pCtx.fill();
+            }
+        }
+
+        function drawSunsetDecor() {
+            pCtx.save();
+            const sunGrad = pCtx.createRadialGradient(150, 200, 10, 150, 200, 100);
+            sunGrad.addColorStop(0, 'rgba(255,255,200,1)');
+            sunGrad.addColorStop(0.4, 'rgba(255,200,100,0.7)');
+            sunGrad.addColorStop(1, 'rgba(255,150,50,0)');
+            pCtx.fillStyle = sunGrad;
+            pCtx.beginPath();
+            pCtx.arc(150, 200, 100, 0, Math.PI * 2);
+            pCtx.fill();
+            pCtx.fillStyle = 'rgba(255,250,200,0.9)';
+            pCtx.beginPath();
+            pCtx.arc(150, 200, 35, 0, Math.PI * 2);
+            pCtx.fill();
+            pCtx.restore();
+
+            pCtx.strokeStyle = 'rgba(80,40,20,0.6)';
+            pCtx.lineWidth = 2;
+            for (let i = 0; i < 3; i++) {
+                const bx = 280 + i * 60;
+                const by = 150 + Math.sin(i) * 20;
+                pCtx.beginPath();
+                pCtx.arc(bx - 5, by, 6, Math.PI, 0);
+                pCtx.arc(bx + 5, by, 6, Math.PI, 0);
+                pCtx.stroke();
+            }
+        }
+
+        function drawColumnsDecor() {
+            pCtx.fillStyle = 'rgba(255,255,255,0.25)';
+            for (let i = 0; i < 4; i++) {
+                const cx = 50 + i * 100;
+                pCtx.fillRect(cx, 150, 22, 280);
+                pCtx.fillStyle = 'rgba(255,255,255,0.35)';
+                pCtx.fillRect(cx - 4, 144, 30, 12);
+                pCtx.fillRect(cx - 4, 422, 30, 12);
+                pCtx.fillStyle = 'rgba(255,255,255,0.25)';
+            }
+        }
+
+        function drawWavesDecor() {
+            pCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+            pCtx.lineWidth = 2;
+            for (let y = 380; y < 460; y += 12) {
+                pCtx.beginPath();
+                for (let x = 0; x < 460; x += 20) {
+                    pCtx.lineTo(x, y + Math.sin((x + y) * 0.1) * 3);
+                }
+                pCtx.stroke();
+            }
+        }
+
+        function drawSnowDecor() {
+            pCtx.fillStyle = 'rgba(255,255,255,0.9)';
+            for (let i = 0; i < 40; i++) {
+                const sx = (i * 37 + F.sparkleAnim * 30) % 460;
+                const sy = (i * 23 + F.sparkleAnim * 50) % PH;
+                pCtx.beginPath();
+                pCtx.arc(sx, sy, 2 + (i % 3), 0, Math.PI * 2);
+                pCtx.fill();
+            }
+        }
+
+        // ─── DRAW: Floor ───
+        function drawFloor() {
+            const floorGrad = pCtx.createLinearGradient(0, 400, 0, 460);
+            floorGrad.addColorStop(0, 'rgba(255,255,255,0.3)');
+            floorGrad.addColorStop(1, 'rgba(255,255,255,0)');
+            pCtx.fillStyle = floorGrad;
+            pCtx.fillRect(40, 400, 420, 60);
+
+            // Floor reflection
+            pCtx.save();
+            pCtx.globalAlpha = 0.18;
+            pCtx.translate(0, 860);
+            pCtx.scale(1, -1);
+            drawPrincessFigure(false);
+            pCtx.restore();
+
+            pCtx.fillStyle = 'rgba(255,255,255,0.4)';
+            pCtx.fillRect(40, 428, 420, 2);
+        }
+
+        // ─── DRAW: Shadow ───
+        function drawShadow() {
+            pCtx.fillStyle = 'rgba(0,0,0,0.25)';
+            pCtx.beginPath();
+            pCtx.ellipse(PRINCESS_X, PRINCESS_GROUND + 2, 55, 8, 0, 0, Math.PI * 2);
+            pCtx.fill();
+        }
+
+        // ─── DRAW: Legs ───
+        function drawLegs(dressItem) {
+            const skin = '#ffe0c4';
+            const skirtBottom = dressItem.skirt === 'short' ? 360 : 395;
+            if (dressItem.skirt === 'short') {
+                pCtx.fillStyle = skin;
+                pCtx.fillRect(PRINCESS_X - 8, skirtBottom, 6, 35);
+                pCtx.fillRect(PRINCESS_X + 2, skirtBottom, 6, 35);
+            } else {
+                pCtx.fillStyle = skin;
+                pCtx.fillRect(PRINCESS_X - 8, 420, 6, 8);
+                pCtx.fillRect(PRINCESS_X + 2, 420, 6, 8);
+            }
+        }
+
+        // ─── DRAW: Shoes ───
+        function drawShoes() {
+            const shoe = items.shoes[F.shoes];
+            if (shoe.type === 'none') return;
+
+            const baseY = PRINCESS_GROUND;
+            const accent = shoe.accent;
+
+            pCtx.save();
+            if (shoe.type === 'heels') {
+                // High heels
+                const heelGrad = pCtx.createLinearGradient(PRINCESS_X - 14, baseY - 4, PRINCESS_X - 14, baseY + 8);
+                heelGrad.addColorStop(0, shoe.color);
+                heelGrad.addColorStop(1, accent);
+                pCtx.fillStyle = heelGrad;
+                pCtx.beginPath();
+                pCtx.moveTo(PRINCESS_X - 14, baseY - 4);
+                pCtx.lineTo(PRINCESS_X - 8, baseY - 4);
+                pCtx.lineTo(PRINCESS_X + 10, baseY - 4);
+                pCtx.lineTo(PRINCESS_X + 14, baseY + 3);
+                pCtx.lineTo(PRINCESS_X - 14, baseY + 3);
+                pCtx.closePath();
+                pCtx.fill();
+                // Heel
+                pCtx.fillStyle = accent;
+                pCtx.fillRect(PRINCESS_X - 14, baseY + 3, 3, 8);
+                // Open toe strap
+                pCtx.fillStyle = accent;
+                pCtx.fillRect(PRINCESS_X - 4, baseY - 9, 8, 6);
+                pCtx.fillRect(PRINCESS_X - 6, baseY - 9, 12, 2);
+                // Strap
+                pCtx.fillRect(PRINCESS_X - 14, baseY - 4, 28, 1.5);
+            } else if (shoe.type === 'flats') {
+                pCtx.fillStyle = shoe.color;
+                pCtx.beginPath();
+                pCtx.ellipse(PRINCESS_X, baseY + 2, 14, 4, 0, 0, Math.PI * 2);
+                pCtx.fill();
+                pCtx.fillStyle = accent;
+                pCtx.beginPath();
+                pCtx.ellipse(PRINCESS_X + 6, baseY, 8, 2.5, 0, 0, Math.PI * 2);
+                pCtx.fill();
+            } else if (shoe.type === 'boots') {
+                pCtx.fillStyle = shoe.color;
+                pCtx.fillRect(PRINCESS_X - 10, baseY - 25, 20, 28);
+                pCtx.beginPath();
+                pCtx.ellipse(PRINCESS_X, baseY, 14, 4, 0, 0, Math.PI * 2);
+                pCtx.fill();
+                pCtx.fillStyle = accent;
+                pCtx.fillRect(PRINCESS_X - 10, baseY - 25, 20, 3);
+                pCtx.fillRect(PRINCESS_X - 10, baseY - 12, 20, 2);
+            } else if (shoe.type === 'sandals') {
+                pCtx.fillStyle = shoe.color;
+                pCtx.beginPath();
+                pCtx.ellipse(PRINCESS_X, baseY + 2, 12, 3, 0, 0, Math.PI * 2);
+                pCtx.fill();
+                pCtx.fillStyle = accent;
+                pCtx.fillRect(PRINCESS_X - 8, baseY - 1, 16, 1.5);
+                pCtx.fillRect(PRINCESS_X - 1, baseY - 6, 2, 8);
+            } else if (shoe.type === 'combat') {
+                pCtx.fillStyle = shoe.color;
+                pCtx.fillRect(PRINCESS_X - 11, baseY - 18, 22, 22);
+                pCtx.beginPath();
+                pCtx.ellipse(PRINCESS_X, baseY + 2, 13, 4, 0, 0, Math.PI * 2);
+                pCtx.fill();
+                pCtx.fillStyle = accent;
+                pCtx.fillRect(PRINCESS_X - 11, baseY - 18, 22, 3);
+                pCtx.fillStyle = '#fafafa';
+                for (let i = 0; i < 3; i++) {
+                    pCtx.fillRect(PRINCESS_X - 6, baseY - 14 + i * 5, 12, 1.5);
+                }
+            }
+            pCtx.restore();
+        }
+
+        // ─── DRAW: Dress ───
+        function drawDress() {
+            const dress = items.dresses[F.dress];
+            const skirt = dress.skirt;
+
+            // Torso
+            const torsoTop = 200;
+            const torsoBottom = 250;
+            const torsoGrad = pCtx.createLinearGradient(PRINCESS_X - 18, torsoTop, PRINCESS_X + 18, torsoBottom);
+            torsoGrad.addColorStop(0, dress.c1);
+            torsoGrad.addColorStop(1, dress.c2);
+            pCtx.fillStyle = torsoGrad;
+            pCtx.beginPath();
+            pCtx.moveTo(PRINCESS_X - 16, torsoTop);
+            pCtx.quadraticCurveTo(PRINCESS_X, torsoTop - 6, PRINCESS_X + 16, torsoTop);
+            pCtx.lineTo(PRINCESS_X + 18, torsoBottom);
+            pCtx.lineTo(PRINCESS_X - 18, torsoBottom);
+            pCtx.closePath();
+            pCtx.fill();
+
+            // Neckline trim
+            pCtx.strokeStyle = dress.accent;
+            pCtx.lineWidth = 2;
+            pCtx.beginPath();
+            pCtx.moveTo(PRINCESS_X - 16, torsoTop);
+            pCtx.quadraticCurveTo(PRINCESS_X, torsoTop + 6, PRINCESS_X + 16, torsoTop);
+            pCtx.stroke();
+
+            // Belt
+            pCtx.fillStyle = dress.accent;
+            pCtx.fillRect(PRINCESS_X - 18, 245, 36, 5);
+            pCtx.fillStyle = 'rgba(255,255,255,0.5)';
+            pCtx.fillRect(PRINCESS_X - 18, 245, 36, 1.5);
+
+            // Skirt
+            const skirtTop = 250;
+            let skirtBottom = 415;
+            if (skirt === 'short') skirtBottom = 360;
+
+            const skirtGrad = pCtx.createLinearGradient(0, skirtTop, 0, skirtBottom);
+            skirtGrad.addColorStop(0, dress.c1);
+            skirtGrad.addColorStop(1, dress.c2);
+
+            pCtx.save();
+            pCtx.fillStyle = skirtGrad;
+
+            switch (skirt) {
+                case 'ballgown':
+                    pCtx.beginPath();
+                    pCtx.moveTo(PRINCESS_X - 18, skirtTop);
+                    pCtx.quadraticCurveTo(PRINCESS_X - 60, skirtTop + 30, PRINCESS_X - 75, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X + 75, skirtBottom);
+                    pCtx.quadraticCurveTo(PRINCESS_X + 60, skirtTop + 30, PRINCESS_X + 18, skirtTop);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    pCtx.fillStyle = dress.accent;
+                    pCtx.beginPath();
+                    pCtx.moveTo(PRINCESS_X - 75, skirtBottom - 6);
+                    pCtx.quadraticCurveTo(PRINCESS_X, skirtBottom + 12, PRINCESS_X + 75, skirtBottom - 6);
+                    pCtx.quadraticCurveTo(PRINCESS_X, skirtBottom + 4, PRINCESS_X - 75, skirtBottom - 6);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    break;
+                case 'princess':
+                    pCtx.beginPath();
+                    pCtx.moveTo(PRINCESS_X - 18, skirtTop);
+                    pCtx.lineTo(PRINCESS_X - 55, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X + 55, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X + 18, skirtTop);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    pCtx.fillStyle = dress.accent;
+                    for (let i = 0; i < 8; i++) {
+                        const rx = PRINCESS_X - 50 + i * 13;
+                        pCtx.beginPath();
+                        pCtx.arc(rx, skirtBottom + 4, 7, 0, Math.PI);
+                        pCtx.fill();
+                    }
+                    break;
+                case 'ice':
+                    pCtx.beginPath();
+                    pCtx.moveTo(PRINCESS_X - 18, skirtTop);
+                    pCtx.lineTo(PRINCESS_X - 65, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X - 30, skirtBottom - 25);
+                    pCtx.lineTo(PRINCESS_X, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X + 30, skirtBottom - 25);
+                    pCtx.lineTo(PRINCESS_X + 65, skirtBottom);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    pCtx.fillStyle = 'rgba(255,255,255,0.5)';
+                    pCtx.beginPath();
+                    pCtx.moveTo(PRINCESS_X - 50, skirtBottom - 30);
+                    pCtx.lineTo(PRINCESS_X - 35, skirtBottom - 50);
+                    pCtx.lineTo(PRINCESS_X - 20, skirtBottom - 30);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    break;
+                case 'flowing':
+                    pCtx.beginPath();
+                    pCtx.moveTo(PRINCESS_X - 18, skirtTop);
+                    pCtx.quadraticCurveTo(PRINCESS_X - 30, skirtTop + 40, PRINCESS_X - 50, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X + 70, skirtBottom);
+                    pCtx.quadraticCurveTo(PRINCESS_X + 50, skirtTop + 30, PRINCESS_X + 18, skirtTop);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    break;
+                case 'starry':
+                    pCtx.beginPath();
+                    pCtx.moveTo(PRINCESS_X - 18, skirtTop);
+                    pCtx.lineTo(PRINCESS_X - 60, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X - 40, skirtBottom - 20);
+                    pCtx.lineTo(PRINCESS_X - 20, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X, skirtBottom - 20);
+                    pCtx.lineTo(PRINCESS_X + 20, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X + 40, skirtBottom - 20);
+                    pCtx.lineTo(PRINCESS_X + 60, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X + 18, skirtTop);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    break;
+                case 'ruffle':
+                    pCtx.beginPath();
+                    pCtx.moveTo(PRINCESS_X - 18, skirtTop);
+                    pCtx.lineTo(PRINCESS_X - 55, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X + 55, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X + 18, skirtTop);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    pCtx.fillStyle = dress.c1;
+                    for (let i = 0; i < 5; i++) {
+                        const y = skirtTop + 20 + i * 30;
+                        const w = 18 + i * 8;
+                        pCtx.beginPath();
+                        pCtx.ellipse(PRINCESS_X, y, w, 8, 0, 0, Math.PI);
+                        pCtx.fill();
+                    }
+                    break;
+                case 'short':
+                    pCtx.beginPath();
+                    pCtx.moveTo(PRINCESS_X - 18, skirtTop);
+                    pCtx.lineTo(PRINCESS_X - 30, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X + 30, skirtBottom);
+                    pCtx.lineTo(PRINCESS_X + 18, skirtTop);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    break;
+            }
+
+            // Pattern overlay
+            drawDressPattern(dress);
+            pCtx.restore();
+
+            // Arms
+            drawArms();
+        }
+
+        function drawDressPattern(dress) {
+            const dressData = items.dresses[F.dress];
+            pCtx.save();
+            pCtx.globalAlpha = 0.5;
+            const c1 = dressData.accent;
+            pCtx.fillStyle = c1;
+
+            switch (dressData.pattern) {
+                case 'stars':
+                    for (let i = 0; i < 6; i++) {
+                        const sx = PRINCESS_X + (i % 3 - 1) * 30;
+                        const sy = 280 + Math.floor(i / 3) * 60;
+                        drawStar(sx, sy, 4);
+                    }
+                    break;
+                case 'rings':
+                    for (let i = 0; i < 4; i++) {
+                        const rx = PRINCESS_X + (i % 2 - 0.5) * 40;
+                        const ry = 290 + Math.floor(i / 2) * 50;
+                        pCtx.strokeStyle = c1;
+                        pCtx.lineWidth = 2;
+                        pCtx.beginPath();
+                        pCtx.arc(rx, ry, 8, 0, Math.PI * 2);
+                        pCtx.stroke();
+                    }
+                    break;
+                case 'snow':
+                    for (let i = 0; i < 5; i++) {
+                        const sx = PRINCESS_X + (i % 3 - 1) * 25;
+                        const sy = 290 + Math.floor(i / 3) * 50;
+                        pCtx.beginPath();
+                        pCtx.arc(sx, sy, 3, 0, Math.PI * 2);
+                        pCtx.fill();
+                        pCtx.strokeStyle = c1;
+                        pCtx.lineWidth = 1.5;
+                        for (let a = 0; a < 6; a++) {
+                            const ang = (a / 6) * Math.PI * 2;
+                            pCtx.beginPath();
+                            pCtx.moveTo(sx, sy);
+                            pCtx.lineTo(sx + Math.cos(ang) * 5, sy + Math.sin(ang) * 5);
+                            pCtx.stroke();
+                        }
+                    }
+                    break;
+                case 'leaves':
+                    for (let i = 0; i < 5; i++) {
+                        const lx = PRINCESS_X + (i - 2) * 18;
+                        const ly = 310 + (i % 2) * 40;
+                        pCtx.beginPath();
+                        pCtx.ellipse(lx, ly, 5, 9, (i % 2 ? 0.3 : -0.3), 0, Math.PI * 2);
+                        pCtx.fill();
+                    }
+                    break;
+                case 'sparkles':
+                    for (let i = 0; i < 8; i++) {
+                        const sx = PRINCESS_X + (i % 4 - 1.5) * 22;
+                        const sy = 290 + Math.floor(i / 4) * 60;
+                        drawStar(sx, sy, 2.5);
+                    }
+                    break;
+                case 'petals':
+                    for (let i = 0; i < 6; i++) {
+                        const px = PRINCESS_X + (i % 3 - 1) * 25;
+                        const py = 300 + Math.floor(i / 3) * 50;
+                        pCtx.beginPath();
+                        pCtx.ellipse(px, py, 5, 8, i * 0.5, 0, Math.PI * 2);
+                        pCtx.fill();
+                    }
+                    break;
+                case 'waves':
+                    for (let i = 0; i < 3; i++) {
+                        const wy = 300 + i * 40;
+                        pCtx.strokeStyle = c1;
+                        pCtx.lineWidth = 2;
+                        pCtx.beginPath();
+                        for (let x = -50; x < 50; x += 5) {
+                            pCtx.lineTo(PRINCESS_X + x, wy + Math.sin(x * 0.2) * 4);
+                        }
+                        pCtx.stroke();
+                    }
+                    break;
+            }
+            pCtx.restore();
+        }
+
+        function drawStar(x, y, r) {
+            pCtx.beginPath();
+            for (let i = 0; i < 10; i++) {
+                const ang = (i / 10) * Math.PI * 2 - Math.PI / 2;
+                const rad = i % 2 === 0 ? r : r * 0.4;
+                const px = x + Math.cos(ang) * rad;
+                const py = y + Math.sin(ang) * rad;
+                if (i === 0) pCtx.moveTo(px, py);
+                else pCtx.lineTo(px, py);
+            }
+            pCtx.closePath();
+            pCtx.fill();
+        }
+
+        // ─── DRAW: Arms ───
+        function drawArms() {
+            const dress = items.dresses[F.dress];
+            const skin = '#ffe0c4';
+            const c1 = dress.c1;
+
+            // Sleeves / arms
+            pCtx.fillStyle = c1;
+            pCtx.beginPath();
+            pCtx.moveTo(PRINCESS_X - 18, 210);
+            pCtx.quadraticCurveTo(PRINCESS_X - 28, 220, PRINCESS_X - 30, 245);
+            pCtx.quadraticCurveTo(PRINCESS_X - 28, 260, PRINCESS_X - 22, 268);
+            pCtx.quadraticCurveTo(PRINCESS_X - 18, 250, PRINCESS_X - 16, 220);
+            pCtx.closePath();
+            pCtx.fill();
+
+            pCtx.beginPath();
+            pCtx.moveTo(PRINCESS_X + 18, 210);
+            pCtx.quadraticCurveTo(PRINCESS_X + 28, 220, PRINCESS_X + 30, 245);
+            pCtx.quadraticCurveTo(PRINCESS_X + 28, 260, PRINCESS_X + 22, 268);
+            pCtx.quadraticCurveTo(PRINCESS_X + 18, 250, PRINCESS_X + 16, 220);
+            pCtx.closePath();
+            pCtx.fill();
+
+            // Hands
+            pCtx.fillStyle = skin;
+            pCtx.beginPath();
+            pCtx.arc(PRINCESS_X - 22, 270, 7, 0, Math.PI * 2);
+            pCtx.fill();
+            pCtx.beginPath();
+            pCtx.arc(PRINCESS_X + 22, 270, 7, 0, Math.PI * 2);
+            pCtx.fill();
+
+            // Wand/scepter held in right hand
+            const acc = items.accessory[F.accessory];
+            if (acc.type === 'scepter' || acc.type === 'wand') {
+                drawHandItem(acc);
+            }
+        }
+
+        function drawHandItem(acc) {
+            const x = PRINCESS_X + 22;
+            const y = 270;
+            pCtx.save();
+            pCtx.strokeStyle = acc.color;
+            pCtx.lineWidth = 4;
+            pCtx.lineCap = 'round';
+            pCtx.beginPath();
+            pCtx.moveTo(x - 8, y + 4);
+            pCtx.lineTo(x + 24, y - 28);
+            pCtx.stroke();
+            pCtx.fillStyle = acc.gem;
+            pCtx.shadowColor = acc.gem;
+            pCtx.shadowBlur = 15;
+            pCtx.beginPath();
+            pCtx.arc(x + 26, y - 30, 8, 0, Math.PI * 2);
+            pCtx.fill();
+            pCtx.fillStyle = '#fff';
+            pCtx.shadowBlur = 0;
+            pCtx.beginPath();
+            pCtx.arc(x + 24, y - 32, 2.5, 0, Math.PI * 2);
+            pCtx.fill();
+            pCtx.strokeStyle = '#fff';
+            pCtx.lineWidth = 1.5;
+            pCtx.beginPath();
+            pCtx.moveTo(x + 32, y - 30);
+            pCtx.lineTo(x + 36, y - 30);
+            pCtx.moveTo(x + 34, y - 32);
+            pCtx.lineTo(x + 34, y - 28);
+            pCtx.stroke();
+            pCtx.restore();
+        }
+
+        // ─── DRAW: Neck & Head ───
+        function drawNeckAndHead() {
+            const skin = '#ffe0c4';
+
+            // Neck
+            pCtx.fillStyle = skin;
+            pCtx.fillRect(PRINCESS_X - 8, 175, 16, 22);
+
+            // Neck shadow
+            pCtx.fillStyle = 'rgba(0,0,0,0.15)';
+            pCtx.beginPath();
+            pCtx.ellipse(PRINCESS_X, 196, 12, 3, 0, 0, Math.PI * 2);
+            pCtx.fill();
+
+            const headX = PRINCESS_X;
+            const headY = 145;
+            const headR = 32;
+
+            // Hair back
+            drawHairBack(headX, headY, headR);
+
+            // Face base
+            pCtx.fillStyle = skin;
+            pCtx.beginPath();
+            pCtx.arc(headX, headY, headR, 0, Math.PI * 2);
+            pCtx.fill();
+
+            // Cheek blush
+            pCtx.fillStyle = 'rgba(255, 130, 160, 0.5)';
+            pCtx.beginPath();
+            pCtx.ellipse(headX - 14, headY + 5, 6, 4, 0, 0, Math.PI * 2);
+            pCtx.fill();
+            pCtx.beginPath();
+            pCtx.ellipse(headX + 14, headY + 5, 6, 4, 0, 0, Math.PI * 2);
+            pCtx.fill();
+
+            drawEyes(headX, headY);
+
+            // Eyebrows
+            pCtx.strokeStyle = '#3e2723';
+            pCtx.lineWidth = 2;
+            pCtx.beginPath();
+            pCtx.moveTo(headX - 12, headY - 8);
+            pCtx.quadraticCurveTo(headX - 8, headY - 11, headX - 4, headY - 8);
+            pCtx.stroke();
+            pCtx.beginPath();
+            pCtx.moveTo(headX + 4, headY - 8);
+            pCtx.quadraticCurveTo(headX + 8, headY - 11, headX + 12, headY - 8);
+            pCtx.stroke();
+
+            // Nose
+            pCtx.fillStyle = 'rgba(0,0,0,0.15)';
+            pCtx.beginPath();
+            pCtx.arc(headX, headY + 3, 2, 0, Math.PI * 2);
+            pCtx.fill();
+
+            // Mouth
+            pCtx.fillStyle = '#e91e63';
+            pCtx.beginPath();
+            pCtx.ellipse(headX, headY + 14, 6, 3, 0, 0, Math.PI * 2);
+            pCtx.fill();
+            pCtx.fillStyle = 'rgba(255,255,255,0.6)';
+            pCtx.beginPath();
+            pCtx.ellipse(headX - 2, headY + 13, 3, 1.5, 0, 0, Math.PI * 2);
+            pCtx.fill();
+
+            // Hair front
+            drawHairFront(headX, headY, headR);
+        }
+
+        function drawEyes(headX, headY) {
+            pCtx.fillStyle = '#fff';
+            pCtx.beginPath();
+            pCtx.ellipse(headX - 9, headY - 3, 5, F.eyeOpen ? 6 : 1, 0, 0, Math.PI * 2);
+            pCtx.fill();
+            pCtx.beginPath();
+            pCtx.ellipse(headX + 9, headY - 3, 5, F.eyeOpen ? 6 : 1, 0, 0, Math.PI * 2);
+            pCtx.fill();
+
+            if (F.eyeOpen) {
+                pCtx.fillStyle = '#5d4037';
+                pCtx.beginPath();
+                pCtx.arc(headX - 9, headY - 3, 3, 0, Math.PI * 2);
+                pCtx.fill();
+                pCtx.beginPath();
+                pCtx.arc(headX + 9, headY - 3, 3, 0, Math.PI * 2);
+                pCtx.fill();
+                pCtx.fillStyle = '#1a1a1a';
+                pCtx.beginPath();
+                pCtx.arc(headX - 9, headY - 3, 1.5, 0, Math.PI * 2);
+                pCtx.fill();
+                pCtx.beginPath();
+                pCtx.arc(headX + 9, headY - 3, 1.5, 0, Math.PI * 2);
+                pCtx.fill();
+                pCtx.fillStyle = '#fff';
+                pCtx.beginPath();
+                pCtx.arc(headX - 8, headY - 4, 1, 0, Math.PI * 2);
+                pCtx.fill();
+                pCtx.beginPath();
+                pCtx.arc(headX + 10, headY - 4, 1, 0, Math.PI * 2);
+                pCtx.fill();
+
+                pCtx.strokeStyle = '#1a1a1a';
+                pCtx.lineWidth = 1.5;
+                pCtx.beginPath();
+                pCtx.moveTo(headX - 14, headY - 6);
+                pCtx.lineTo(headX - 14, headY - 10);
+                pCtx.moveTo(headX - 4, headY - 6);
+                pCtx.lineTo(headX - 4, headY - 10);
+                pCtx.moveTo(headX + 4, headY - 6);
+                pCtx.lineTo(headX + 4, headY - 10);
+                pCtx.moveTo(headX + 14, headY - 6);
+                pCtx.lineTo(headX + 14, headY - 10);
+                pCtx.stroke();
+            }
+        }
+
+        // ─── DRAW: Hair ───
+        function drawHairBack(headX, headY, headR) {
+            const hair = items.hair[F.hair];
+            pCtx.fillStyle = hair.color;
+
+            switch (hair.style) {
+                case 'long':
+                    pCtx.beginPath();
+                    pCtx.moveTo(headX - headR - 2, headY - 10);
+                    pCtx.quadraticCurveTo(headX - 50, headY + 60, headX - 35, headY + 110);
+                    pCtx.lineTo(headX - 20, headY + 100);
+                    pCtx.quadraticCurveTo(headX - 35, headY + 30, headX - headR - 4, headY - 5);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    pCtx.beginPath();
+                    pCtx.moveTo(headX + headR + 2, headY - 10);
+                    pCtx.quadraticCurveTo(headX + 50, headY + 60, headX + 35, headY + 110);
+                    pCtx.lineTo(headX + 20, headY + 100);
+                    pCtx.quadraticCurveTo(headX + 35, headY + 30, headX + headR + 4, headY - 5);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    break;
+                case 'curly':
+                    for (let i = 0; i < 4; i++) {
+                        pCtx.beginPath();
+                        pCtx.arc(headX - headR - 4 + i * 3, headY + 20 + i * 12, 14, 0, Math.PI * 2);
+                        pCtx.fill();
+                        pCtx.beginPath();
+                        pCtx.arc(headX + headR + 4 - i * 3, headY + 20 + i * 12, 14, 0, Math.PI * 2);
+                        pCtx.fill();
+                    }
+                    break;
+                case 'pony':
+                    pCtx.beginPath();
+                    pCtx.moveTo(headX + headR - 5, headY - 5);
+                    pCtx.quadraticCurveTo(headX + 60, headY + 30, headX + 55, headY + 80);
+                    pCtx.quadraticCurveTo(headX + 50, headY + 95, headX + 35, headY + 90);
+                    pCtx.quadraticCurveTo(headX + 45, headY + 40, headX + headR, headY - 5);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    break;
+                case 'twintails':
+                    pCtx.beginPath();
+                    pCtx.ellipse(headX - 35, headY + 50, 12, 28, 0.2, 0, Math.PI * 2);
+                    pCtx.fill();
+                    pCtx.beginPath();
+                    pCtx.ellipse(headX + 35, headY + 50, 12, 28, -0.2, 0, Math.PI * 2);
+                    pCtx.fill();
+                    break;
+            }
+        }
+
+        function drawHairFront(headX, headY, headR) {
+            const hair = items.hair[F.hair];
+            pCtx.fillStyle = hair.color;
+
+            // Bangs / top hair for everyone
+            pCtx.beginPath();
+            pCtx.moveTo(headX - headR, headY - 10);
+            pCtx.quadraticCurveTo(headX - headR, headY - headR - 5, headX, headY - headR - 8);
+            pCtx.quadraticCurveTo(headX + headR, headY - headR - 5, headX + headR, headY - 10);
+            pCtx.quadraticCurveTo(headX + headR + 2, headY - headR - 2, headX + headR, headY - headR + 8);
+            pCtx.lineTo(headX - headR, headY - headR + 8);
+            pCtx.quadraticCurveTo(headX - headR - 2, headY - headR - 2, headX - headR, headY - 10);
+            pCtx.closePath();
+            pCtx.fill();
+
+            // Bangs fringe
+            pCtx.beginPath();
+            pCtx.moveTo(headX - 22, headY - 16);
+            pCtx.quadraticCurveTo(headX - 12, headY - 5, headX - 2, headY - 16);
+            pCtx.quadraticCurveTo(headX + 8, headY - 5, headX + 18, headY - 16);
+            pCtx.quadraticCurveTo(headX + 24, headY - 6, headX + headR, headY - 12);
+            pCtx.lineTo(headX + headR, headY - headR);
+            pCtx.lineTo(headX - headR, headY - headR);
+            pCtx.lineTo(headX - headR, headY - 12);
+            pCtx.quadraticCurveTo(headX - 24, headY - 6, headX - 22, headY - 16);
+            pCtx.closePath();
+            pCtx.fill();
+
+            switch (hair.style) {
+                case 'bun':
+                    pCtx.beginPath();
+                    pCtx.arc(headX, headY - headR - 4, 14, 0, Math.PI * 2);
+                    pCtx.fill();
+                    pCtx.strokeStyle = hair.color;
+                    pCtx.lineWidth = 2;
+                    pCtx.beginPath();
+                    pCtx.arc(headX, headY - headR - 4, 12, 0, Math.PI * 2);
+                    pCtx.stroke();
+                    break;
+                case 'braids':
+                    pCtx.strokeStyle = hair.color;
+                    pCtx.lineWidth = 6;
+                    pCtx.beginPath();
+                    pCtx.arc(headX, headY - 2, headR - 2, Math.PI, Math.PI * 2);
+                    pCtx.stroke();
+                    pCtx.strokeStyle = darkenColor(hair.color, 0.2);
+                    pCtx.lineWidth = 1;
+                    for (let i = 0; i < 12; i++) {
+                        const a = Math.PI + (i / 12) * Math.PI;
+                        const bx = headX + Math.cos(a) * (headR - 2);
+                        const by = headY - 2 + Math.sin(a) * (headR - 2);
+                        pCtx.beginPath();
+                        pCtx.moveTo(bx - 2, by - 2);
+                        pCtx.lineTo(bx + 2, by + 2);
+                        pCtx.stroke();
+                    }
+                    break;
+                case 'pony':
+                    pCtx.fillStyle = '#fff';
+                    pCtx.beginPath();
+                    pCtx.arc(headX + headR - 2, headY + 5, 6, 0, Math.PI * 2);
+                    pCtx.fill();
+                    break;
+                case 'short':
+                    for (let i = 0; i < 5; i++) {
+                        const a = -Math.PI + (i / 4) * Math.PI;
+                        const bx = headX + Math.cos(a) * headR;
+                        const by = headY - 8 + Math.sin(a) * headR;
+                        pCtx.beginPath();
+                        pCtx.moveTo(bx - 5, by);
+                        pCtx.lineTo(bx, by - 12);
+                        pCtx.lineTo(bx + 5, by);
+                        pCtx.closePath();
+                        pCtx.fill();
+                    }
+                    break;
+                case 'curly':
+                    for (let i = 0; i < 4; i++) {
+                        pCtx.beginPath();
+                        pCtx.arc(headX - 18 + i * 12, headY - 15, 6, 0, Math.PI * 2);
+                        pCtx.fill();
+                    }
+                    break;
+                case 'twintails':
+                    pCtx.beginPath();
+                    pCtx.arc(headX - 35, headY - 5, 10, 0, Math.PI * 2);
+                    pCtx.fill();
+                    pCtx.beginPath();
+                    pCtx.arc(headX + 35, headY - 5, 10, 0, Math.PI * 2);
+                    pCtx.fill();
+                    pCtx.fillStyle = '#fff';
+                    pCtx.beginPath();
+                    pCtx.arc(headX - 35, headY - 5, 4, 0, Math.PI * 2);
+                    pCtx.fill();
+                    pCtx.beginPath();
+                    pCtx.arc(headX + 35, headY - 5, 4, 0, Math.PI * 2);
+                    pCtx.fill();
+                    break;
+                case 'updo':
+                    pCtx.beginPath();
+                    pCtx.ellipse(headX, headY - 18, 22, 16, 0, 0, Math.PI * 2);
+                    pCtx.fill();
+                    pCtx.strokeStyle = hair.color;
+                    pCtx.lineWidth = 3;
+                    pCtx.beginPath();
+                    pCtx.moveTo(headX - 20, headY - 10);
+                    pCtx.quadraticCurveTo(headX - 28, headY + 10, headX - 22, headY + 30);
+                    pCtx.stroke();
+                    pCtx.beginPath();
+                    pCtx.moveTo(headX + 20, headY - 10);
+                    pCtx.quadraticCurveTo(headX + 28, headY + 10, headX + 22, headY + 30);
+                    pCtx.stroke();
+                    break;
+            }
+
+            // Hair shine highlight
+            pCtx.fillStyle = lightenColor(hair.color, 0.3);
+            pCtx.globalAlpha = 0.4;
+            pCtx.beginPath();
+            pCtx.ellipse(headX - 12, headY - 22, 8, 4, -0.3, 0, Math.PI * 2);
+            pCtx.fill();
+            pCtx.globalAlpha = 1;
+        }
+
+        function lightenColor(hex, amt) {
+            const c = hexToRgb(hex);
+            const r = Math.min(255, Math.floor(c.r + (255 - c.r) * amt));
+            const g = Math.min(255, Math.floor(c.g + (255 - c.g) * amt));
+            const b = Math.min(255, Math.floor(c.b + (255 - c.b) * amt));
+            return `rgb(${r},${g},${b})`;
+        }
+        function darkenColor(hex, amt) {
+            const c = hexToRgb(hex);
+            const r = Math.floor(c.r * (1 - amt));
+            const g = Math.floor(c.g * (1 - amt));
+            const b = Math.floor(c.b * (1 - amt));
+            return `rgb(${r},${g},${b})`;
+        }
+        function hexToRgb(hex) {
+            const m = hex.replace('#', '');
+            return {
+                r: parseInt(m.substring(0, 2), 16),
+                g: parseInt(m.substring(2, 4), 16),
+                b: parseInt(m.substring(4, 6), 16),
+            };
+        }
+
+        // ─── DRAW: Accessory (head + necklace) ───
+        function drawAccessory() {
+            const acc = items.accessory[F.accessory];
+            const headX = PRINCESS_X;
+            const headY = 145;
+            const headR = 32;
+
+            switch (acc.type) {
+                case 'tiara':
+                    pCtx.save();
+                    for (let i = 0; i < 7; i++) {
+                        const a = Math.PI + (i / 6) * Math.PI;
+                        const tx = headX + Math.cos(a) * headR;
+                        const ty = headY - 8 + Math.sin(a) * headR;
+                        pCtx.fillStyle = acc.color;
+                        pCtx.beginPath();
+                        pCtx.moveTo(tx, ty + 6);
+                        pCtx.lineTo(tx - 4, ty);
+                        pCtx.lineTo(tx, ty - 6);
+                        pCtx.lineTo(tx + 4, ty);
+                        pCtx.closePath();
+                        pCtx.fill();
+                        pCtx.fillStyle = '#fff';
+                        pCtx.beginPath();
+                        pCtx.arc(tx, ty - 2, 1.5, 0, Math.PI * 2);
+                        pCtx.fill();
+                    }
+                    pCtx.fillStyle = acc.color;
+                    pCtx.beginPath();
+                    pCtx.ellipse(headX, headY - 8, headR, 3, 0, 0, Math.PI * 2);
+                    pCtx.fill();
+                    pCtx.restore();
+                    break;
+                case 'crown':
+                    pCtx.fillStyle = acc.color;
+                    pCtx.beginPath();
+                    pCtx.moveTo(headX - 28, headY - 25);
+                    pCtx.lineTo(headX - 28, headY - 5);
+                    pCtx.lineTo(headX + 28, headY - 5);
+                    pCtx.lineTo(headX + 28, headY - 25);
+                    pCtx.lineTo(headX + 18, headY - 15);
+                    pCtx.lineTo(headX + 8, headY - 32);
+                    pCtx.lineTo(headX, headY - 18);
+                    pCtx.lineTo(headX - 8, headY - 32);
+                    pCtx.lineTo(headX - 18, headY - 15);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    pCtx.fillStyle = acc.gem;
+                    pCtx.fillRect(headX - 28, headY - 8, 56, 4);
+                    pCtx.fillStyle = acc.gem;
+                    pCtx.beginPath(); pCtx.arc(headX - 16, headY - 12, 3, 0, Math.PI * 2); pCtx.fill();
+                    pCtx.beginPath(); pCtx.arc(headX, headY - 14, 3, 0, Math.PI * 2); pCtx.fill();
+                    pCtx.beginPath(); pCtx.arc(headX + 16, headY - 12, 3, 0, Math.PI * 2); pCtx.fill();
+                    pCtx.fillStyle = '#fff';
+                    pCtx.beginPath(); pCtx.arc(headX - 16, headY - 13, 1, 0, Math.PI * 2); pCtx.fill();
+                    pCtx.beginPath(); pCtx.arc(headX, headY - 15, 1, 0, Math.PI * 2); pCtx.fill();
+                    pCtx.beginPath(); pCtx.arc(headX + 16, headY - 13, 1, 0, Math.PI * 2); pCtx.fill();
+                    break;
+                case 'necklace':
+                    pCtx.fillStyle = acc.color;
+                    for (let i = 0; i < 9; i++) {
+                        const a = Math.PI + 0.3 + (i / 8) * (Math.PI - 0.6);
+                        const nx = headX + Math.cos(a) * 22;
+                        const ny = headY + 32 + Math.sin(a) * 16;
+                        pCtx.beginPath();
+                        pCtx.arc(nx, ny, 3, 0, Math.PI * 2);
+                        pCtx.fill();
+                        pCtx.fillStyle = '#fff';
+                        pCtx.beginPath();
+                        pCtx.arc(nx - 0.5, ny - 0.5, 1, 0, Math.PI * 2);
+                        pCtx.fill();
+                        pCtx.fillStyle = acc.color;
+                    }
+                    pCtx.fillStyle = acc.gem;
+                    pCtx.beginPath();
+                    pCtx.arc(headX, headY + 48, 4, 0, Math.PI * 2);
+                    pCtx.fill();
+                    pCtx.fillStyle = '#fff';
+                    pCtx.beginPath();
+                    pCtx.arc(headX - 1, headY + 47, 1, 0, Math.PI * 2);
+                    pCtx.fill();
+                    break;
+                case 'wings':
+                    // Fairy wings drawn behind princess
+                    break;
+            }
+        }
+
+        // ─── DRAW: Wings (drawn behind princess) ───
+        function drawWingsBehind() {
+            const acc = items.accessory[F.accessory];
+            if (acc.type !== 'wings') return;
+            pCtx.save();
+            const flap = Math.sin(F.sparkleAnim * 2) * 0.08;
+            pCtx.translate(PRINCESS_X, 280);
+
+            // Left wing
+            pCtx.save();
+            pCtx.rotate(-0.2 + flap);
+            const wingGrad1 = pCtx.createLinearGradient(0, 0, -80, -40);
+            wingGrad1.addColorStop(0, acc.color);
+            wingGrad1.addColorStop(1, acc.accent);
+            pCtx.fillStyle = wingGrad1;
+            pCtx.globalAlpha = 0.7;
+            pCtx.beginPath();
+            pCtx.moveTo(0, 0);
+            pCtx.quadraticCurveTo(-50, -30, -80, -10);
+            pCtx.quadraticCurveTo(-70, 20, -40, 25);
+            pCtx.quadraticCurveTo(-20, 15, 0, 0);
+            pCtx.closePath();
+            pCtx.fill();
+            pCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+            pCtx.lineWidth = 1.5;
+            pCtx.beginPath();
+            pCtx.moveTo(0, 0); pCtx.lineTo(-70, -10);
+            pCtx.moveTo(0, 0); pCtx.lineTo(-50, 15);
+            pCtx.stroke();
+            pCtx.restore();
+
+            // Right wing
+            pCtx.save();
+            pCtx.rotate(0.2 - flap);
+            const wingGrad2 = pCtx.createLinearGradient(0, 0, 80, -40);
+            wingGrad2.addColorStop(0, acc.color);
+            wingGrad2.addColorStop(1, acc.accent);
+            pCtx.fillStyle = wingGrad2;
+            pCtx.globalAlpha = 0.7;
+            pCtx.beginPath();
+            pCtx.moveTo(0, 0);
+            pCtx.quadraticCurveTo(50, -30, 80, -10);
+            pCtx.quadraticCurveTo(70, 20, 40, 25);
+            pCtx.quadraticCurveTo(20, 15, 0, 0);
+            pCtx.closePath();
+            pCtx.fill();
+            pCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+            pCtx.lineWidth = 1.5;
+            pCtx.beginPath();
+            pCtx.moveTo(0, 0); pCtx.lineTo(70, -10);
+            pCtx.moveTo(0, 0); pCtx.lineTo(50, 15);
+            pCtx.stroke();
+            pCtx.restore();
+
+            pCtx.restore();
+        }
+
+        // ─── Draw the complete princess figure (used for reflection) ───
+        function drawPrincessFigure(forReflection = true) {
+            pCtx.save();
+            const dress = items.dresses[F.dress];
+            pCtx.fillStyle = dress.c2;
+            pCtx.beginPath();
+            pCtx.moveTo(PRINCESS_X - 18, 250);
+            pCtx.quadraticCurveTo(PRINCESS_X - 60, 280, PRINCESS_X - 75, 415);
+            pCtx.lineTo(PRINCESS_X + 75, 415);
+            pCtx.quadraticCurveTo(PRINCESS_X + 60, 280, PRINCESS_X + 18, 250);
+            pCtx.closePath();
+            pCtx.fill();
+            pCtx.restore();
+        }
+
+        // ─── MAIN: drawPrincess ───
+        function drawPrincess() {
+            drawBackground();
+            drawFloor();
+            drawWingsBehind();
+            drawShadow();
+
+            // Body parts in render order
+            drawLegs(items.dresses[F.dress]);
+            drawShoes();
+            drawDress();
+            drawNeckAndHead();
+            drawAccessory();
+
+            // Particles overlay
+            for (const pt of F.particles) {
+                const a = pt.life / pt.maxLife;
+                pCtx.globalAlpha = a;
+                pCtx.fillStyle = pt.color;
+                pCtx.shadowColor = pt.color;
+                pCtx.shadowBlur = 8;
+                pCtx.beginPath();
+                pCtx.arc(pt.x, pt.y, pt.size * a, 0, Math.PI * 2);
+                pCtx.fill();
+            }
+            pCtx.globalAlpha = 1;
+            pCtx.shadowBlur = 0;
+        }
+
+        // ─── UI: Sidebar ───
+        function drawSidebar() {
+            const panelGrad = pCtx.createLinearGradient(SIDEBAR_X, 0, PW, PH);
+            panelGrad.addColorStop(0, 'rgba(255,255,255,0.15)');
+            panelGrad.addColorStop(1, 'rgba(255,255,255,0.05)');
+            pCtx.fillStyle = panelGrad;
+            pCtx.beginPath();
+            pCtx.roundRect(SIDEBAR_X + 10, 20, SIDEBAR_W - 20, PH - 40, 20);
+            pCtx.fill();
+
+            pCtx.fillStyle = '#fff';
+            pCtx.font = 'bold 18px sans-serif';
+            pCtx.textAlign = 'center';
+            pCtx.shadowColor = 'rgba(0,0,0,0.5)';
+            pCtx.shadowBlur = 6;
+            pCtx.fillText(`✨ ${capitalize(F.category)} ✨`, SIDEBAR_X + SIDEBAR_W / 2, 48);
+            pCtx.shadowBlur = 0;
+
+            const tabs = [
+                { key: 'dresses',    icon: '👗', label: 'Dresses' },
+                { key: 'hair',        icon: '💇', label: 'Hair' },
+                { key: 'shoes',       icon: '👠', label: 'Shoes' },
+                { key: 'accessory',   icon: '💎', label: 'Accessories' },
+                { key: 'bg',          icon: '🎨', label: 'Scene' },
+            ];
+            const tabY = 64;
+            const tabW = 60;
+            const tabH = 50;
+            const tabsTotalW = tabs.length * tabW + (tabs.length - 1) * 4;
+            const tabsStartX = SIDEBAR_X + (SIDEBAR_W - tabsTotalW) / 2;
+
+            for (let i = 0; i < tabs.length; i++) {
+                const t = tabs[i];
+                const tx = tabsStartX + i * (tabW + 4);
+                const active = F.category === t.key;
+                pCtx.fillStyle = active ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)';
+                pCtx.strokeStyle = active ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.2)';
+                pCtx.lineWidth = active ? 2 : 1;
+                pCtx.beginPath();
+                pCtx.roundRect(tx, tabY, tabW, tabH, 10);
+                pCtx.fill();
+                pCtx.stroke();
+                pCtx.font = '22px sans-serif';
+                pCtx.textAlign = 'center';
+                pCtx.textBaseline = 'middle';
+                pCtx.fillText(t.icon, tx + tabW / 2, tabY + 18);
+                pCtx.font = '9px sans-serif';
+                pCtx.fillStyle = active ? '#fff' : 'rgba(255,255,255,0.7)';
+                pCtx.fillText(t.label, tx + tabW / 2, tabY + 40);
+            }
+
+            const list = items[F.category];
+            const cols = 4;
+            const rows = 2;
+            const cellW = 65;
+            const cellH = 80;
+            const gridW = cols * cellW + (cols - 1) * 6;
+            const gridStartX = SIDEBAR_X + (SIDEBAR_W - gridW) / 2;
+            const gridStartY = 130;
+
+            pCtx.textBaseline = 'middle';
+            for (let i = 0; i < list.length; i++) {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                const ix = gridStartX + col * (cellW + 6);
+                const iy = gridStartY + row * (cellH + 6);
+                const selected = getSelectedIdx() === i;
+
+                pCtx.fillStyle = selected ? 'rgba(255,215,0,0.3)' : 'rgba(255,255,255,0.15)';
+                pCtx.strokeStyle = selected ? '#ffd700' : 'rgba(255,255,255,0.3)';
+                pCtx.lineWidth = selected ? 2 : 1;
+                pCtx.beginPath();
+                pCtx.roundRect(ix, iy, cellW, cellH, 10);
+                pCtx.fill();
+                pCtx.stroke();
+
+                drawItemPreview(F.category, list[i], ix + cellW / 2, iy + 32);
+
+                pCtx.font = '9px sans-serif';
+                pCtx.fillStyle = selected ? '#ffd700' : '#fff';
+                pCtx.textAlign = 'center';
+                pCtx.fillText(truncate(list[i].name, 11), ix + cellW / 2, iy + 65);
+            }
+
+            const btnY = PH - 70;
+            const btnW = 130;
+            const btnGap = 10;
+            const totalW = btnW * 2 + btnGap;
+            const btnStartX = SIDEBAR_X + (SIDEBAR_W - totalW) / 2;
+
+            // Random button
+            pCtx.fillStyle = 'rgba(156, 39, 176, 0.5)';
+            pCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+            pCtx.lineWidth = 1.5;
+            pCtx.beginPath();
+            pCtx.roundRect(btnStartX, btnY, btnW, 36, 18);
+            pCtx.fill();
+            pCtx.stroke();
+            pCtx.fillStyle = '#fff';
+            pCtx.font = 'bold 13px sans-serif';
+            pCtx.textAlign = 'center';
+            pCtx.textBaseline = 'middle';
+            pCtx.fillText('🎲 Surprise', btnStartX + btnW / 2, btnY + 18);
+
+            // Reset button
+            pCtx.fillStyle = 'rgba(247, 183, 49, 0.6)';
+            pCtx.beginPath();
+            pCtx.roundRect(btnStartX + btnW + btnGap, btnY, btnW, 36, 18);
+            pCtx.fill();
+            pCtx.stroke();
+            pCtx.fillStyle = '#1a2f44';
+            pCtx.font = 'bold 13px sans-serif';
+            pCtx.fillText('🔄 Reset', btnStartX + btnW + btnGap + btnW / 2, btnY + 18);
+        }
+
+        function drawItemPreview(category, item, x, y) {
+            switch (category) {
+                case 'dresses':
+                    const dressGrad = pCtx.createLinearGradient(x, y - 20, x, y + 20);
+                    dressGrad.addColorStop(0, item.c1);
+                    dressGrad.addColorStop(1, item.c2);
+                    pCtx.fillStyle = dressGrad;
+                    pCtx.beginPath();
+                    pCtx.moveTo(x - 12, y - 18);
+                    pCtx.lineTo(x - 8, y - 8);
+                    pCtx.lineTo(x - 22, y + 18);
+                    pCtx.lineTo(x + 22, y + 18);
+                    pCtx.lineTo(x + 8, y - 8);
+                    pCtx.lineTo(x + 12, y - 18);
+                    pCtx.closePath();
+                    pCtx.fill();
+                    pCtx.fillStyle = item.accent;
+                    pCtx.fillRect(x - 22, y + 14, 44, 2);
+                    break;
+                case 'hair':
+                    pCtx.fillStyle = item.color;
+                    pCtx.beginPath();
+                    pCtx.arc(x, y - 8, 14, 0, Math.PI * 2);
+                    pCtx.fill();
+                    pCtx.fillStyle = lightenColor(item.color, 0.3);
+                    pCtx.globalAlpha = 0.5;
+                    pCtx.beginPath();
+                    pCtx.ellipse(x - 4, y - 12, 4, 2, -0.3, 0, Math.PI * 2);
+                    pCtx.fill();
+                    pCtx.globalAlpha = 1;
+                    break;
+                case 'shoes':
+                    pCtx.fillStyle = item.color;
+                    pCtx.beginPath();
+                    if (item.type === 'heels') {
+                        pCtx.moveTo(x - 14, y + 4);
+                        pCtx.lineTo(x - 8, y);
+                        pCtx.lineTo(x + 10, y);
+                        pCtx.lineTo(x + 14, y + 4);
+                        pCtx.lineTo(x + 14, y + 8);
+                        pCtx.lineTo(x - 14, y + 8);
+                        pCtx.closePath();
+                    } else if (item.type === 'boots' || item.type === 'combat') {
+                        pCtx.fillRect(x - 8, y - 8, 16, 16);
+                    } else {
+                        pCtx.ellipse(x, y + 4, 14, 5, 0, 0, Math.PI * 2);
+                    }
+                    pCtx.fill();
+                    pCtx.fillStyle = item.accent;
+                    pCtx.beginPath();
+                    pCtx.ellipse(x + 4, y + 2, 4, 1.5, 0, 0, Math.PI * 2);
+                    pCtx.fill();
+                    break;
+                case 'accessory':
+                    if (item.type === 'none') {
+                        pCtx.fillStyle = 'rgba(255,255,255,0.3)';
+                        pCtx.font = '20px sans-serif';
+                        pCtx.textAlign = 'center';
+                        pCtx.fillText('∅', x, y);
+                    } else if (item.type === 'tiara' || item.type === 'crown') {
+                        pCtx.fillStyle = item.color;
+                        pCtx.beginPath();
+                        pCtx.moveTo(x - 14, y + 6);
+                        pCtx.lineTo(x - 14, y - 2);
+                        pCtx.lineTo(x + 14, y - 2);
+                        pCtx.lineTo(x + 14, y + 6);
+                        pCtx.lineTo(x + 8, y);
+                        pCtx.lineTo(x, y - 8);
+                        pCtx.lineTo(x - 8, y);
+                        pCtx.closePath();
+                        pCtx.fill();
+                        if (item.gem) {
+                            pCtx.fillStyle = item.gem;
+                            pCtx.beginPath();
+                            pCtx.arc(x, y - 4, 2, 0, Math.PI * 2);
+                            pCtx.fill();
+                        }
+                    } else if (item.type === 'wings') {
+                        pCtx.fillStyle = item.color;
+                        pCtx.globalAlpha = 0.7;
+                        pCtx.beginPath();
+                        pCtx.ellipse(x - 10, y, 8, 14, 0.3, 0, Math.PI * 2);
+                        pCtx.fill();
+                        pCtx.beginPath();
+                        pCtx.ellipse(x + 10, y, 8, 14, -0.3, 0, Math.PI * 2);
+                        pCtx.fill();
+                        pCtx.globalAlpha = 1;
+                    } else if (item.type === 'necklace') {
+                        pCtx.strokeStyle = item.color;
+                        pCtx.lineWidth = 2;
+                        pCtx.beginPath();
+                        pCtx.arc(x, y - 6, 14, 0.3, Math.PI - 0.3);
+                        pCtx.stroke();
+                        pCtx.fillStyle = item.gem || '#fff';
+                        pCtx.beginPath();
+                        pCtx.arc(x, y + 6, 4, 0, Math.PI * 2);
+                        pCtx.fill();
+                    } else {
+                        pCtx.strokeStyle = item.color;
+                        pCtx.lineWidth = 3;
+                        pCtx.lineCap = 'round';
+                        pCtx.beginPath();
+                        pCtx.moveTo(x - 8, y + 8);
+                        pCtx.lineTo(x + 8, y - 10);
+                        pCtx.stroke();
+                        pCtx.fillStyle = item.gem;
+                        pCtx.beginPath();
+                        pCtx.arc(x + 9, y - 11, 4, 0, Math.PI * 2);
+                        pCtx.fill();
+                    }
+                    break;
+                case 'bg':
+                    const bgGrad = pCtx.createLinearGradient(x - 16, y - 16, x + 16, y + 16);
+                    bgGrad.addColorStop(0, item.c1);
+                    bgGrad.addColorStop(1, item.c2);
+                    pCtx.fillStyle = bgGrad;
+                    pCtx.beginPath();
+                    pCtx.roundRect(x - 16, y - 16, 32, 32, 6);
+                    pCtx.fill();
+                    break;
+            }
+        }
+
+        function getSelectedIdx() {
+            return F[F.category];
+        }
+
+        function truncate(str, n) {
+            return str.length > n ? str.substring(0, n - 1) + '…' : str;
+        }
+
+        function capitalize(s) {
+            return s.charAt(0).toUpperCase() + s.slice(1);
+        }
+
+        // ─── Click handling ───
+        function getCanvasCoords(e) {
+            const rect = pCanvas.getBoundingClientRect();
+            const scaleX = PW / rect.width;
+            const scaleY = PH / rect.height;
+            let clientX, clientY;
+            if (e.touches && e.touches[0]) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY,
+            };
+        }
+
+        function handlePrincessClick(e) {
+            if (currentGame !== 'princess') return;
+            const { x, y } = getCanvasCoords(e);
+
+            // Category tabs
+            const tabs = ['dresses', 'hair', 'shoes', 'accessory', 'bg'];
+            const tabW = 60;
+            const tabH = 50;
+            const tabY = 64;
+            const tabsTotalW = tabs.length * tabW + (tabs.length - 1) * 4;
+            const tabsStartX = SIDEBAR_X + (SIDEBAR_W - tabsTotalW) / 2;
+            for (let i = 0; i < tabs.length; i++) {
+                const tx = tabsStartX + i * (tabW + 4);
+                if (x >= tx && x <= tx + tabW && y >= tabY && y <= tabY + tabH) {
+                    F.category = tabs[i];
+                    return;
+                }
+            }
+
+            // Item grid
+            const list = items[F.category];
+            const cols = 4;
+            const cellW = 65;
+            const cellH = 80;
+            const gridW = cols * cellW + (cols - 1) * 6;
+            const gridStartX = SIDEBAR_X + (SIDEBAR_W - gridW) / 2;
+            const gridStartY = 130;
+            for (let i = 0; i < list.length; i++) {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                const ix = gridStartX + col * (cellW + 6);
+                const iy = gridStartY + row * (cellH + 6);
+                if (x >= ix && x <= ix + cellW && y >= iy && y <= iy + cellH) {
+                    F[F.category] = i;
+                    spawnSparkles(PRINCESS_X, 280, 14);
+                    updatePrincessHUD();
+                    return;
+                }
+            }
+
+            // Buttons
+            const btnY = PH - 70;
+            const btnW = 130;
+            const btnGap = 10;
+            const totalW = btnW * 2 + btnGap;
+            const btnStartX = SIDEBAR_X + (SIDEBAR_W - totalW) / 2;
+            // Random
+            if (x >= btnStartX && x <= btnStartX + btnW && y >= btnY && y <= btnY + 36) {
+                randomizePrincess();
+                return;
+            }
+            // Reset
+            if (x >= btnStartX + btnW + btnGap && x <= btnStartX + btnW + btnGap + btnW && y >= btnY && y <= btnY + 36) {
+                resetPrincess();
+                return;
+            }
+        }
+
+        function randomizePrincess() {
+            F.dress = Math.floor(Math.random() * items.dresses.length);
+            F.hair = Math.floor(Math.random() * items.hair.length);
+            F.shoes = Math.floor(Math.random() * items.shoes.length);
+            F.accessory = Math.floor(Math.random() * items.accessory.length);
+            F.bg = Math.floor(Math.random() * items.bg.length);
+            spawnSparkles(PRINCESS_X, 250, 30);
+            spawnSparkles(PRINCESS_X + 50, 280, 20);
+            updatePrincessHUD();
+        }
+
+        function resetPrincess() {
+            F.dress = 0; F.hair = 0; F.shoes = 0; F.accessory = 0; F.bg = 0;
+            F.category = 'dresses';
+            spawnSparkles(PRINCESS_X, 280, 25);
+            updatePrincessHUD();
+        }
+
+        function updatePrincessHUD() {
+            dressNameEl.textContent = items.dresses[F.dress].name;
+            hairNameEl.textContent = items.hair[F.hair].name;
+        }
+
+        pCanvas.addEventListener('click', handlePrincessClick);
+        pCanvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handlePrincessClick(e);
+        }, { passive: false });
+
+        document.getElementById('randomBtn').addEventListener('click', randomizePrincess);
+        document.getElementById('resetBtn').addEventListener('click', resetPrincess);
+
+        // ─── Render Princess ───
+        function renderPrincess() {
+            pCtx.clearRect(0, 0, PW, PH);
+            drawPrincess();
+            drawSidebar();
+        }
+
+        // ─── Main loop (princess) ───
+        function princessLoop() {
+            updatePrincess();
+            if (currentGame === 'princess') {
+                renderPrincess();
+            }
+            requestAnimationFrame(princessLoop);
+        }
+
+        // Initialize princess HUD
+        updatePrincessHUD();
+        princessLoop();
+    </script>
+
+</body>
+</html>

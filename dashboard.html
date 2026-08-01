@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎮 NVIDIA Omniverse — Gaming & 3D Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-card: #1a1a2e;
+    --bg-card-hover: #222240;
+    --border: #2a2a4a;
+    --text-primary: #e8e8f0;
+    --text-secondary: #8888a8;
+    --accent-green: #00d97e;
+    --accent-green-dim: #00d97e33;
+    --accent-purple: #8b5cf6;
+    --accent-purple-dim: #8b5cf633;
+    --accent-blue: #3b82f6;
+    --accent-blue-dim: #3b82f633;
+    --accent-orange: #f59e0b;
+    --accent-orange-dim: #f59e0b33;
+    --accent-red: #ef4444;
+    --accent-red-dim: #ef444433;
+    --accent-cyan: #06b6d4;
+    --accent-cyan-dim: #06b6d433;
+    --nvidia-green: #76b900;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background effect */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(ellipse at 30% 20%, #1a0a3e22 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 80%, #0a2a1e22 0%, transparent 50%);
+    z-index: -1;
+    animation: bgFloat 20s ease-in-out infinite;
+  }
+
+  @keyframes bgFloat {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    33% { transform: translate(-2%, 1%) rotate(1deg); }
+    66% { transform: translate(1%, -1%) rotate(-1deg); }
+  }
+
+  /* Header */
+  .header {
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #0a0a0fee;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .logo-icon {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--nvidia-green), #4ade80);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 0 20px var(--accent-green-dim);
+  }
+
+  .logo-text h1 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text span {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--accent-green-dim);
+    border: 1px solid #00d97e44;
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--accent-green);
+    font-weight: 500;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    background: var(--accent-green);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* Main content */
+  .main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 40px 80px;
+  }
+
+  /* Section titles */
+  .section {
+    margin-bottom: 40px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .section-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .section-icon.green { background: var(--accent-green-dim); }
+  .section-icon.purple { background: var(--accent-purple-dim); }
+  .section-icon.blue { background: var(--accent-blue-dim); }
+  .section-icon.orange { background: var(--accent-orange-dim); }
+  .section-icon.cyan { background: var(--accent-cyan-dim); }
+
+  .section-header h2 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .section-header p {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  /* Card grid */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card:hover {
+    background: var(--bg-card-hover);
+    border-color: #3a3a6a;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px #0008;
+  }
+
+  .card-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-free {
+    background: var(--accent-green-dim);
+    color: var(--accent-green);
+  }
+
+  .badge-ai {
+    background: var(--accent-purple-dim);
+    color: var(--accent-purple);
+  }
+
+  .badge-installed {
+    background: var(--accent-blue-dim);
+    color: var(--accent-blue);
+  }
+
+  .card-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+
+  .card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .card p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .tag {
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    background: #ffffff08;
+    border: 1px solid #ffffff12;
+    color: var(--text-secondary);
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--nvidia-green), #4ade80);
+    color: #000;
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 0 20px var(--accent-green-dim);
+    transform: scale(1.02);
+  }
+
+  .btn-secondary {
+    background: #ffffff10;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    background: #ffffff18;
+    border-color: #4a4a6a;
+  }
+
+  /* Workflow pipeline */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow-x: auto;
+  }
+
+  .pipeline-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 100px;
+    text-align: center;
+  }
+
+  .pipeline-step .step-icon {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    transition: transform 0.3s;
+  }
+
+  .pipeline-step:hover .step-icon {
+    transform: scale(1.1);
+  }
+
+  .pipeline-step .step-label {
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .pipeline-step .step-sub {
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+
+  .pipeline-arrow {
+    color: var(--text-secondary);
+    font-size: 20px;
+    margin: 0 8px;
+    flex-shrink: 0;
+  }
+
+  /* Quick actions bar */
+  .quick-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+  }
+
+  .quick-btn {
+    padding: 12px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .quick-btn:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--nvidia-green);
+    box-shadow: 0 0 15px var(--accent-green-dim);
+  }
+
+  /* Terminal-style commands */
+  .commands {
+    background: #0d0d18;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 2;
+    overflow-x: auto;
+  }
+
+  .commands .prompt {
+    color: var(--accent-green);
+    user-select: none;
+  }
+
+  .commands .cmd {
+    color: var(--text-primary);
+  }
+
+  .commands .comment {
+    color: #555;
+  }
+
+  .cmd-copy {
+    background: #ffffff10;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    float: right;
+  }
+
+  .cmd-copy:hover {
+    background: #ffffff20;
+  }
+
+  /* GPU Stats */
+  .gpu-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header { padding: 16px 20px; }
+    .main { padding: 20px; }
+    .card-grid { grid-template-columns: 1fr; }
+    .pipeline { flex-wrap: wrap; justify-content: center; }
+    .pipeline-arrow { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">🎮</div>
+    <div class="logo-text">
+      <h1>NVIDIA Omniverse Workflow</h1>
+      <span>Gaming & 3D Design — Free Tools Dashboard</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      All Systems Go
+    </div>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- Quick Actions -->
+  <div class="section">
+    <div class="quick-actions">
+      <button class="quick-btn" onclick="copyCmd('pip install warp-lang')">⚡ Install Warp</button>
+      <button class="quick-btn" onclick="copyCmd('python -c &quot;import warp; print(f\\&quot;Warp {warp.__version__} — CUDA: {warp.is_cuda_available()}\\&quot;)&quot;')")>🔍 Check Warp</button>
+      <button class="quick-btn" onclick="copyCmd('nvidia-smi')">📊 GPU Stats</button>
+      <button class="quick-btn" onclick="window.open('https://developer.nvidia.com/omniverse/launcher','_blank')">📥 Omniverse Launcher</button>
+      <button class="quick-btn" onclick="window.open('https://build.nvidia.com/nvidia/audio2face-3d','_blank')">🤖 Audio2Face</button>
+      <button class="quick-btn" onclick="window.open('https://github.com/NVIDIA-Omniverse/PhysX','_blank')">⬇️ PhysX Source</button>
+      <button class="quick-btn" onclick="window.open('https://nvidia.github.io/warp/','_blank')">📖 Warp Docs</button>
+    </div>
+  </div>
+
+  <!-- GPU Status -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon green">🖥️</div>
+      <div>
+        <h2>System Status</h2>
+        <p>Your GPU and tool readiness at a glance</p>
+      </div>
+    </div>
+    <div class="gpu-stats">
+      <div class="stat-card">
+        <div class="stat-value" id="warpStatus">—</div>
+        <div class="stat-label">Warp Python</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="cudaStatus">—</div>
+        <div class="stat-label">CUDA GPU</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="usdStatus">—</div>
+        <div class="stat-label">OpenUSD</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="physxStatus">—</div>
+        <div class="stat-label">PhysX SDK</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workflow Pipeline -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon purple">🔄</div>
+      <div>
+        <h2>Game Development Pipeline</h2>
+        <p>Your end-to-end workflow from concept to game engine</p>
+      </div>
+    </div>
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="step-icon" style="background: var(--accent-blue-dim)">🏗️</div>
+        <div class="step-label">Blockout</div>
+        <div class="step-sub">USD Composer</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step">
+        <div class="step-icon" style="background: var(--accent-green-dim)">🧮</div>
+        <div class="step-label">Physics</div>
+        <div class="step-sub">PhysX 5</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step">
+        <div class="step-icon" style="background: var(--accent-purple-dim)">⚡</div>
+        <div class="step-label">GPU Sim</div>
+        <div class="step-sub">Warp</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step">
+        <div class="step-icon" style="background: var(--accent-orange-dim)">🎨</div>
+        <div class="step-label">Polish</div>
+        <div class="step-sub">RTX Light</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step">
+        <div class="step-icon" style="background: var(--accent-red-dim)">🎬</div>
+        <div class="step-label">Cinematics</div>
+        <div class="step-sub">Machinima</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step">
+        <div class="step-icon" style="background: var(--accent-cyan-dim)">📤</div>
+        <div class="step-label">Export</div>
+        <div class="step-sub">Game Engine</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tools -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon blue">🧰</div>
+      <div>
+        <h2>Free Tools</h2>
+        <p>Everything is open-source or free — no licenses needed</p>
+      </div>
+    </div>
+    <div class="card-grid">
+
+      <!-- Warp -->
+      <div class="card">
+        <div class="card-badge badge-free">FREE</div>
+        <div class="card-icon">⚡</div>
+        <h3>NVIDIA Warp</h3>
+        <p>GPU-accelerated Python framework. Write simulation code in Python, it auto-compiles to CUDA. Particles, cloth, fluids, terrain — all on the GPU.</p>
+        <div class="card-tags">
+          <span class="tag">Python</span>
+          <span class="tag">CUDA</span>
+          <span class="tag">GPU Sim</span>
+          <span class="tag">Auto-diff</span>
+        </div>
+        <div class="card-actions">
+          <a href="https://github.com/nvidia/warp" class="btn btn-primary" target="_blank">GitHub</a>
+          <a href="https://nvidia.github.io/warp/" class="btn btn-secondary" target="_blank">Docs</a>
+        </div>
+      </div>
+
+      <!-- PhysX -->
+      <div class="card">
+        <div class="card-badge badge-free">OPEN SOURCE</div>
+        <div class="card-icon">🧮</div>
+        <h3>PhysX 5</h3>
+        <p>The industry-standard physics engine — now fully open-source. Rigid bodies, destruction, vehicles, ragdoll. GPU-accelerated. Used in thousands of games.</p>
+        <div class="card-tags">
+          <span class="tag">C++</span>
+          <span class="tag">Physics</span>
+          <span class="tag">GPU</span>
+          <span class="tag">Destruction</span>
+        </div>
+        <div class="card-actions">
+          <a href="https://github.com/NVIDIA-Omniverse/PhysX" class="btn btn-primary" target="_blank">GitHub</a>
+          <a href="https://nvidia-omniverse.github.io/PhysX/physx/5.6.0/" class="btn btn-secondary" target="_blank">Docs</a>
+        </div>
+      </div>
+
+      <!-- USD Composer -->
+      <div class="card">
+        <div class="card-badge badge-free">FREE</div>
+        <div class="card-icon">🌐</div>
+        <h3>USD Composer</h3>
+        <p>World-building powerhouse. Assemble, light, simulate, and render massive 3D scenes with RTX raytracing. The central hub for your 3D pipeline.</p>
+        <div class="card-tags">
+          <span class="tag">Scene Build</span>
+          <span class="tag">RTX</span>
+          <span class="tag">USD</span>
+          <span class="tag">Lighting</span>
+        </div>
+        <div class="card-actions">
+          <a href="https://developer.nvidia.com/omniverse/launcher" class="btn btn-primary" target="_blank">Get Launcher</a>
+          <a href="https://docs.omniverse.nvidia.com/composer/latest/index.html" class="btn btn-secondary" target="_blank">Docs</a>
+        </div>
+      </div>
+
+      <!-- Audio2Face -->
+      <div class="card">
+        <div class="card-badge badge-ai">AI</div>
+        <div class="card-icon">🗣️</div>
+        <h3>Audio2Face</h3>
+        <p>AI that converts any audio into realistic facial animation and lip-sync in real-time. Free NIM API. Works with any 3D character that supports blendshapes.</p>
+        <div class="card-tags">
+          <span class="tag">AI</span>
+          <span class="tag">Lip Sync</span>
+          <span class="tag">NIM API</span>
+          <span class="tag">Real-time</span>
+        </div>
+        <div class="card-actions">
+          <a href="https://build.nvidia.com/nvidia/audio2face-3d" class="btn btn-primary" target="_blank">Try API</a>
+          <a href="https://developer.nvidia.com/omniverse/legacy-tools" class="btn btn-secondary" target="_blank">Legacy App</a>
+        </div>
+      </div>
+
+      <!-- Machinima -->
+      <div class="card">
+        <div class="card-badge badge-free">FREE</div>
+        <div class="card-icon">🎬</div>
+        <h3>Machinima</h3>
+        <p>Create cinematic sequences with a full sequencer/timeline. Camera cuts, animation triggers, physics events — render with RTX path tracing.</p>
+        <div class="card-tags">
+          <span class="tag">Cinematics</span>
+          <span class="tag">Timeline</span>
+          <span class="tag">RTX</span>
+          <span class="tag">Sequencer</span>
+        </div>
+        <div class="card-actions">
+          <a href="https://developer.nvidia.com/omniverse/legacy-tools" class="btn btn-primary" target="_blank">Download</a>
+        </div>
+      </div>
+
+      <!-- Newton -->
+      <div class="card">
+        <div class="card-badge badge-free">OPEN SOURCE</div>
+        <div class="card-icon">🍎</div>
+        <h3>Newton Physics</h3>
+        <p>Next-gen open-source physics engine from NVIDIA, Google DeepMind, and Disney Research. Built on Warp + OpenUSD. Differentiable physics for ML training.</p>
+        <div class="card-tags">
+          <span class="tag">Differentiable</span>
+          <span class="tag">GPU</span>
+          <span class="tag">Robotics</span>
+          <span class="tag">ML</span>
+        </div>
+        <div class="card-actions">
+          <a href="https://github.com/newton-physics/newton" class="btn btn-primary" target="_blank">GitHub</a>
+          <a href="https://developer.nvidia.com/newton-physics" class="btn btn-secondary" target="_blank">Portal</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Demos & Examples -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon orange">🧪</div>
+      <div>
+        <h2>Demos & Examples</h2>
+        <p>Ready-to-run scripts — just execute and see the magic</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">💥</div>
+        <h3>100K Particle System</h3>
+        <p>GPU-accelerated particle simulation. Explosion effects, fire, magic — the backbone of game VFX. Runs at 60+ FPS on any modern NVIDIA GPU.</p>
+        <div class="commands" style="margin-top:12px">
+          <span class="prompt">$ </span><span class="cmd">python particle_system.py</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🧶</div>
+        <h3>Cloth Simulation</h3>
+        <p>Verlet-integration cloth physics on GPU. Capes, flags, clothing — spring-mass system with distance constraints.</p>
+        <div class="commands" style="margin-top:12px">
+          <span class="prompt">$ </span><span class="cmd">python cloth_sim.py</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🏔️</div>
+        <h3>Procedural Terrain</h3>
+        <p>Generate game-ready heightmaps on GPU. Multi-octave noise with smoothing. Export as PNG for displacement maps.</p>
+        <div class="commands" style="margin-top:12px">
+          <span class="prompt">$ </span><span class="cmd">python terrain_gen.py</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🏗️</div>
+        <h3>USD Level Builder</h3>
+        <p>Programmatically create game levels as USD scenes. Ground, walls, spawn points, destructible props, lighting — all in Python.</p>
+        <div class="commands" style="margin-top:12px">
+          <span class="prompt">$ </span><span class="cmd">python build_usd_level.py</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Reference Commands -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon cyan">⌨️</div>
+      <div>
+        <h2>Quick Reference</h2>
+        <p>Copy-paste commands to get things done fast</p>
+      </div>
+    </div>
+    <div class="commands">
+      <button class="cmd-copy" onclick="copyCmd('pip install warp-lang')">Copy</button>
+      <span class="comment"># Install Warp (GPU sim framework)</span><br>
+      <span class="prompt">$ </span><span class="cmd">pip install warp-lang</span><br><br>
+
+      <button class="cmd-copy" onclick="copyCmd('pip install pxr trimesh Pillow numpy')">Copy</button>
+      <span class="comment"># Install 3D tools</span><br>
+      <span class="prompt">$ </span><span class="cmd">pip install pxr trimesh Pillow numpy</span><br><br>
+
+      <button class="cmd-copy" onclick="copyCmd('git clone --depth 1 https://github.com/NVIDIA-Omniverse/PhysX.git')">Copy</button>
+      <span class="comment"># Clone PhysX 5 (open-source physics)</span><br>
+      <span class="prompt">$ </span><span class="cmd">git clone --depth 1 https://github.com/NVIDIA-Omniverse/PhysX.git</span><br><br>
+
+      <button class="cmd-copy" onclick="copyCmd('python -m warp.examples.example_particles')">Copy</button>
+      <span class="comment"># Run built-in Warp particle example</span><br>
+      <span class="prompt">$ </span><span class="cmd">python -m warp.examples.example_particles</span><br><br>
+
+      <button class="cmd-copy" onclick="copyCmd('python -m warp.examples.example_cloth')">Copy</button>
+      <span class="comment"># Run built-in Warp cloth example</span><br>
+      <span class="prompt">$ </span><span class="cmd">python -m warp.examples.example_cloth</span><br><br>
+
+      <button class="cmd-copy" onclick="copyCmd('python -m warp.examples.example_rigid_body')">Copy</button>
+      <span class="comment"># Run built-in Warp rigid body example</span><br>
+      <span class="prompt">$ </span><span class="cmd">python -m warp.examples.example_rigid_body</span><br><br>
+
+      <button class="cmd-copy" onclick="copyCmd('python -c &quot;import warp as wp; wp.init(); print(wp.is_cuda_available())&quot;')">Copy</button>
+      <span class="comment"># Check if CUDA is available for Warp</span><br>
+      <span class="prompt">$ </span><span class="cmd">python -c "import warp as wp; wp.init(); print(wp.is_cuda_available())"</span><br><br>
+
+      <button class="cmd-copy" onclick="copyCmd('nvidia-smi')">Copy</button>
+      <span class="comment"># Check GPU status</span><br>
+      <span class="prompt">$ </span><span class="cmd">nvidia-smi</span>
+    </div>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <p>🎮 NVIDIA Omniverse Gaming & 3D Workflow — All tools listed are free and open-source</p>
+  <p style="margin-top:8px; opacity:0.6">Dashboard opens in any browser • Works offline • No accounts needed for core tools</p>
+</footer>
+
+<script>
+  // Copy command to clipboard
+  function copyCmd(cmd) {
+    const clean = cmd.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    navigator.clipboard.writeText(clean).then(() => {
+      // Brief visual feedback
+      const btn = event.target;
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied!';
+      btn.style.background = '#00d97e33';
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.style.background = '';
+      }, 1500);
+    });
+  }
+
+  // Check system status (runs locally — this dashboard is a static HTML file)
+  document.addEventListener('DOMContentLoaded', () => {
+    // We can't run Python from browser, so show a helpful message
+    document.getElementById('warpStatus').textContent = 'Check CLI';
+    document.getElementById('warpStatus').style.fontSize = '16px';
+    document.getElementById('cudaStatus').textContent = 'Check CLI';
+    document.getElementById('cudaStatus').style.fontSize = '16px';
+    document.getElementById('usdStatus').textContent = 'Check CLI';
+    document.getElementById('usdStatus').style.fontSize = '16px';
+    document.getElementById('physxStatus').textContent = 'Check CLI';
+    document.getElementById('physxStatus').style.fontSize = '16px';
+  });
+
+  // Keyboard shortcut: Ctrl+K to focus search
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      alert('Run in your terminal:\n\npython LAUNCH.bat\n\nThis opens the interactive launcher with all demos.');
+    }
+  });
+</script>
+
+</body>
+</html>

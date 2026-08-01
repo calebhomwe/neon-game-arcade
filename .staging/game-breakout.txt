@@ -1,0 +1,476 @@
+===CSS===
+#breakoutCanvas {
+    display: block;
+    width: 480px;
+    height: 600px;
+    margin: 0 auto;
+    border-radius: 24px;
+    background: #050810;
+    box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.55), 0 0 42px rgba(0, 240, 255, 0.18);
+    cursor: crosshair;
+    image-rendering: auto;
+}
+@media (max-width: 860px) {
+    #breakoutCanvas {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 480 / 600;
+    }
+}
+
+===CARD===
+<div class="game-card" onclick="showScreen('breakout')">
+    <span class="card-icon">🧱</span>
+    <div class="card-title">Neon Breakout</div>
+    <div class="card-desc">
+        Classic brick-smashing with a neon glow. Angle your shots off the
+        paddle, clear the grid row by row, and chase the high score!
+    </div>
+    <button class="card-btn">▶ PLAY</button>
+</div>
+
+===SCREEN===
+<div id="breakoutScreen" class="screen">
+    <div class="game-wrapper" style="background: linear-gradient(145deg, #0b1a2e, #050810); border-color: rgba(0, 240, 255, 0.22);">
+        <canvas id="breakoutCanvas" width="480" height="600"></canvas>
+        <div class="hud">
+            <div class="hud-left">
+                <span><span class="icon">🏆</span> Score: <strong id="boScore">0</strong></span>
+                <span><span class="icon">💖</span> Lives: <strong id="boLives">3</strong></span>
+            </div>
+            <div class="hud-right">
+                <button class="btn" onclick="showScreen('menu')">🏠 Menu</button>
+                <button class="btn btn-primary" id="boRestart">🔄 Restart</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+===RAFVAR===
+breakoutRAF
+===ROUTER_CANCEL===
+        if (breakoutRAF) { cancelAnimationFrame(breakoutRAF); breakoutRAF = null; }
+===ROUTER_BRANCH===
+        else if (name === 'breakout') { if (typeof breakoutInit === 'function') breakoutInit(); }
+===JS===
+/* ═════════════════════════════════════════════════════════════════════
+   GAME 3 — NEON BREAKOUT
+   ═════════════════════════════════════════════════════════════════════ */
+const boCanvas = document.getElementById('breakoutCanvas');
+const boCtx = boCanvas.getContext('2d');
+const boW = 480, boH = 600;
+
+const boScoreEl = document.getElementById('boScore');
+const boLivesEl = document.getElementById('boLives');
+
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+        if (r > w / 2) r = w / 2;
+        if (r > h / 2) r = h / 2;
+        this.moveTo(x + r, y);
+        this.lineTo(x + w - r, y);
+        this.quadraticCurveTo(x + w, y, x + w, y + r);
+        this.lineTo(x + w, y + h - r);
+        this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        this.lineTo(x + r, y + h);
+        this.quadraticCurveTo(x, y + h, x, y + h - r);
+        this.lineTo(x, y + r);
+        this.quadraticCurveTo(x, y, x + r, y);
+        return this;
+    };
+}
+
+const boRowColors = ['#ff2d75', '#ff9933', '#ffd700', '#00ff87', '#00c3ff', '#9d4dff'];
+const boRowPoints = [50, 40, 30, 20, 10, 5];
+const boMaxSpeed = 9.5;
+const boPadSpeed = 7;
+
+const bo = {
+    running: true, over: false, won: false,
+    score: 0, lives: 3,
+    paddle: { x: 0, y: 556, w: 88, h: 14 },
+    ball: { x: 0, y: 0, r: 7, vx: 0, vy: 0, speed: 4.6, attached: true },
+    bricks: [],
+    brickCols: 8, brickRows: 6, brickW: 52, brickH: 18, brickGap: 2,
+    bricksLeft: 0,
+    trail: [],
+    particles: [],
+    keys: { left: false, right: false },
+    frame: 0,
+};
+
+function boBuildBricks() {
+    const cols = bo.brickCols, rows = bo.brickRows;
+    const bw = bo.brickW, bh = bo.brickH, gap = bo.brickGap;
+    const gridW = cols * bw + (cols - 1) * gap;
+    const startX = (boW - gridW) / 2;
+    const startY = 68;
+    bo.bricks = [];
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            bo.bricks.push({
+                x: startX + c * (bw + gap),
+                y: startY + r * (bh + gap),
+                w: bw, h: bh,
+                alive: true,
+                color: boRowColors[r],
+                points: boRowPoints[r],
+            });
+        }
+    }
+    bo.bricksLeft = rows * cols;
+}
+
+function boResetBall(attached) {
+    const b = bo.ball, p = bo.paddle;
+    b.attached = attached !== false;
+    b.x = p.x + p.w / 2;
+    b.y = p.y - b.r - 1;
+    b.vx = 0; b.vy = 0; b.speed = 4.6;
+    bo.trail = [];
+}
+
+function boLaunchBall() {
+    const b = bo.ball;
+    if (bo.over || !b.attached) return;
+    b.attached = false;
+    const ang = -Math.PI / 2 + (Math.random() * 0.6 - 0.3);
+    b.vx = Math.cos(ang) * b.speed;
+    b.vy = Math.sin(ang) * b.speed;
+}
+
+function boUpdateHUD() {
+    boScoreEl.textContent = bo.score;
+    boLivesEl.textContent = bo.lives;
+}
+
+function boSpawnParticles(x, y, count, color, speed, life) {
+    for (let i = 0; i < count; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const sp = 0.5 + Math.random() * speed;
+        bo.particles.push({
+            x: x, y: y,
+            vx: Math.cos(ang) * sp,
+            vy: Math.sin(ang) * sp - 1,
+            life: Math.floor(life * (0.5 + Math.random() * 0.5)),
+            maxLife: life,
+            color: color,
+            size: 1.5 + Math.random() * 3,
+        });
+    }
+}
+function breakoutInit() {
+    if (breakoutRAF) { cancelAnimationFrame(breakoutRAF); breakoutRAF = null; }
+    bo.score = 0; bo.lives = 3;
+    bo.over = false; bo.won = false; bo.running = true;
+    bo.paddle.x = (boW - bo.paddle.w) / 2;
+    bo.keys.left = false; bo.keys.right = false;
+    bo.trail = []; bo.particles = [];
+    boBuildBricks();
+    boResetBall(true);
+    boUpdateHUD();
+    breakoutRAF = requestAnimationFrame(breakoutLoop);
+}
+
+function boCollideBricks() {
+    const b = bo.ball;
+    for (const br of bo.bricks) {
+        if (!br.alive) continue;
+        if (b.x + b.r > br.x && b.x - b.r < br.x + br.w &&
+            b.y + b.r > br.y && b.y - b.r < br.y + br.h) {
+            br.alive = false;
+            bo.bricksLeft--;
+            bo.score += br.points;
+            boUpdateHUD();
+            boSpawnParticles(b.x, b.y, 14, br.color, 4, 30);
+            boSpawnParticles(b.x, b.y, 6, '#ffffff', 2.5, 20);
+
+            const oL = (b.x + b.r) - br.x;
+            const oR = (br.x + br.w) - (b.x - b.r);
+            const oT = (b.y + b.r) - br.y;
+            const oB = (br.y + br.h) - (b.y - b.r);
+            const minO = Math.min(oL, oR, oT, oB);
+            if (minO === oL) b.vx = -Math.abs(b.vx);
+            else if (minO === oR) b.vx = Math.abs(b.vx);
+            else if (minO === oT) b.vy = -Math.abs(b.vy);
+            else b.vy = Math.abs(b.vy);
+
+            b.speed = Math.min(boMaxSpeed, b.speed + 0.05);
+            const mag = Math.sqrt(b.vx * b.vx + b.vy * b.vy) || 1;
+            b.vx = (b.vx / mag) * b.speed;
+            b.vy = (b.vy / mag) * b.speed;
+            break;
+        }
+    }
+    if (bo.bricksLeft <= 0 && !bo.over) {
+        bo.over = true; bo.won = true;
+        boSpawnParticles(boW / 2, boH / 2, 60, '#ffd700', 6, 60);
+        boSpawnParticles(boW / 2, boH / 2, 40, '#00f0ff', 5, 50);
+        boSpawnParticles(boW / 2, boH / 2, 40, '#ff2d75', 5, 50);
+    }
+}
+
+function boUpdate() {
+    bo.frame++;
+    const p = bo.paddle, b = bo.ball;
+
+    if (bo.keys.left) p.x -= boPadSpeed;
+    if (bo.keys.right) p.x += boPadSpeed;
+    p.x = Math.max(4, Math.min(boW - p.w - 4, p.x));
+
+    if (b.attached) {
+        b.x = p.x + p.w / 2;
+        b.y = p.y - b.r - 1;
+    } else if (!bo.over) {
+        b.x += b.vx; b.y += b.vy;
+
+        if (b.x - b.r < 0) { b.x = b.r; b.vx = Math.abs(b.vx); }
+        if (b.x + b.r > boW) { b.x = boW - b.r; b.vx = -Math.abs(b.vx); }
+        if (b.y - b.r < 0) { b.y = b.r; b.vy = Math.abs(b.vy); }
+
+        if (b.vy > 0 && b.y + b.r >= p.y && b.y + b.r <= p.y + p.h + 6 &&
+            b.x >= p.x - 4 && b.x <= p.x + p.w + 4) {
+            const rel = Math.max(-1, Math.min(1, (b.x - (p.x + p.w / 2)) / (p.w / 2)));
+            const maxAngle = Math.PI / 3;
+            b.speed = Math.min(boMaxSpeed, b.speed + 0.18);
+            b.vy = -Math.cos(rel * maxAngle) * b.speed;
+            b.vx = Math.sin(rel * maxAngle) * b.speed;
+            b.y = p.y - b.r;
+            boSpawnParticles(b.x, p.y, 6, '#00f0ff', 3, 18);
+        }
+
+        boCollideBricks();
+
+        bo.trail.push({ x: b.x, y: b.y, life: 14 });
+        if (bo.trail.length > 14) bo.trail.shift();
+        for (let i = bo.trail.length - 1; i >= 0; i--) {
+            bo.trail[i].life--;
+            if (bo.trail[i].life <= 0) bo.trail.splice(i, 1);
+        }
+
+        if (b.y - b.r > boH) {
+            bo.lives--;
+            boUpdateHUD();
+            if (bo.lives <= 0) {
+                bo.over = true; bo.won = false;
+            } else {
+                boResetBall(true);
+            }
+        }
+    }
+
+    for (let i = bo.particles.length - 1; i >= 0; i--) {
+        const pt = bo.particles[i];
+        pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.08; pt.life--;
+        if (pt.life <= 0) bo.particles.splice(i, 1);
+    }
+}
+
+function breakoutLoop() {
+    breakoutRAF = requestAnimationFrame(breakoutLoop);
+    if (!bo.running) return;
+    boUpdate();
+    boDraw();
+}
+function boDraw() {
+    const ctx = boCtx;
+    ctx.clearRect(0, 0, boW, boH);
+
+    // dark neon backdrop
+    const bg = ctx.createLinearGradient(0, 0, 0, boH);
+    bg.addColorStop(0, '#0b1a2e');
+    bg.addColorStop(0.5, '#081120');
+    bg.addColorStop(1, '#050810');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, boW, boH);
+
+    // faint grid
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.05)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= boW; x += 40) {
+        ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, boH); ctx.stroke();
+    }
+    for (let y = 0; y <= boH; y += 40) {
+        ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(boW, y + 0.5); ctx.stroke();
+    }
+
+    // center glow
+    const vg = ctx.createRadialGradient(boW / 2, boH / 2, 60, boW / 2, boH / 2, 340);
+    vg.addColorStop(0, 'rgba(0, 240, 255, 0.05)');
+    vg.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, boW, boH);
+
+    // title
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.font = 'bold 17px sans-serif';
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = '#eafcff';
+    ctx.fillText('🧱 Neon Breakout', 14, 14);
+    ctx.shadowBlur = 0;
+
+    // bricks
+    for (const br of bo.bricks) {
+        if (!br.alive) continue;
+        ctx.save();
+        ctx.shadowColor = br.color;
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = br.color;
+        ctx.beginPath();
+        ctx.roundRect(br.x, br.y, br.w, br.h, 4);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.beginPath();
+        ctx.roundRect(br.x + 2, br.y + 2, br.w - 4, br.h / 2.4, 3);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // paddle
+    const p = bo.paddle;
+    ctx.save();
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 18;
+    const pg = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.h);
+    pg.addColorStop(0, '#a6fbff');
+    pg.addColorStop(0.5, '#00f0ff');
+    pg.addColorStop(1, '#0077ff');
+    ctx.fillStyle = pg;
+    ctx.beginPath();
+    ctx.roundRect(p.x, p.y, p.w, p.h, 7);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.beginPath();
+    ctx.roundRect(p.x + 6, p.y + 3, p.w - 12, 4, 3);
+    ctx.fill();
+    ctx.restore();
+
+    // ball trail
+    for (const t of bo.trail) {
+        const a = t.life / 14;
+        ctx.globalAlpha = a * 0.45;
+        ctx.fillStyle = '#ff2d75';
+        ctx.shadowColor = '#ff2d75';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, bo.ball.r * (0.4 + 0.6 * a), 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // ball
+    const b = bo.ball;
+    ctx.save();
+    ctx.shadowColor = '#ff2d75';
+    ctx.shadowBlur = 16;
+    const bg2 = ctx.createRadialGradient(b.x - 2, b.y - 2, 1, b.x, b.y, b.r);
+    bg2.addColorStop(0, '#ffe6f0');
+    bg2.addColorStop(0.5, '#ff6b9d');
+    bg2.addColorStop(1, '#ff2d75');
+    ctx.fillStyle = bg2;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // particles
+    for (const pt of bo.particles) {
+        const a = Math.max(0, pt.life / pt.maxLife);
+        ctx.globalAlpha = a;
+        ctx.fillStyle = pt.color;
+        ctx.shadowColor = pt.color;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.size * a, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+
+    // launch hint
+    if (b.attached && bo.running && !bo.over) {
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 15px sans-serif';
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#bfeefc';
+        ctx.fillText('⬅ ➡ move  •  SPACE / CLICK to launch', boW / 2, boH - 40);
+        ctx.shadowBlur = 0;
+    }
+
+    // overlays
+    if (bo.over) {
+        ctx.fillStyle = 'rgba(3, 6, 12, 0.82)';
+        ctx.fillRect(0, 0, boW, boH);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 44px sans-serif';
+        if (bo.won) {
+            ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 26;
+            ctx.fillStyle = '#ffd700';
+            ctx.fillText('🏆 YOU WIN!', boW / 2, boH / 2 - 40);
+        } else {
+            ctx.shadowColor = '#ff2d75'; ctx.shadowBlur = 26;
+            ctx.fillStyle = '#ff6b9d';
+            ctx.fillText('💀 GAME OVER', boW / 2, boH / 2 - 40);
+        }
+        ctx.shadowBlur = 0;
+        ctx.font = 'bold 20px sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.fillText('Score: ' + bo.score, boW / 2, boH / 2 + 20);
+        ctx.font = '14px sans-serif';
+        ctx.fillStyle = '#bfeefc';
+        ctx.fillText('Press Restart to play again', boW / 2, boH / 2 + 60);
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (currentScreen !== 'breakout') return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        bo.keys[e.key === 'ArrowLeft' ? 'left' : 'right'] = true;
+    } else if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'Enter') {
+        e.preventDefault();
+        if (!bo.over) boLaunchBall();
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    if (currentScreen !== 'breakout') return;
+    if (e.key === 'ArrowLeft') bo.keys.left = false;
+    else if (e.key === 'ArrowRight') bo.keys.right = false;
+});
+
+boCanvas.addEventListener('mousemove', (e) => {
+    if (currentScreen !== 'breakout') return;
+    const rect = boCanvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (boW / rect.width);
+    bo.paddle.x = Math.max(4, Math.min(boW - bo.paddle.w - 4, x - bo.paddle.w / 2));
+});
+
+boCanvas.addEventListener('click', (e) => {
+    if (currentScreen !== 'breakout') return;
+    if (!bo.over) boLaunchBall();
+});
+
+boCanvas.addEventListener('touchmove', (e) => {
+    if (currentScreen !== 'breakout') return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = boCanvas.getBoundingClientRect();
+    const x = (touch.clientX - rect.left) * (boW / rect.width);
+    bo.paddle.x = Math.max(4, Math.min(boW - bo.paddle.w - 4, x - bo.paddle.w / 2));
+}, { passive: false });
+
+boCanvas.addEventListener('touchstart', (e) => {
+    if (currentScreen !== 'breakout') return;
+    e.preventDefault();
+    if (!bo.over) boLaunchBall();
+}, { passive: false });
+
+document.getElementById('boRestart').addEventListener('click', breakoutInit);
