@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Snake</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 80px rgba(0,255,100,.6);transition:box-shadow 0.3s ease;}.c:focus{outline:none;box-shadow:0 0 80px rgba(0,255,100,.8);}</style></head>
+<body><canvas class="c"></canvas>
+<script>
+const C=document.querySelector('canvas'),X=C.getContext('2d');
+let W,H,COLS,ROWS,SZ;function resize(){W=C.width=Math.min(window.innerWidth-20,520);H=C.height=Math.min(window.innerHeight-20,720);COLS=Math.floor(W/22);ROWS=Math.floor((H-40)/22);SZ=Math.floor(Math.min(W/COLS,(H-40)/ROWS))}resize();window.addEventListener('resize',resize);
+let snake,dir,nextDir,food,score,over,won,state,tick,spd,interval,particles=[],scorePopups=[],trail=[],pulseT=0,glowOffset=0,snakeGlow=0;
+function init(){snake=[{x:Math.floor(COLS/2),y:Math.floor(ROWS/2)}];dir={x:1,y:0};nextDir={x:1,y:0};score=0;over=false;won=false;state='ready';particles=[];scorePopups=[];trail=[];pulseT=0;glowOffset=0;snakeGlow=0;placeFood();startSpeed()}
+function startSpeed(){clearInterval(interval);spd=130;interval=setInterval(update,spd)}
+function placeFood(){do{food={x:Math.floor(Math.random()*COLS),y:Math.floor(Math.random()*(ROWS-1))+1}}while(snake.some(s=>s.x===food.x&&s.y===food.y))}
+function setDir(dx,dy){if(dir.x!==-dx||dir.y!==-dy)nextDir={x:dx,y:dy}}
+document.addEventListener('keydown',e=>{if(e.code==='ArrowUp'||e.code==='KeyW')setDir(0,-1);if(e.code==='ArrowDown'||e.code==='KeyS')setDir(0,1);if(e.code==='ArrowLeft'||e.code==='KeyA')setDir(-1,0);if(e.code==='ArrowRight'||e.code==='KeyD')setDir(1,0);if((over||won)&&e.code==='Space')init()});
+let tx,ty;C.addEventListener('pointerdown',e=>{tx=e.clientX;ty=e.clientY;if(over||won){init();return}});
+C.addEventListener('pointerup',e=>{let dx=e.clientX-tx,dy=e.clientY-ty;if(Math.abs(dx)+Math.abs(dy)<15)return;if(Math.abs(dx)>Math.abs(dy)){setDir(dx>0?1:-1,0)}else{setDir(0,dy>0?1:-1)}});
+function update(){if(state==='ready')state='play';if(state!=='play')return;dir={...nextDir};let head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS||snake.some(s=>s.x===head.x&&s.y===head.y)){over=true;clearInterval(interval);spawnDeathParticles();return}
+snake.unshift(head);
+if(head.x===food.x&&head.y===food.y){score++;
+// Enhanced food particles
+for(let i=0;i<15;i++){
+    let a=Math.PI*2/15*i;
+    particles.push({
+        x:food.x*SZ+SZ/2,
+        y:food.y*SZ+SZ/2,
+        vx:Math.cos(a)*3,
+        vy:Math.sin(a)*3,
+        life:30,
+        s:Math.random()*4+2,
+        col:'#ff4757',
+        gravity:0.05
+    });
+}
+scorePopups.push({
+    x:head.x*SZ+SZ/2,
+    y:head.y*SZ,
+    txt:'+'+score,
+    life:40,
+    vy:-1.8,
+    scale:1
+});
+if(score>=30){won=true;clearInterval(interval);spawnWinParticles()}else{placeFood();if(spd>65){spd-=5;startSpeed()}}}else{let tail=snake.pop();trail.push({x:tail.x,y:tail.y,life:15});for(let t of trail)t.life--;trail=trail.filter(t=>t.life>0)}
+// Update particles with gravity
+for(let p of particles){
+    p.x+=p.vx;
+    p.y+=p.vy;
+    p.vy+=p.gravity || 0;
+    p.life--;
+}
+particles=particles.filter(p=>p.life>0);
+// Update score popups with scaling
+for(let sp of scorePopups){
+    sp.y+=sp.vy;
+    sp.life--;
+    sp.scale = 1.3 - (40-sp.life)/40 * 0.3;
+}
+scorePopups=scorePopups.filter(sp=>sp.life>0);
+glowOffset += 0.05;
+snakeGlow = 1 + Math.sin(glowOffset*2)*0.5;
+}
+function spawnDeathParticles(){
+    // Add death particles with better distribution
+    for(let s of snake){
+        for(let i=0;i<6;i++){
+            particles.push({
+                x:s.x*SZ+SZ/2,
+                y:s.y*SZ+SZ/2,
+                vx:(Math.random()-.5)*6,
+                vy:(Math.random()-.5)*6,
+                life:40,
+                s:Math.random()*4+2,
+                col:`hsl(${120+Math.random()*40},90%,50%)`,
+                gravity:0.1
+            });
+        }
+    }
+    // Add a special explosion effect
+    for(let i=0;i<30;i++){
+        setTimeout(()=>{
+            let a=Math.random()*Math.PI*2;
+            particles.push({
+                x:snake[0].x*SZ+SZ/2,
+                y:snake[0].y*SZ+SZ/2,
+                vx:Math.cos(a)*5,
+                vy:Math.sin(a)*5,
+                life:50,
+                s:Math.random()*3+1,
+                col:'#ff4757',
+                gravity:0.08
+            });
+        }, i*20);
+    }
+}
+function spawnWinParticles(){
+    for(let i=0;i<80;i++){
+        let a=Math.random()*Math.PI*2;
+        particles.push({
+            x:W/2,
+            y:H/2,
+            vx:Math.cos(a)*(Math.random()*10+2),
+            vy:Math.sin(a)*(Math.random()*10+2),
+            life:70,
+            s:Math.random()*5+3,
+            col:`hsl(${Math.random()*360},100%,60%)`,
+            gravity:0.05
+        });
+    }
+}
+function draw(){
+    X.clearRect(0,0,W,H);
+    let grad=X.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0,'#081a08');
+    grad.addColorStop(1,'#122a12');
+    X.fillStyle=grad;
+    X.fillRect(0,0,W,H);
+    
+    pulseT+=.03;
+    
+    // Enhanced grid with animated pattern
+    for(let i=0;i<COLS;i++){
+        for(let j=0;j<ROWS;j++){
+            if((i+j)%2===0){
+                X.fillStyle='rgba(255,255,255,0.02)';
+                X.fillRect(i*SZ,j*SZ+40,SZ,SZ);
+            }
+        }
+    }
+    
+    // Snake trail with glow effect
+    for(let t of trail){
+        X.globalAlpha=t.life/15*0.4;
+        X.fillStyle='#2ed573';
+        X.beginPath();
+        X.arc(t.x*SZ+SZ/2,t.y*SZ+SZ/2,SZ*.3,0,Math.PI*2);
+        X.fill();
+    }
+    X.globalAlpha=1;
+    
+    // Enhanced food with pulsing effect and glow
+    let foodPulse=1+Math.sin(pulseT*3)*.2;
+    X.shadowColor='#ff4757';
+    X.shadowBlur=20;
+    X.fillStyle='#ff4757';
+    X.beginPath();
+    X.arc(food.x*SZ+SZ/2,food.y*SZ+SZ/2,SZ/2.5*foodPulse,0,Math.PI*2);
+    X.fill();
+    X.shadowBlur=0;
+    
+    // Food inner highlight
+    X.fillStyle='rgba(255,255,255,0.6)';
+    X.beginPath();
+    X.arc(food.x*SZ+SZ/2-2,food.y*SZ+SZ/2-2,SZ/7,0,Math.PI*2);
+    X.fill();
+    
+    // Snake body with enhanced visual effects
+    for(let i=snake.length-1;i>=0;i--){
+        let s=snake[i],t=i/Math.max(snake.length,1);
+        let sz2=SZ-2-Math.min(i*.05,4);
+        let ox=(SZ-sz2)/2;
+        let hue=120+t*50;
+        let light=55-t*20;
+        
+        // Enhanced snake body with gradient and glow
+        let snakeBody=X.createLinearGradient(s.x*SZ+ox,s.y*SZ+ox+40,s.x*SZ+ox+sz2,s.y*SZ+ox+sz2+40);
+        snakeBody.addColorStop(0,`hsl(${hue}, 90%, ${light+10}%)`);
+        snakeBody.addColorStop(0.5,`hsl(${hue}, 90%, ${light}%)`);
+        snakeBody.addColorStop(1,`hsl(${hue}, 90%, ${light-10}%)`);
+        
+        X.fillStyle=snakeBody;
+        
+        // Add glow for head
+        if(i === 0){
+            X.shadowColor=`hsl(${hue}, 90%, 60%)`;
+            X.shadowBlur=20;
+            X.beginPath();
+            X.roundRect(s.x*SZ+ox,s.y*SZ+ox+40,sz2,sz2,6);
+            X.fill();
+            X.shadowBlur=0;
+        } else {
+            X.beginPath();
+            X.roundRect(s.x*SZ+ox,s.y*SZ+ox+40,sz2,sz2,6);
+            X.fill();
+        }
+        
+        // Snake body pattern
+        X.fillStyle='rgba(255,255,255,0.1)';
+        X.beginPath();
+        X.arc(s.x*SZ+SZ/2, s.y*SZ+SZ/2+40, sz2*0.3, 0, Math.PI*2);
+        X.fill();
+    }
+    
+    // Enhanced snake eyes with glow
+    if(snake[0]){
+        let h=snake[0];
+        let ex=h.x*SZ+SZ/2+dir.x*4,ey=h.y*SZ+SZ/2+dir.y*40;
+        
+        // Outer eye white
+        X.fillStyle='#fff';
+        X.beginPath();
+        X.arc(ex-3,ey-2,4,0,Math.PI*2);
+        X.fill();
+        
+        X.beginPath();
+        X.arc(ex+3,ey-2,4,0,Math.PI*2);
+        X.fill();
+        
+        // Inner eye pupils
+        X.fillStyle='#1a1a2e';
+        X.beginPath();
+        X.arc(ex+dir.x*1.5-3,ey-2+dir.y*1.5,2,0,Math.PI*2);
+        X.fill();
+        
+        X.beginPath();
+        X.arc(ex+dir.x*1.5+3,ey-2+dir.y*1.5,2,0,Math.PI*2);
+        X.fill();
+        
+        // Eye shine
+        X.fillStyle='#fff';
+        X.beginPath();
+        X.arc(ex+dir.x*1.5-3,ey-2+dir.y*1.5,1,0,Math.PI*2);
+        X.fill();
+        
+        X.beginPath();
+        X.arc(ex+dir.x*1.5+3,ey-2+dir.y*1.5,1,0,Math.PI*2);
+        X.fill();
+    }
+    
+    // Enhanced particles with gravity
+    for(let p of particles){
+        X.globalAlpha=p.life/50;
+        X.fillStyle=p.col;
+        X.shadowColor=p.col;
+        X.shadowBlur=8;
+        X.beginPath();
+        X.arc(p.x,p.y,p.s*(p.life/50),0,Math.PI*2);
+        X.fill();
+        X.shadowBlur=0;
+    }
+    X.globalAlpha=1;
+    
+    // Enhanced score popups with scaling
+    for(let sp of scorePopups){
+        X.globalAlpha=sp.life/40;
+        X.save();
+        X.translate(sp.x, sp.y);
+        X.scale(sp.scale, sp.scale);
+        X.fillStyle='#ffd700';
+        X.shadowColor='#ffd700';
+        X.shadowBlur=10;
+        X.font='bold 24px "Segoe UI"';
+        X.textAlign='center';
+        X.fillText(sp.txt,0,0);
+        X.shadowBlur=0;
+        X.restore();
+    }
+    X.globalAlpha=1;
+    
+    // Enhanced HUD
+    X.fillStyle='#fff';
+    X.shadowColor='#ffffff';
+    X.shadowBlur=15;
+    X.font='bold 28px "Segoe UI"';
+    X.textAlign='center';
+    X.fillText('\uD83D\uDC0D Length: '+score+' / 30',W/2,32);
+    X.shadowBlur=0;
+    
+    // Enhanced ready state
+    if(state==='ready'){
+        X.fillStyle='rgba(255,255,255,0.9)';
+        X.shadowColor='#ffffff';
+        X.shadowBlur=20;
+        X.font='bold 30px "Segoe UI"';
+        X.fillText('SNAKE',W/2,H/2-20);
+        X.shadowBlur=0;
+        
+        // Pulsing instruction
+        let pulse = 0.8 + Math.sin(pulseT*5)*0.2;
+        X.globalAlpha=pulse;
+        X.fillStyle='rgba(255,255,255,0.8)';
+        X.font='bold 22px "Segoe UI"';
+        X.fillText('Swipe or arrow keys',W/2,H/2+15);
+        X.globalAlpha=1;
+        
+        X.font='16px "Segoe UI"';
+        X.fillStyle='rgba(255,255,255,0.6)';
+        X.fillText('Tap to start',W/2,H/2+45);
+    }
+    
+    // Enhanced game over/win screens
+    if(over||won){
+        X.fillStyle='rgba(0,0,0,0.8)';
+        X.fillRect(0,0,W,H);
+        
+        // Animated border
+        X.strokeStyle=won ? 'rgba(46, 213, 115, 0.8)' : 'rgba(255, 71, 87, 0.8)';
+        X.lineWidth=3;
+        X.shadowColor=won ? '#2ed573' : '#ff4757';
+        X.shadowBlur=20;
+        X.strokeRect(W/2-150, H/2-90, 300, 180);
+        X.shadowBlur=0;
+        
+        // Main message
+        X.fillStyle=won?'#2ed573':'#ff4757';
+        X.shadowColor=won?'#2ed573':'#ff4757';
+        X.shadowBlur=25;
+        X.font='bold 45px "Segoe UI"';
+        X.textAlign='center';
+        X.fillText(won?'\u2728 PERFECT! \u2728':'GAME OVER',W/2,H/2-20);
+        X.shadowBlur=0;
+        
+        // Score display
+        X.fillStyle='#fff';
+        X.font='bold 26px "Segoe UI"';
+        X.fillText('Length: '+score,W/2,H/2+20);
+        
+        // Pulsing retry text
+        let retryPulse = 0.7 + Math.sin(pulseT*5)*0.2;
+        X.globalAlpha=retryPulse;
+        X.font='20px "Segoe UI"';
+        X.fillStyle='rgba(255,255,255,0.8)';
+        X.fillText('\u25B6 Tap or Space to retry',W/2,H/2+60);
+        X.globalAlpha=1;
+    }
+}
+function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+</script></body></html>

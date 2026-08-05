@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Swim Dodge</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,150,255,.3)}</style></head>
+<body><canvas class="c"></canvas>
+<script>
+const C=document.querySelector('canvas'),X=C.getContext('2d');
+let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
+let player,jellyfish,bubbles,state,depth,surfaceReached,mx=W/2,my=H/2,particles=[],scorePopups=[],shakeTime=0,pulseT=0;
+function init(){player={x:W/2,y:H-100};jellyfish=[];bubbles=[];state='play';depth=0;surfaceReached=false;mx=W/2;my=H/2;particles=[];scorePopups=[];shakeTime=0;pulseT=0}
+C.addEventListener('pointermove',e=>{let r=C.getBoundingClientRect();mx=e.clientX-r.left;my=e.clientY-r.top});
+document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init()}});
+function update(){if(state!=='play')return;pulseT+=.03;player.x+=(mx-player.x)*.07;player.y+=((my-50)-player.y)*.06;depth=Math.max(0,H-player.y);
+if(depth<H*.2&&!surfaceReached){surfaceReached=true;state='win';spawnWinParticles()}
+if(Math.floor(Math.random()*3)===0)bubbles.push({x:Math.random()*W,y:H+10,vx:(Math.random()-.5)*1,vy:-Math.random()*2-1,s:Math.random()*4+2,life:100});
+for(let b of bubbles){b.x+=b.vx;b.y+=b.vy;b.life--}bubbles=bubbles.filter(b=>b.life>0);
+if(Math.floor(Math.random()*35)===0){let jy=-30;jellyfish.push({x:Math.random()*W,y:jy,vx:(Math.random()-.5)*2,vy:-Math.random()*1.5-.5,r:14+Math.random()*16,phase:Math.random()*Math.PI*2,col:`hsla(${270+Math.random()*60},80%,60%,.6)`})}
+for(let j of jellyfish){j.y+=j.vy;j.x+=Math.sin(j.phase++)*.5;if(j.y>-80)j.dead=true;
+if(Math.hypot(player.x-j.x,player.y-j.y)<player.r+j.r){state='over';shakeTime=12;spawnStingParticles();return}}
+jellyfish=jellyfish.filter(j=>!j.dead);
+if(shakeTime>0)shakeTime--;
+for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.03;p.life--}particles=particles.filter(p=>p.life>0)}
+function spawnStingParticles(){for(let i=0;i<15;i++){let a=Math.random()*Math.PI*2;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*(Math.random()*5+2),vy:Math.sin(a)*(Math.random()*5+2),life:25,s:Math.random()*3+2,col:'#c066ff'})}}
+function spawnWinParticles(){for(let i=0;i<50;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H*.2,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2)-2,life:40,s:Math.random()*4+2,col:`hsl(${180+Math.random()*60},100%,60%)`)}}}
+function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
+X.clearRect(-15,-15,W+30,H+30);
+// Water gradient - deeper at bottom
+let depthRatio=Math.min(1,depth/H);let grad=X.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#0a3a5a');grad.addColorStop(.3,'#0a2a4a');grad.addColorStop(.7,'#0a1a3a');grad.addColorStop(1,'#050a2a');X.fillStyle=grad;X.fillRect(0,0,W,H);
+// Light rays from surface
+X.fillStyle='rgba(100,200,255,.03)';for(let i=0;i<5;i++){let rx=W*.2+i*W*.15+Math.sin(pulseT+i)*10;X.beginPath();X.moveTo(rx-10,0);X.lineTo(rx+10,0);X.lineTo(rx+30,H);X.lineTo(rx-30,H);X.closePath();X.fill()}
+// Surface line
+X.fillStyle='rgba(100,200,255,.2)';X.fillRect(0,0,W,3);
+// Bubbles
+for(let b of bubbles){X.globalAlpha=b.life/100*.3;X.fillStyle='#88ccff';X.beginPath();X.arc(b.x,b.y,b.s,0,Math.PI*2);X.fill();X.strokeStyle='rgba(150,220,255,.3)';X.lineWidth=.5;X.stroke()}X.globalAlpha=1;
+// Seaweed
+X.strokeStyle='rgba(50,150,50,.2)';X.lineWidth=3;for(let i=0;i<6;i++){let sx=i*W/5+W/10;X.beginPath();X.moveTo(sx,H);for(let y=H;y>H-80;y-=5){X.quadraticCurveTo(sx+Math.sin(pulseT+i+y*.02)*15,y-5,sx,y-10)}X.stroke()}
+// Jellyfish
+for(let j of jellyfish){X.fillStyle=j.col;X.shadowColor=j.col.replace('.6)','1)');X.shadowBlur=15;X.beginPath();X.arc(j.x,j.y,j.r,Math.PI,0);X.lineTo(j.x+j.r,j.y);X.lineTo(j.x-j.r,j.y);X.closePath();X.fill();
+X.strokeStyle='rgba(200,100,255,.3)';X.lineWidth=1;for(let t=-2;t<=2;t++){X.beginPath();X.moveTo(j.x+t*j.r/2,j.y);for(let s=0;s<j.r*2;s+=5){X.lineTo(j.x+t*j.r/2+Math.sin(pulseT*2+t+s*.1)*5,j.y+s)}X.stroke()}X.shadowBlur=0}
+// Player (diver)
+X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=15;X.beginPath();X.arc(player.x,player.y,12,0,Math.PI*2);X.fill();X.shadowBlur=0;
+X.fillStyle='rgba(255,255,255,.4)';X.beginPath();X.arc(player.x-3,player.y-3,4,0,Math.PI*2);X.fill();
+// Depth meter
+let meterW=8,meterH=H*.7,meterX=25,meterY=H*.15;X.fillStyle='rgba(255,255,255,.1)';X.fillRect(meterX,meterY,meterW,meterH);
+let fill=Math.min(1,depth/(H*.8));let mg=X.createLinearGradient(0,meterY+meterH,0,meterY);mg.addColorStop(0,'#0cf');mg.addColorStop(1,'#0984e3');X.fillStyle=mg;X.fillRect(meterX,meterY+meterH-meterH*fill,meterW,meterH*fill);
+X.fillStyle='#fff';X.font='bold 11px "Segoe UI"';X.textAlign='center';X.fillText(Math.floor(depth)+'m',meterX+4,meterY-5);
+// Particles
+for(let p of particles){X.globalAlpha=p.life/50;X.fillStyle=p.col;X.shadowColor=p.col;X.shadowBlur=6;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/50),0,Math.PI*2);X.fill();X.shadowBlur=0}X.globalAlpha=1;
+X.restore();
+if(surfaceReached){X.fillStyle='rgba(0,200,255,.3)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 SURFACE! \u2728',W/2,H/2-20)}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.shadowColor='#ff4757';X.shadowBlur=15;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('STUNG!',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#0cf';X.shadowColor='#0cf';X.shadowBlur=20;X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ESCAPED! \u2728',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
+function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+</script></body></html>

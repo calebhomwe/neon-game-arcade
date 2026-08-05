@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Skywalker Studio Games</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0d0d1a; color: #e0e0f0; font-family: 'Segoe UI', system-ui, sans-serif; height: 100vh; overflow: hidden; }
+
+/* Landing / Hub */
+#hub { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 40px; }
+#hub h1 { font-size: 48px; background: linear-gradient(90deg, #6c5ce7, #00cec9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+#hub .subtitle { color: #888; font-size: 16px; margin-top: -30px; }
+.game-grid { display: flex; gap: 30px; flex-wrap: wrap; justify-content: center; max-width: 900px; }
+.game-card { width: 280px; background: #1a1a2e; border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid #2a2a4a; }
+.game-card:hover { transform: translateY(-6px); box-shadow: 0 12px 30px rgba(108,92,231,0.3); }
+.game-card .thumb { height: 160px; display: flex; align-items: center; justify-content: center; font-size: 64px; }
+.game-card .info { padding: 16px 20px; }
+.game-card .info h3 { font-size: 20px; margin-bottom: 6px; }
+.game-card .info p { font-size: 13px; color: #888; line-height: 1.4; }
+.game-card .tag { display: inline-block; background: #2d2d5a; color: #6c5ce7; padding: 3px 10px; border-radius: 12px; font-size: 11px; margin-top: 8px; }
+
+/* Game viewport */
+#gameView { display: none; flex-direction: column; align-items: center; height: 100vh; }
+#gameHeader { width: 100%; padding: 10px 20px; background: #111; display: flex; justify-content: space-between; align-items: center; }
+#gameHeader .title { font-size: 18px; color: #6c5ce7; }
+#backBtn { background: #2a2a4a; color: #fff; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+#backBtn:hover { background: #3a3a5a; }
+canvas { border-radius: 8px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<!-- HUB / LANDING -->
+<div id="hub">
+  <h1>SKYWALKER STUDIO</h1>
+  <p class="subtitle">Game Collection</p>
+  <div class="game-grid" id="gameGrid"></div>
+</div>
+
+<!-- GAME VIEWPORT -->
+<div id="gameView">
+  <div id="gameHeader">
+    <span class="title" id="currentGameTitle"></span>
+    <button id="backBtn" onclick="showHub()">&#8592; Back to Hub</button>
+  </div>
+  <div id="gameContainer"></div>
+</div>
+
+<script>
+// ===== GAME REGISTRY =====
+const GAMES = [
+  {
+    id: 'tidebreak',
+    title: 'Tidebreak',
+    emoji: '\u{1F3B1}',
+    desc: '2-player local arena. Grab the care package, dodge confetti traps, deliver to your drop-off zone. First to 3 wins.',
+    tag: '2P Local',
+    launch: launchTidebreak,
+    canvas: { w: 1100, h: 700 }
+  }
+];
+
+// ===== HUB RENDERING =====
+const grid = document.getElementById('gameGrid');
+GAMES.forEach(g => {
+  const card = document.createElement('div');
+  card.className = 'game-card';
+  card.innerHTML = `
+    <div class="thumb">${g.emoji}</div>
+    <div class="info">
+      <h3>${g.title}</h3>
+      <p>${g.desc}</p>
+      <span class="tag">${g.tag}</span>
+    </div>`;
+  card.onclick = () => launchGame(g);
+  grid.appendChild(card);
+});
+
+function launchGame(g) {
+  document.getElementById('hub').style.display = 'none';
+  const gv = document.getElementById('gameView');
+  gv.style.display = 'flex';
+  document.getElementById('currentGameTitle').textContent = g.title;
+  const container = document.getElementById('gameContainer');
+  container.innerHTML = '';
+  g.launch(container, g.canvas);
+}
+
+function showHub() {
+  document.getElementById('gameView').style.display = 'none';
+  document.getElementById('hub').style.display = 'flex';
+  document.getElementById('gameContainer').innerHTML = '';
+  if (window._currentGameStop) { window._currentGameStop(); window._currentGameStop = null; }
+}
+
+// ===== AUDIO =====
+let audioCtx = null;
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function playTone(freq, dur, vol) {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'sine'; o.frequency.value = freq;
+  g.gain.value = vol || 0.1;
+  o.connect(g); g.connect(audioCtx.destination);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+
+// ===== TIDEBREAK GAME =====
+function launchTidebreak(container, dims) {
+  const canvas = document.createElement('canvas');
+  canvas.width = dims.w; canvas.height = dims.h;
+  canvas.style.background = '#1a1a2e';
+  canvas.style.maxWidth = '100%';
+  canvas.style.maxHeight = '75vh';
+  container.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  initAudio();
+  canvas.onclick = () => initAudio();
+
+  const W = dims.w, H = dims.h;
+  const keys = {};
+  let justPressed = {};
+
+  document.addEventListener('keydown', keyDown);
+  document.addEventListener('keyup', keyUp);
+
+  function keyDown(e) {
+    if (!keys[e.code]) justPressed[e.code] = true;
+    keys[e.code] = true;
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyE','ShiftRight','Space','Escape','KeyR'].includes(e.code)) e.preventDefault();
+  }
+  function keyUp(e) { keys[e.code] = false; }
+
+  let players, traps, confettiP, score, gameOver, paused, shakeX, shakeY, shakeAmt, shakeDur, shakeTmr, pkg, statusText, lastTime;
+
+  function reset() {
+    players = [
+      { id:1, x:W/2-200, y:H/2, frozen:false, freezeT:0, trapCD:0, hasPkg:false, speed:250, r:0.4, g:0.5, b:0.7 },
+      { id:2, x:W/2+200, y:H/2, frozen:false, freezeT:0, trapCD:0, hasPkg:false, speed:250, r:0.7, g:0.4, b:0.4 }
+    ];
+    traps = []; confettiP = [];
+    score = {1:0, 2:0}; gameOver = false; paused = false;
+    shakeX=0; shakeY=0; shakeAmt=0; shakeDur=0; shakeTmr=0;
+    pkg = { x:W/2, y:H/2, active:true, respawnT:0, pulse:0 };
+    statusText = '\u{1F4E6} Grab the Package in the middle!';
+  }
+  reset();
+
+  function shake(a, d) { shakeAmt=a; shakeDur=d; shakeTmr=d; }
+  function confetti(x, y, color) {
+    for (let i=0; i<20; i++) confettiP.push({ x, y, vx:(Math.random()-0.5)*250, vy:(Math.random()-0.5)*250-50, life:0.6, color, size:Math.random()*4+2 });
+  }
+  function addScore(id) {
+    score[id]++;
+    if (score[id] >= 3) { gameOver = true; statusText = '\u{1F3C6} ' + (score[1]>score[2]?'P1':'P2') + ' WINS! Press R \u{1F3C6}'; }
+    else statusText = 'Scores: P1 ' + score[1] + ' - P2 ' + score[2];
+  }
+
+  function update(dt) {
+    if (shakeTmr > 0) { shakeTmr-=dt; const i=shakeTmr/shakeDur; shakeX=(Math.random()*2-1)*shakeAmt*i; shakeY=(Math.random()*2-1)*shakeAmt*i; }
+    else { shakeX=0; shakeY=0; }
+
+    if (gameOver) {
+      if (justPressed['KeyR']) reset();
+      justPressed = {};
+      return;
+    }
+    if (justPressed['Escape']) { paused = !paused; }
+    if (paused) { statusText = '\u23F8 PAUSED'; justPressed = {}; return; }
+
+    // P1
+    const p1 = players[0];
+    if (!p1.frozen) {
+      let dx=0,dy=0; if(keys['KeyA'])dx--; if(keys['KeyD'])dx++; if(keys['KeyW'])dy--; if(keys['KeyS'])dy++;
+      const l=Math.hypot(dx,dy); if(l>0){p1.x+=dx/l*p1.speed*dt; p1.y+=dy/l*p1.speed*dt;}
+      p1.x=Math.max(25,Math.min(W-25,p1.x)); p1.y=Math.max(25,Math.min(H-25,p1.y));
+    }
+    p1.trapCD=Math.max(p1.trapCD-dt,0);
+    if (justPressed['KeyE'] && p1.trapCD<=0 && !p1.frozen) { traps.push({x:p1.x,y:p1.y,owner:1,life:3,active:true,scale:1}); p1.trapCD=1.5; playTone(440,0.15,0.06); }
+
+    // P2
+    const p2 = players[1];
+    if (!p2.frozen) {
+      let dx=0,dy=0; if(keys['ArrowLeft'])dx--; if(keys['ArrowRight'])dx++; if(keys['ArrowUp'])dy--; if(keys['ArrowDown'])dy++;
+      const l=Math.hypot(dx,dy); if(l>0){p2.x+=dx/l*p2.speed*dt; p2.y+=dy/l*p2.speed*dt;}
+      p2.x=Math.max(25,Math.min(W-25,p2.x)); p2.y=Math.max(25,Math.min(H-25,p2.y));
+    }
+    p2.trapCD=Math.max(p2.trapCD-dt,0);
+    if (justPressed['ShiftRight'] && p2.trapCD<=0 && !p2.frozen) { traps.push({x:p2.x,y:p2.y,owner:2,life:3,active:true,scale:1}); p2.trapCD=1.5; playTone(440,0.15,0.06); }
+
+    // Freeze timers
+    for (let p of players) { if (p.frozen) { p.freezeT-=dt; if(p.freezeT<=0)p.frozen=false; } }
+
+    // Traps
+    for (let t of traps) {
+      if (!t.active) continue;
+      t.life-=dt; t.scale = 0.8 + (1-t.life/3)*0.4;
+      if (t.life<=0) { t.active=false; playTone(300,0.25,0.05); shake(5,0.3); confetti(t.x,t.y,t.owner===1?'#ddd':'#888'); continue; }
+      for (let p of players) {
+        if (p.id===t.owner) continue;
+        if (Math.hypot(p.x-t.x, p.y-t.y) < 35) {
+          p.frozen=true; p.freezeT=2.0; p.trapCD=0.5; t.active=false;
+          confetti(t.x,t.y,t.owner===1?'#ddd':'#888');
+          playTone(300,0.25,0.05); playTone(600,0.3,0.04); shake(5,0.3);
+          if (p.hasPkg) { p.hasPkg=false; pkg.active=true; pkg.respawnT=4; }
+        }
+      }
+    }
+    traps = traps.filter(t => t.active || t.life > -0.5);
+
+    // Package
+    if (pkg.active) {
+      for (let p of players) {
+        if (!p.hasPkg && Math.hypot(p.x-pkg.x, p.y-pkg.y) < 35) {
+          p.hasPkg=true; pkg.active=false; pkg.respawnT=4; playTone(800,0.12,0.06);
+        }
+      }
+    } else {
+      pkg.respawnT-=dt; pkg.pulse+=dt*8;
+      if (pkg.respawnT<=0) { pkg.active=true; pkg.x=W/2; pkg.y=H/2; }
+    }
+
+    // Dropoff
+    for (let p of players) {
+      if (p.hasPkg && !p.frozen) {
+        if (p.id===1 && p.y < 80) { addScore(1); p.hasPkg=false; }
+        if (p.id===2 && p.y > H-80) { addScore(2); p.hasPkg=false; }
+      }
+    }
+
+    // Confetti
+    for (let i=confettiP.length-1; i>=0; i--) {
+      const c=confettiP[i]; c.x+=c.vx*dt; c.y+=c.vy*dt; c.vy+=200*dt; c.life-=dt;
+      if (c.life<=0) confettiP.splice(i,1);
+    }
+
+    // Status
+    if (!gameOver && !paused) {
+      const fr = players.filter(p=>p.frozen);
+      if (fr.length>0) statusText = '\u2744 ' + fr.length + ' frozen! ' + Math.max(...fr.map(p=>p.freezeT)).toFixed(1) + 's';
+      else { const hp=players.find(p=>p.hasPkg); statusText = hp ? '\u{1F4E6} P'+hp.id+' has the Package!' : '\u{1F4E6} Grab the Package in the middle!'; }
+    }
+
+    justPressed = {};
+  }
+
+  function draw() {
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+
+    // BG
+    ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0,0,W,H);
+
+    // Grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+    for (let i=0;i<W;i+=50){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,H);ctx.stroke();}
+    for (let i=0;i<H;i+=50){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(W,i);ctx.stroke();}
+
+    // Zones
+    ctx.fillStyle = 'rgba(100,150,255,0.12)'; ctx.fillRect(0,0,W,80);
+    ctx.strokeStyle = 'rgba(100,150,255,0.3)'; ctx.lineWidth=2; ctx.strokeRect(W/2-100,0,200,50);
+    ctx.fillStyle = 'rgba(255,100,100,0.12)'; ctx.fillRect(0,H-80,W,80);
+    ctx.strokeStyle = 'rgba(255,100,100,0.3)'; ctx.strokeRect(W/2-100,H-50,200,50);
+    ctx.font = '13px monospace'; ctx.textAlign='center';
+    ctx.fillStyle='rgba(150,200,255,0.5)'; ctx.fillText('P1 DROP-OFF',W/2,25);
+    ctx.fillStyle='rgba(255,150,150,0.5)'; ctx.fillText('P2 DROP-OFF',W/2,H-15);
+
+    // Traps
+    for (let t of traps) {
+      if (!t.active) continue;
+      ctx.save(); ctx.translate(t.x,t.y); ctx.rotate(Date.now()*0.003); ctx.scale(t.scale,t.scale);
+      ctx.fillStyle = t.owner===1 ? 'rgba(200,200,200,0.7)' : 'rgba(100,100,100,0.7)';
+      ctx.beginPath();
+      ctx.moveTo(0,-14); ctx.lineTo(14,0); ctx.lineTo(0,14); ctx.lineTo(-14,0); ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle='rgba(255,50,50,0.8)'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(-6,-6); ctx.lineTo(6,6); ctx.moveTo(6,-6); ctx.lineTo(-6,6); ctx.stroke();
+      ctx.restore();
+    }
+
+    // Confetti
+    for (let c of confettiP) { ctx.globalAlpha=c.life/0.6; ctx.fillStyle=c.color; ctx.fillRect(c.x-c.size/2,c.y-c.size/2,c.size,c.size); }
+    ctx.globalAlpha=1;
+
+    // Package
+    if (pkg.active) {
+      const p = Math.sin(Date.now()*0.005)*0.3+0.7;
+      ctx.save(); ctx.translate(pkg.x,pkg.y); ctx.rotate(Date.now()*0.002);
+      ctx.fillStyle = `rgba(255,${Math.floor(200*p)},0,1)`;
+      ctx.fillRect(-14,-14,28,28);
+      ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1; ctx.strokeRect(-14,-14,28,28);
+      ctx.beginPath(); ctx.moveTo(0,-14);ctx.lineTo(0,14); ctx.moveTo(-14,0);ctx.lineTo(14,0); ctx.stroke();
+      ctx.restore();
+    } else {
+      // Respawn indicator
+      const a = Math.sin(Date.now()*0.008)*0.4+0.4;
+      ctx.fillStyle = `rgba(255,200,0,${a*0.3})`;
+      ctx.beginPath(); ctx.arc(pkg.x,pkg.y,20+pkg.pulse*3,0,Math.PI*2); ctx.fill();
+    }
+
+    // Players
+    for (let p of players) {
+      ctx.save(); ctx.translate(p.x,p.y);
+      const t = Date.now();
+      let r=p.r,g=p.g,b=p.b, sc=1;
+      if (p.frozen) {
+        const fg = Math.sin(t*0.01)*0.15+0.85; sc = 0.9+Math.sin(t*0.008)*0.05;
+        if (p.id===1) { r=0.3*fg; g=0.9; b=0.9; } else { r=0.9; g=0.7*fg; b=0.7*fg; }
+        ctx.rotate(0.3);
+      } else if (p.hasPkg) {
+        const gl=Math.sin(t*0.005)*0.2+0.8; sc=1+Math.sin(t*0.003)*0.1; r=gl;g=gl;b=0.4;
+      } else if (p.trapCD>0) {
+        const cd=p.trapCD/1.5; sc=0.95+cd*0.05;
+        if (p.id===1) { r=0.8*cd+0.1; g=0.9*cd+0.1; b=cd+0.1; } else { r=0.9*cd+0.1; g=0.8*cd+0.1; b=0.8*cd+0.1; }
+      }
+      ctx.scale(sc,sc);
+      ctx.fillStyle = `rgb(${Math.floor(r*255)},${Math.floor(g*255)},${Math.floor(b*255)})`;
+      ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth=2; ctx.stroke();
+      ctx.fillStyle='white'; ctx.font='bold 16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(p.id,0,1);
+      ctx.restore();
+    }
+
+    // HUD bar
+    ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(W/2-100,8,200,28);
+    ctx.fillStyle='white'; ctx.font='14px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('P1: ' + score[1] + '  |  P2: ' + score[2], W/2, 22);
+
+    // Status
+    ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(W/2-180,H-38,360,30);
+    ctx.fillStyle='#aaff'; ctx.font='14px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(statusText, W/2, H-23);
+
+    ctx.restore();
+  }
+
+  lastTime = performance.now();
+  function loop(time) {
+    const dt = Math.min((time-lastTime)/1000, 0.05); lastTime = time;
+    update(dt); draw();
+    window._rafId = requestAnimationFrame(loop);
+  }
+  window._currentGameStop = () => { cancelAnimationFrame(window._rafId); document.removeEventListener('keydown', keyDown); document.removeEventListener('keyup', keyUp); };
+  window._rafId = requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

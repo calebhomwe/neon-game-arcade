@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Rope Swing</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,200,100,.3)</style></head>
+<body><canvas class="c"></canvas>
+<script>
+const C=document.querySelector('canvas'),X=C.getContext('2d');
+let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
+let platforms,ropeLen,swingAngle,swingVel,released,onPlatform,state,particles=[],scorePopups=[],shakeTime=0,pulseT=0,camX=0;
+function init(){platforms=[];ropeLen=H*.32;swingAngle=-.5;swingVel=0;released=false;onPlatform=false;state='play';particles=[];scorePopups=[];shakeTime=0;pulseT=0;makePlatforms()}
+function makePlatforms(){platforms=[{x:30,y:H*.6,w:90,h:12},{x:180,y:H*.48,w:70,h:12},{x:320,y:H*.4,w:70,h:12},{x:W+100,y:H*.35,w:90,h:12}]}
+C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();return}if(!released)released=true});
+document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(!released)released=true}});
+function update(){if(state!=='play')return;pulseT+=.03;
+if(!released){swingAngle+=swingVel;swingVel+=(-.0035)*Math.cos(swingAngle);swingAngle*=.997;
+let anchorX=platforms[0].x+platforms[0].w/2;playerX=anchorX+Math.sin(swingAngle)*ropeLen;playerY=platforms[0].y-Math.cos(swingAngle)*ropeLen;
+for(let p of platforms)p.x-=1.5}else{playerVY+=.3;playerX+=playerVX;playerY+=playerVY;
+for(let i=1;i<platforms.length;i++){let p=platforms[i];if(playerX>p.x&&playerX<p.x+p.w&&playerY+playerR>p.y&&playerY-playerR<p.y+p.h){playerY=p.y-playerR;playerVY=0;playerVX=.06;onPlatform=true;break}}}
+if(playerY>H+50){state='over';shakeTime=10}
+if(playerX>platforms[platforms.length-1].x+platforms[platforms.length-1].w){state='win';spawnWinParticles()}
+for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}particles=particles.filter(p=>p.life>0);
+if(Math.random()<.2)particles.push({x:playerX,y:playerY+playerR,vx:(Math.random()-.5)*2,vy:Math.random()*2,life:15,s:Math.random()*3+1,col:'#90EE90'});
+if(shakeTime>0)shakeTime--}
+let playerX=80,playerY=0,playerVX=0,playerVY=0,playerR=12;
+function spawnWinParticles(){for(let i=0;i<50;i++){let a=Math.random()*Math.PI*2;particles.push({x:playerX,y:playerY,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:40,s:Math.random()*4+2,col:`hsl(${Math.random()*360},100%,60%)`)}}}
+function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
+X.clearRect(-15,-15,W+30,H+30);
+let grad=X.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#0a2a0a');grad.addColorStop(.5,'#1a3a1a');grad.addColorStop(1,'#0a1a0a');X.fillStyle=grad;X.fillRect(0,0,W,H);
+// Background trees
+X.fillStyle='rgba(0,80,0,.15)';for(let i=0;i<8;i++){let tx=i*W/7+Math.sin(pulseT+i)*10;X.beginPath();X.moveTo(tx-20,H);X.lineTo(tx,H-100-Math.sin(i)*30);X.lineTo(tx+20,H);X.closePath();X.fill()}
+// Platforms
+for(let i=1;i<platforms.length;i++){let p=platforms[i];X.fillStyle='#5a8a5a';X.shadowColor='#5a8a5a';X.shadowBlur=8;X.fillRect(p.x,p.y-3,p.w,6);X.fillStyle='#4a7a4a';X.fillRect(p.x,p.y+3,p.w,p.h-3);X.shadowBlur=0;
+// Grass on top
+X.fillStyle='#7CB342';for(let gx=p.x;gx<p.x+p.w;gx+=5){X.beginPath();X.moveTo(gx,p.y-3);X.lineTo(gx+2,p.y-8-Math.sin(pulseT+gx)*2);X.lineTo(gx+4,p.y-3);X.closePath();X.fill()}}
+// Rope & character
+if(!released){let anchorX=platforms[0].x+platforms[0].w/2;X.strokeStyle='#4a2a0a';X.lineWidth=4;X.beginPath();X.moveTo(anchorX,platforms[0].y);X.quadraticCurveTo(anchorX+Math.sin(swingAngle)*20,(platforms[0].y+playerY)/2,playerX,playerY);X.stroke();
+// Vine leaves
+X.fillStyle='#2E7D32';for(let t=0;t<3;t++){let ly=platforms[0].y+t*ropeLen/3,lx=anchorX+Math.sin(swingAngle)*t*ropeLen/3*.3;X.beginPath();X.ellipse(lx+5,ly,6,3,swingAngle*.5,0,Math.PI*2);X.fill()}}
+// Character body
+X.fillStyle='#FFD54F';X.shadowColor='#FFD54F';X.shadowBlur=10;X.beginPath();X.arc(playerX,playerY,playerR,0,Math.PI*2);X.fill();X.shadowBlur=0;
+// Face
+X.fillStyle='#fff';X.beginPath();X.arc(playerX+3,playerY-3,4,0,Math.PI*2);X.fill();X.fillStyle='#1a1a2e';X.beginPath();X.arc(playerX+4,playerY-3,2,0,Math.PI*2);X.fill();
+// Mouth
+X.strokeStyle='#333';X.lineWidth=1.5;X.beginPath();X.arc(playerX+2,playerY+2,3,0,Math.PI);X.stroke();
+// Particles
+for(let p of particles){X.globalAlpha=p.life/40;X.fillStyle=p.col;X.shadowColor=p.col;X.shadowBlur=4;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/40),0,Math.PI*2);X.fill();X.shadowBlur=0}X.globalAlpha=1;
+// HUD
+X.fillStyle='#fff';X.font='bold 18px "Segoe UI"';X.textAlign='center';X.fillText(released?'SWING!':'RELEASE TO SWING!',W/2,30);
+X.restore();
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.shadowColor='#ff4757';X.shadowBlur=15;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('FELL!',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#0f0';X.shadowColor='#0f0';X.shadowBlur=20;X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 REACHED THE END! \u2728',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
+function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+</script></body></html>

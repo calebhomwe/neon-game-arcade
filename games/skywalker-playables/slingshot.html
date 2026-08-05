@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Slingshot</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(255,165,0,.3)}</style></head>
+<body><canvas class="c"></canvas>
+<script>
+const C=document.querySelector('canvas'),X=C.getContext('2d');
+let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
+let ball,targetX,targetY,tgtR,state,dragging,startX,startY,powerX,powerY,launched,trail=[],particles=[],scorePopups=[],shakeTime=0,muzzleFlash=0,groundY,wind=0,windTimer=0;
+const GRAV=.28;
+function init(){ball={x:W*.2,y:H*.65};targetX=W*.7;targetY=H*.35;tgtR=28;launched=false;dragging=false;trail=[];state='ready';particles=[];scorePopups=[];shakeTime=0;muzzleFlash=0;groundY=H-40;wind=0;windTimer=0}
+C.addEventListener('pointerdown',e=>{let r=C.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;
+if(state==='over'||state==='win'){init();return}if(!launched&&state!=='aiming'){state='aiming'}
+if(state==='aiming'){dragging=true;startX=ball.x;startY=ball.y;powerX=px;powerY=py}});
+C.addEventListener('pointermove',e=>{if(!dragging)return;let r=C.getBoundingClientRect();powerX=e.clientX-r.left;powerY=e.clientY-r.top});
+C.addEventListener('pointerup',()=>{if(!dragging){dragging=false;return}
+let dx=startX-powerX,dy=startY-powerY;let dist=Math.sqrt(dx*dx+dy*dy);if(dist<15){dragging=false;return}
+let power=Math.min(dist*.07,14);let angle=Math.atan2(dy,dx);ball.vx=Math.cos(angle)*power;ball.vy=Math.sin(angle)*power;launched=true;dragging=false;trail=[];muzzleFlash=8});
+document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(!launched)state='aiming'}});
+function update(){if(state!=='play'&&state!=='aiming')return;if(state==='aiming'&&!dragging)state='play';
+if(!launched)return;
+windTimer++;if(windTimer%180===0)wind=(Math.random()-.5)*.08;
+ball.vy+=GRAV;ball.vx+=wind*.01;ball.x+=ball.vx;ball.y+=ball.vy;
+trail.push({x:ball.x,y:ball.y,life:12});for(let t of trail)t.life--;trail=trail.filter(t=>t.life>0);
+if(ball.x>tgtR&&ball.x<W-tgtR&&ball.y+tgtR>targetY&&ball.y-tgtR<targetY+targetY*0){
+let hitDist=Math.hypot(ball.x-targetX,ball.y-targetY);
+if(hitDist<tgtR){hitsTarget(targetX,targetY);return}}
+if(ball.x>W+30||ball.y>H+30||(ball.y>-30&&ball.x<30&&ball.vx<0))launched=false;
+if(shakeTime>0)shakeTime--;if(muzzleFlash>0)muzzleFlash--}
+let hits=0;
+function hitsTarget(tx,ty){hits++;shakeTime=8;muzzleFlash=12;
+for(let i=0;i<25;i++){let a=Math.PI*2/25*i;particles.push({x:tx,y:ty,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2),life:35,s:Math.random()*5+3,col:`hsl(${Math.random()*60+10},100%,55%)`})}
+scorePopups.push({x:tx,y:ty-20,txt:hits>=3?'TARGETS DESTROYED!':'HIT '+hits+'/3',life:45,vy:-1.5});
+tgtR=Math.max(15,28-hits*3);targetX=W*.2+Math.random()*W*.6;targetY=H*.2+Math.random()*H*.35;ball.vx*=.2;ball.vy*=.2;ball.x=targetX-ball.vx*5;ball.y=targetY-ball.vy*5;
+if(hits>=3){state='win';spawnWinParticles()}}
+function spawnWinParticles(){for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:targetX,y:targetY,vx:Math.cos(a)*(Math.random()*10+3),vy:Math.sin(a)*(Math.random()*10+3)-5,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`)}}}
+function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
+X.clearRect(-15,-15,W+30,H+30);
+// Sky gradient
+let grad=X.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#87CEEB');grad.addColorStop(.4,'#98D8C8');grad.addColorStop(.7,'#7CB342');grad.addColorStop(1,'#558B2F');X.fillStyle=grad;X.fillRect(0,0,W,H);
+// Clouds
+X.fillStyle='rgba(255,255,255,.6)';for(let i=0;i<3;i++){let cx=(Date.now()*.01+i*W/3)%W;X.beginPath();X.ellipse(cx,60+i*25,40+i*10,15,0,0,Math.PI*2);X.fill();X.beginPath();X.ellipse(cx+20,55+i*25,25,12,0,0,Math.PI*2);X.fill()}
+// Ground
+X.fillStyle='#4CAF50';X.fillRect(0,groundY,W,H-groundY);X.fillStyle='#388E3C';X.fillRect(0,groundY,W,5);
+// Wind indicator
+if(Math.abs(wind)>.01){X.fillStyle='rgba(255,255,255,.5)';X.font='12px "Segoe UI"';X.textAlign='center';X.fillText('WIND \u2192',W/2,25)}
+// Aim line + trajectory preview
+if(dragging||state==='aiming'){let pullX=Math.min(startX-powerX,80),pullY=Math.min(startY-powerY,80);
+// Elastic bands
+X.strokeStyle='#5D4037';X.lineWidth=4;X.beginPath();X.moveTo(ball.x-8,ball.y-8);X.lineTo(powerX,powerY);X.lineTo(ball.x+8,ball.y-8);X.stroke();
+// Trajectory dots
+let pwr=Math.min(Math.sqrt(pullX*pullX+pullY*pullY)*.07,14);let ang=Math.atan2(pullY,pullX);let pvx=Math.cos(ang)*pwr,pvy=Math.sin(ang)*pvr;let px2=ball.x,py2=ball.y;
+X.fillStyle='rgba(255,255,255,.4)';for(let i=0;i<15;i++){px2+=pvx;pvy+=GRAV;py2+=pvy;if(i%2===0){X.beginPath();X.arc(px2,py2,2,0,Math.PI*2);X.fill()}}}
+// Ball trail
+for(let t of trail){X.globalAlpha=t.life/12*.5;X.fillStyle='#ff6b35';X.beginPath();X.arc(t.x,t.y,4*(t.life/12),0,Math.PI*2);X.fill()}X.globalAlpha=1;
+// Muzzle flash
+if(muzzleFlash>0){X.globalAlpha=muzzleFlash/12;X.fillStyle='rgba(255,200,50,.8)';X.beginPath();X.arc(ball.x,ball.y,20+muzzleFlash*2,0,Math.PI*2);X.fill();X.globalAlpha=1}
+// Ball
+X.fillStyle='#ff4444';X.shadowColor='#ff4444';X.shadowBlur=12;X.beginPath();X.arc(ball.x,ball.y,8,0,Math.PI*2);X.fill();X.shadowBlur=0;
+X.fillStyle='rgba(255,255,255,.4)';X.beginPath();X.arc(ball.x-2,ball.y-2,3,0,Math.PI*2);X.fill();
+// Target
+X.fillStyle='#ff4444';X.shadowColor='#ff4444';X.shadowBlur=15;X.beginPath();X.arc(targetX,targetY,tgtR,0,Math.PI*2);X.fill();X.shadowBlur=0;
+X.fillStyle='#fff';X.beginPath();X.arc(targetX,targetY,tgtR*.65,0,Math.PI*2);X.fill();
+X.fillStyle='#ff4444';X.beginPath();X.arc(targetX,targetY,tgtR*.35,0,Math.PI*2);X.fill();
+X.fillStyle='#fff';X.beginPath();X.arc(targetX,targetY,tgtR*.15,0,Math.PI*2);X.fill();
+// Particles
+for(let p of particles){X.globalAlpha=p.life/50;X.fillStyle=p.col;X.shadowColor=p.col;X.shadowBlur=8;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/50),0,Math.PI*2);X.fill();X.shadowBlur=0}X.globalAlpha=1;
+// Score popups
+for(let sp of scorePopups){X.globalAlpha=sp.life/45;X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=10;X.font=sp.txt.includes('DESTROYED')?'bold 22px "Segoe UI"':'bold 18px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y);X.shadowBlur=0}X.globalAlpha=1;
+// HUD
+X.fillStyle='#fff';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText(hits+'/3',W/2,25);
+X.restore();
+if(state==='ready'){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('SLINGSHOT',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Drag back to aim, release to fire',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Hit 3 targets to win',W/2,H/2+30)}
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#0f0';X.shadowColor='#0f0';X.shadowBlur=20;X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 TARGETS DESTROYED! \u2728',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.font='bold 36px "Segoe UI"';X.textAlign='center';X.fillText('MISS!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}}
+function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+</script></body></html>

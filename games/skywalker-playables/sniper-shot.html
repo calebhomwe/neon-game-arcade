@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Sniper Shot</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(255,50,50,.3)</style></head>
+<body><canvas class="c"></canvas>
+<script>
+const C=document.querySelector('canvas'),X=C.getContext('2d');
+let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
+let target,hitTimer,shotTimer,hits,shots,state,scopeAlpha,muzzleFlash,stars=[],particles=[],scorePopups=[],shakeTime=0,pulseT=0,crosshairSize=20;
+for(let i=0;i<60;i++)stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.3,t:Math.random()*Math.PI*2});
+function init(){hits=0;shots=0;state='ready';target={x:W/2,y:H*.5,r:22,visible:false,appearTime:0,duration:50};muzzleFlash=0;hitTimer=0;particles=[];scorePopups=[];shakeTime=0;pulseT=0;crosshairSize=20}
+C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='play'&&target.visible)fire()});
+document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='play'&&target.visible)fire()}});
+function fire(){shots++;muzzleFlash=8;shakeTime=4;
+let cx=mouseX||W/2,cy=mouseY||H/2;
+let dx=cx-target.x,dy=cy-target.y;let dist=Math.sqrt(dx*dx+dy*dy);
+if(dist<target.r*1.5){hits++;hitTimer=30;
+for(let i=0;i<20;i++){let a=Math.random()*Math.PI*2;particles.push({x:target.x,y:target.y,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2),life:30,s:Math.random()*4+2,col:`hsl(${Math.random()*60},100%,55%)`})}
+scorePopups.push({x:target.x,y:target.y-30,txt:dist<target.r*.5?'HEADSHOT!':'HIT!',life:35,vy:-1.5});
+if(hits>=3){state='win';spawnWinParticles()}else{setTimeout(()=>{if(state==='play')spawnTarget()},600)}}
+else{scorePopups.push({x:cx,y:cy-20,txt:'MISS',life:25,vy:-1});if(shots>=5&&hits<3){state='over'}}}
+let mouseX=W/2,mouseY=H/2;C.addEventListener('pointermove',e=>{let r=C.getBoundingClientRect();mouseX=e.clientX-r.left;mouseY=e.clientY-r.top});
+function spawnTarget(){target.x=40+Math.random()*(W-80);target.y=H*.25+Math.random()*H*.35;target.visible=true;target.duration=45+Math.random()*30;target.r=18+Math.random()*12;target.moveX=(Math.random()-.5)*.5;target.baseX=target.x}
+function update(){if(state!=='play')return;pulseT+=.03;shotTimer++;if(!target.visible&&shotTimer%80===0)spawnTarget();
+if(target.visible){target.duration--;target.baseX+=(Math.random()-.5)*.1;if(target.duration<15)target.r*=.97;if(target.duration<=0)target.visible=false}
+if(muzzleFlash>0)muzzleFlash--;if(hitTimer>0)hitTimer--;
+if(shakeTime>0)shakeTime--;
+for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}particles=particles.filter(p=>p.life>0);
+for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}scorePopups=scorePopups.filter(sp=>sp.life>0)}
+function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
+X.clearRect(-15,-15,W+30,H+30);
+let grad=X.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#0a0a0a');grad.addColorStop(1,'#1a1a2a');X.fillStyle=grad;X.fillRect(0,0,W,H);
+// Stars
+for(let s of stars){s.t+=.01;X.fillStyle=`rgba(255,255,255,${.15+Math.sin(s.t)*.1})`;X.beginPath();X.arc(s.x,s.y,s.s,0,Math.PI*2);X.fill()}
+// Target
+if(target.visible){X.fillStyle='#ff4444';X.shadowColor='#ff4444';X.shadowBlur=15+Math.sin(pulseT*3)*5;X.beginPath();X.arc(target.x,target.y,target.r,0,Math.PI*2);X.fill();X.shadowBlur=0;
+X.fillStyle='#fff';X.beginPath();X.arc(target.x,target.y,target.r*.65,0,Math.PI*2);X.fill();
+X.fillStyle='#ff4444';X.beginPath();X.arc(target.x,target.y,target.r*.35,0,Math.PI*2);X.fill();
+X.fillStyle='#fff';X.beginPath();X.arc(target.x,target.y,target.r*.15,0,Math.PI*2);X.fill()}
+// Scope vignette
+let cx=mouseX,cy=mouseY;let sg=X.createRadialGradient(cx,cy,crosshairSize,cx,cy,150);sg.addColorStop(0,'transparent');sg.addColorStop(1,'rgba(0,0,0,.6)');X.fillStyle=sg;X.fillRect(0,0,W,H);
+// Crosshair
+X.strokeStyle='rgba(255,0,0,.7)';X.lineWidth=1.5;X.beginPath();X.moveTo(cx-25,cy);X.lineTo(cx-8,cy);X.stroke();X.beginPath();X.moveTo(cx+8,cy);X.lineTo(cx+25,cy);X.stroke();X.beginPath();X.moveTo(cx,cy-25);X.lineTo(cx,cy-8);X.stroke();X.beginPath();X.moveTo(cx,cy+8);X.lineTo(cx,cy+25);X.stroke();
+X.strokeStyle='rgba(255,0,0,.3)';X.lineWidth=1;X.beginPath();X.arc(cx,cy,15,0,Math.PI*2);X.stroke();
+X.fillStyle='rgba(255,0,0,.5)';X.beginPath();X.arc(cx,cy,2,0,Math.PI*2);X.fill();
+// Muzzle flash
+if(muzzleFlash>0){X.globalAlpha=muzzleFlash/8;X.fillStyle='rgba(255,200,50,.8)';X.beginPath();X.arc(cx,cy,25+muzzleFlash*2,0,Math.PI*2);X.fill();X.globalAlpha=1}
+// Hit flash
+if(hitTimer>0){X.globalAlpha=hitTimer/30*.3;X.fillStyle='#0f0';X.beginPath();X.arc(target.x,target.y,50,0,Math.PI*2);X.fill();X.globalAlpha=1}
+// Particles
+for(let p of particles){X.globalAlpha=p.life/30;X.fillStyle=p.col;X.shadowColor=p.col;X.shadowBlur=6;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/30),0,Math.PI*2);X.fill();X.shadowBlur=0}X.globalAlpha=1;
+// Score popups
+for(let sp of scorePopups){X.globalAlpha=sp.life/35;X.fillStyle=sp.txt.includes('HEADSHOT')?'#ffd700':sp.txt.includes('HIT')?'#0f0':'#ff4757';X.shadowColor=X.fillStyle;X.shadowBlur=8;X.font=sp.txt.includes('HEADSHOT')?'bold 22px "Segoe UI"':'bold 16px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y);X.shadowBlur=0}X.globalAlpha=1;
+// HUD
+X.fillStyle='#fff';X.font='bold 18px "Segoe UI"';X.textAlign='center';X.fillText(hits+'/3 hits needed',W/2,25);
+X.restore();
+if(state==='ready'){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('SNIPER SHOT',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Aim with mouse, tap to shoot',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Hit 3 targets to win',W/2,H/2+35)}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.shadowColor='#ff4757';X.shadowBlur=15;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('ALL MISSED!',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#0f0';X.shadowColor='#0f0';X.shadowBlur=20;X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 TARGETS ELIMINATED! \u2728',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
+function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+</script></body></html>

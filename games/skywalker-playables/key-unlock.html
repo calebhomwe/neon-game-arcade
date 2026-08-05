@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Pull the Pin</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,150,255,.3)</style></head>
+<body><canvas class="c"></canvas>
+<script>
+const C=document.querySelector('canvas'),X=C.getContext('2d');
+let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
+let levels,currentLevel,pins,waterY,keyCollected,state,score,bubbles=[],particles=[],scorePopups=[],shakeTime=0,pulseT=0;
+const LEVELS=[
+{pins:[{x:W*.3,h:W*.35},{x:W*.7,h:W*.5}],key:{x:W*.5,y:H*.82,r:15}},
+{pins:[{x:W*.2,h:W*.3},{x:W*.5,h:W*.45},{x:W*.8,h:W*.35}],key:{x:W*.5,y:H*.78,r:15}},
+{pins:[{x:W*.25,h:W*.25},{x:W*.5,h:W*.5},{x:W*.75,h:W*.3}],key:{x:W*.5,y:H*.85,r:15}}
+];
+function init(){currentLevel=0;score=0;state='ready';particles=[];scorePopups=[];shakeTime=0;pulseT=0;loadLevel()}
+function loadLevel(){if(currentLevel>=LEVELS.length){state='win';return}let lv=LEVELS[currentLevel];pins=lv.pins.map(p=>({...p,active:true}));waterY=0;keyCollected=false;bubbles=[]}
+function getWaterHeight(){let totalPinHeights=pins.filter(p=>p.active).reduce((s,p)=>s+p.h,0);let maxH=H*.6;return Math.max(0,maxH-totalPinHeights*.35)}
+C.addEventListener('pointerdown',e=>{let rect=C.getBoundingClientRect(),px=e.clientX-rect.left,py=e.clientY-rect.top;
+if(state==='ready'||state==='over'||state==='win'){if(currentLevel>=LEVELS.length)init();else{currentLevel=0;loadLevel()};return}
+for(let pin of pins){if(!pin.active)continue;let dist=Math.abs(px-pin.x);if(dist<28){pin.active=false;shakeTime=5;
+for(let i=0;i<8;i++)particles.push({x:pin.x,y:0,vx:(Math.random()-.5)*4,vy:Math.random()*3+1,life:20,s:Math.random()*3+2,col:'#A0522D'});
+scorePopups.push({x:pin.x,y:30,txt:'PULL!',life:25,vy:-1});break}}
+checkWin()});
+document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win'){if(currentLevel>=LEVELS.length)init();else{currentLevel=0;loadLevel()}}}});
+function checkWin(){waterY=getWaterHeight();if(keyCollected){currentLevel++;if(currentLevel>=LEVELS.length){state='win';score+=100}else{loadLevel();state='play'}}
+let lv=LEVELS[Math.min(currentLevel,LEVELS.length-1)],ky=lv.key.y;
+if(waterY>=ky-15&&!keyCollected){keyCollected=true;
+for(let i=0;i<15;i++)particles.push({x:lv.key.x,y:ky,vx:(Math.random()-.5)*6,vy:-Math.random()*4-2,life:30,s:Math.random()*4+2,col:'#ffd700'});
+scorePopups.push({x:lv.key.x,y:ky-20,txt:'KEY FOUND!',life:40,vy:-1.5})}}
+function update(){if(state!=='play'&&state!=='win')return;pulseT+=.03;
+if(shakeTime>0)shakeTime--;
+for(let b of bubbles){b.x+=Math.sin(pulseT+b.t)*.5;b.y+=b.vy;b.vy-=.01}bubbles=bubbles.filter(b=>b.y>-10&&b.s>0);bubbles.forEach(b=>b.s*=.998);
+for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}particles=particles.filter(p=>p.life>0);
+for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}scorePopups=scorePopups.filter(sp=>sp.life>0)}
+function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
+X.clearRect(-15,-15,W+30,H+30);
+let grad=X.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#1a2a3a');grad.addColorStop(1,'#0a1a2a');X.fillStyle=grad;X.fillRect(0,0,W,H);
+let waterH=getWaterHeight(),baseY=H-waterH;
+if(waterH>0){let wg=X.createLinearGradient(0,baseY,0,H);wg.addColorStop(0,'rgba(0,120,255,.4)');wg.addColorStop(1,'rgba(0,60,180,.7)');X.fillStyle=wg;X.fillRect(0,baseY,W,waterH);
+for(let i=0;i<3;i++){X.strokeStyle=`rgba(100,200,255,${.2+i*.1})`;X.lineWidth=2;X.beginPath();for(let x=0;x<W;x+=5){X.lineTo(x,baseY+i*12+Math.sin(x*.03+Date.now()*.003+i)*4)}X.stroke()}
+for(let i=0;i<8;i++){if(!bubbles[i])bubbles[i]={x:Math.random()*W,y:baseY+Math.random()*waterH,vx:(Math.random()-.5)*.5,vy:-Math.random()-.5,s:Math.random()*4+2,t:Math.random()*Math.PI*2};bubbles[i].y-=1}}
+// Container walls
+X.fillStyle='#555';X.fillRect(0,0,8,H);X.fillRect(W-8,0,8,H);
+// Pins
+for(let pin of pins){if(!pin.active){X.fillStyle='rgba(139,69,19,.3)';X.beginPath();X.arc(pin.x,0,6,0,Math.PI*2);X.fill();continue}
+X.fillStyle='#8B4513';X.fillRect(pin.x-4,0,8,pin.h);X.fillStyle='#A0522D';X.beginPath();X.arc(pin.x,0,10,0,Math.PI*2);X.fill();X.fillStyle='#DEB887';X.beginPath();X.arc(pin.x,0,5,0,Math.PI*2);X.fill();
+// Pin highlight
+X.fillStyle='rgba(255,255,255,.2)';X.fillRect(pin.x-1,0,2,pin.h)}
+// Key
+let lv=LEVELS[Math.min(currentLevel,LEVELS.length-1)];
+if(!keyCollected){X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=15+Math.sin(pulseT*3)*5;X.beginPath();X.arc(lv.key.x,lv.key.y,lv.key.r,0,Math.PI*2);X.fill();X.shadowBlur=0;
+X.fillStyle='#b8860b';X.font='bold 14px sans-serif';X.textAlign='center';X.fillText('K',lv.key.x,lv.key.y+5)}
+// Bubbles
+for(let b of bubbles){if(!b||b.s<=0)continue;X.globalAlpha=b.s/6*.3;X.fillStyle='rgba(150,220,255,.4)';X.beginPath();X.arc(b.x,b.y,b.s,0,Math.PI*2);X.fill()}X.globalAlpha=1;
+// Particles
+for(let p of particles){X.globalAlpha=p.life/30;X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/30),0,Math.PI*2);X.fill()}X.globalAlpha=1;
+// Score popups
+for(let sp of scorePopups){X.globalAlpha=sp.life/40;X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=8;X.font='bold 18px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y);X.shadowBlur=0}X.globalAlpha=1;
+// Level indicator
+X.fillStyle='#fff';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillText('Level '+(currentLevel+1)+' / '+LEVELS.length,W/2,25);
+X.restore();
+if(state==='ready'){X.fillStyle='rgba(255,255,255,.85)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('PULL THE PIN',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap pins to drain water',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Collect the key to advance',W/2,H/2+35)}
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#2ed573';X.shadowColor='#2ed573';X.shadowBlur=20;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ALL LEVELS COMPLETE! \u2728',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.font='bold 36px "Segoe UI"';X.textAlign='center';X.fillText('GAME OVER',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}}
+function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+</script></body></html>

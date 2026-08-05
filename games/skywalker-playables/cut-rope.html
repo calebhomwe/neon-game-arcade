@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Cut the Rope</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(255,200,0,.3)}</style></head>
+<body><canvas class="c"></canvas>
+<script>
+const C=document.querySelector('canvas'),X=C.getContext('2d');
+let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
+let levels,currentLevel,ball,ropes,cutting=false,startCut=null,particles=[],scorePopups=[],shakeTime=0,swingAngle=0,swingVel=0,levelComplete=false,fell=false;
+const LEVELS=[
+{anchor:{x:W/2,y:80},platform:{x:W/2-50,y:H-120,w:100,h:15}},
+{anchor:{x:W*.3,y:80},platform:{x:W*.6-50,y:H-120,w:100,h:15}},
+{anchor:{x:W*.5,y:80},platform:{x:W/2-50,y:H-120,w:100,h:15}}
+];
+function init(){currentLevel=0;fell=false;levelComplete=false;particles=[];scorePopups=[];shakeTime=0;loadLevel()}
+function loadLevel(){let lv=LEVELS[currentLevel];ball={x:lv.anchor.x,y:lv.anchor.y+150,vx:0,vy:0,falling:false,r:16,eyeDir:0,expression:'happy'};ropes=[{anchor:{...lv.anchor},cut:false}];levelComplete=false;fell=false;swingAngle=-.5;swingVel=0}
+function cutRopeAtLine(x1,y1,x2,y2){for(let rope of ropes){if(rope.cut)continue;
+let ax=rope.anchor.x,ay=rope.anchor.y,bx=ball.x,by=ball.y;
+let d=(x1-x2)*(ay-by)-(y1-y2)*(ax-bx);if(Math.abs(d)<.001)continue;
+let t=((x1-ax)*(ay-by)-(y1-ay)*(ax-bx))/d;
+if(t>=0&&t<=1){rope.cut=true;
+let cx=ax+t*(bx-ax),cy=ay+t*(by-ay);
+for(let i=0;i<10;i++)particles.push({x:cx,y:cy,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5-2,life:25,s:Math.random()*3+2,col:'#8B4513'});
+ball.falling=true;ball.expression='scared';break}}}
+C.addEventListener('pointerdown',e=>{if(currentLevel>=LEVELS.length){currentLevel=0;loadLevel();return}if(ball.falling&&(levelComplete||fell)){currentLevel++;if(currentLevel>=LEVELS.length){state='win'}else{loadLevel()};return}
+let r=C.getBoundingClientRect();startCut={x:e.clientX-r.left,y:e.clientY-r.top};cutting=true});
+C.addEventListener('pointermove',e=>{if(!cutting||!startCut)return;let r=C.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;
+if(!ball.falling)cutRopeAtLine(startCut.x,startCut.y,px,py);startCut={x:px,y:py}});
+C.addEventListener('pointerup',()=>{cutting=false;startCut=null});
+document.addEventListener('keydown',e=>{if(e.code==='Space'){if(currentLevel>=LEVELS.length){currentLevel=0;loadLevel()}else if(ball.falling&&(levelComplete||fell)){currentLevel++;if(currentLevel>=LEVELS.length){state='win'}else{loadLevel()}}}});
+let state='ready';
+function update(){if(state==='ready'){state='play';return}if(state!=='play'&&state!=='win')return;
+if(!ball.falling){swingVel+=(-.003)*Math.cos(swingAngle);swingAngle+=swingVel;swingAngle*=.997;ball.x=ropes[0].anchor.x+Math.sin(swingAngle)*150;ball.y=ropes[0].anchor.y+Math.cos(swingAngle)*150;ball.eyeDir=Math.sin(swingAngle)*.3}else{
+ball.vy+=.35;ball.x+=ball.vx;ball.y+=ball.vy;
+let lv=LEVELS[Math.min(currentLevel,LEVELS.length-1)];
+if(ball.x>lv.platform.x&&ball.x<lv.platform.x+lv.platform.w&&ball.y+ball.r>lv.platform.y&&ball.y-ball.r<lv.platform.y+lv.platform.h){
+levelComplete=true;ball.expression='happy';
+for(let i=0;i<20;i++)particles.push({x:ball.x,y:ball.y,vx:(Math.random()-.5)*6,vy:-Math.random()*4-2,life:30,s:Math.random()*4+2,col:`hsl(${Math.random()*60+30},100%,60%)`});
+scorePopups.push({x:ball.x,y:ball.y-30,txt:'PERFECT!',life:40,vy:-1.5});
+if(shakeTime>0)shakeTime--}
+if(ball.y>H+50){fell=true;ball.expression='sad';shakeTime=10}}
+if(shakeTime>0)shakeTime--;
+for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}particles=particles.filter(p=>p.life>0);
+for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}scorePopups=scorePopups.filter(sp=>sp.life>0)}
+function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
+X.clearRect(-15,-15,W+30,H+30);
+// Background
+let grad=X.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#FFF8DC');grad.addColorStop(.5,'#FFE4B5');grad.addColorStop(1,'#DEB887');X.fillStyle=grad;X.fillRect(0,0,W,H);
+// Decorative leaves
+X.fillStyle='rgba(76,175,80,.15)';for(let i=0;i<8;i++){let lx=(i*W/8+Date.now()*.005)%W;X.beginPath();X.ellipse(lx,H-20-i*5,15,8,i*.3,0,Math.PI*2);X.fill()}
+// Ropes
+for(let rope of ropes){if(rope.cut)continue;X.strokeStyle='#4E342E';X.lineWidth=4;X.lineCap='round';X.beginPath();X.moveTo(rope.anchor.x,rope.anchor.y);
+let midX=(rope.anchor.x+ball.x)/2+Math.sin(swingAngle)*10;X.quadraticCurveTo(midX,(rope.anchor.y+ball.y)/2,ball.x,ball.y);X.stroke();
+// Rope highlight
+X.strokeStyle='rgba(139,90,43,.5)';X.lineWidth=2;X.beginPath();X.moveTo(rope.anchor.x,rope.anchor.y);X.quadraticCurveTo(midX,(rope.anchor.y+ball.y)/2,ball.x,ball.y);X.stroke()}
+// Anchor point
+X.fillStyle='#5D4037';X.beginPath();X.arc(LEVELS[Math.min(currentLevel,2)].anchor.x,LEVELS[Math.min(currentLevel,2)].anchor.y,8,0,Math.PI*2);X.fill();
+// Platform
+let lv=LEVELS[Math.min(currentLevel,LEVELS.length-1)];X.fillStyle='#795548';X.fillRect(lv.platform.x,lv.platform.y,lv.platform.w,lv.platform.h);X.fillStyle='#8D6E63';X.fillRect(lv.platform.x,lv.platform.y,lv.platform.w,4);
+// Star on platform
+X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=10;X.font='24px sans-serif';X.textAlign='center';X.fillText('\u2B50',lv.platform.x+lv.platform.w/2,lv.platform.y-8);X.shadowBlur=0;
+// Ball body
+X.fillStyle='#4CAF50';X.shadowColor='#4CAF50';X.shadowBlur=10;X.beginPath();X.arc(ball.x,ball.y,ball.r,0,Math.PI*2);X.fill();X.shadowBlur=0;
+// Ball highlight
+X.fillStyle='rgba(255,255,255,.3)';X.beginPath();X.arc(ball.x-4,ball.y-4,ball.r*.4,0,Math.PI*2);X.fill();
+// Eyes
+let ex=ball.x+ball.eyeDir*3,ey=ball.y-3;
+X.fillStyle='#fff';X.beginPath();X.ellipse(ex-5,ey,5,6,0,0,Math.PI*2);X.fill();X.beginPath();X.ellipse(ex+5,ey,5,6,0,0,Math.PI*2);X.fill();
+X.fillStyle='#1a1a2e';let pupilOff=ball.expression==='scared'?0:(ball.falling?0:.5);
+X.beginPath();X.arc(ex-5+pupilOff,ey+1,2.5,0,Math.PI*2);X.fill();X.beginPath();X.arc(ex+5+pupilOff,ey+1,2.5,0,Math.PI*2);X.fill();
+// Mouth
+X.strokeStyle='#333';X.lineWidth=2;X.beginPath();
+if(ball.expression==='happy'){X.arc(ex,ey+8,4,0,Math.PI)}else if(ball.expression==='scared'){X.arc(ex,ey+12,3,0,Math.PI*2)}else{X.moveTo(ex-3,ey+10);X.lineTo(ex+3,ey+10)}
+X.stroke();
+// Particles
+for(let p of particles){X.globalAlpha=p.life/30;X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/30),0,Math.PI*2);X.fill()}X.globalAlpha=1;
+// Score popups
+for(let sp of scorePopups){X.globalAlpha=sp.life/40;X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=10;X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y);X.shadowBlur=0}X.globalAlpha=1;
+// Level indicator
+X.fillStyle='#5D4037';X.font='bold 18px "Segoe UI"';X.textAlign='center';X.fillText('Level '+(currentLevel+1)+' / 3',W/2,25);
+X.restore();
+if(state==='ready'){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('CUT THE ROPE',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Draw a line to cut the rope',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Drop the ball onto the star!',W/2,H/2+30)}
+if(fell){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillStyle='#ff4757';X.fillText('FELL OFF!',W/2,H/2-20);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.5)';X.fillText('Tap to retry level',W/2,H/2+15)}
+if(levelComplete){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillStyle='#ffd700';X.fillText('\u2728 PERFECT! \u2728',W/2,H/2-20);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.5)';X.fillText(currentLevel>=LEVELS.length-1?'Tap for new game':'Tap for next level',W/2,H/2+15)}
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=20;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ALL LEVELS COMPLETE! \u2728',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
+function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+</script></body></html>
