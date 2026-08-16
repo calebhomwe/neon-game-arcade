@@ -1,13 +1,13 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Spike Jump</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(255,71,87,.3)</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
 let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
 let player,spikes,frame,score,timeLeft,state,jumping,groundY,shakeTimer=0,particles=[],scorePopups=[],nearMisses=0,neonPulse=0;
-function init(){player={x:W/2,y:H-80,vx:0,vy:0,onGround:true};spikes=[];frame=0;score=0;timeLeft=40;state='play';jumping=false;groundY=H-80;shakeTimer=0;particles=[];scorePopups=[];nearMisses=0;neonPulse=0}
-C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(player.onGround&&!jumping){jumping=true;player.vy=-13;player.onGround=false}});
-document.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){if(state==='over'||state==='win')init();else if(player.onGround&&!jumping){jumping=true;player.vy=-13;player.onGround=false}}});
+function init(){player={x:W/2,y:H-80,vx:0,vy:0,onGround:true};spikes=[];frame=0;score=0;timeLeft=40;state='ready';jumping=false;groundY=H-80;shakeTimer=0;particles=[];scorePopups=[];nearMisses=0;neonPulse=0}
+C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}if(player.onGround&&!jumping){jumping=true;player.vy=-13;player.onGround=false}});
+document.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){if(state==='over'||state==='win')init();else if(state==='ready')state='play';else if(player.onGround&&!jumping){jumping=true;player.vy=-13;player.onGround=false}}});
 function update(){if(state!=='play')return;frame++;neonPulse+=.05;timeLeft-=1/60;player.vy+=.65;player.y+=player.vy;
 if(player.y>=groundY){player.y=groundY;player.vy=0;player.onGround=true;jumping=false;
 if(!jumping&&frame>5){let dust=frame%5===0;dust&&particles.push({x:player.x+(Math.random()-.5)*10,y:groundY,vx:(Math.random()-.5)*2,vy:-Math.random()*2,life:15,s:Math.random()*3+1,col:'rgba(150,150,150,.5)'})}}
@@ -21,7 +21,7 @@ for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.1;p.life--}particles=particle
 for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}scorePopups=scorePopups.filter(sp=>sp.life>0);
 if(timeLeft<=0){state='win';spawnWinParticles()}}
 function spawnDeathParticles(){for(let i=0;i<25;i++){let a=Math.random()*Math.PI*2;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2),life:35,s:Math.random()*4+2,col:'#ff4757'})}}
-function spawnWinParticles(){for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`)}}}
+function spawnWinParticles(){for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
 function draw(){X.save();if(shakeTimer>0)X.translate((Math.random()-.5)*shakeTimer*2,(Math.random()-.5)*shakeTimer*2);
 X.clearRect(-15,-15,W+30,H+30);
 // Cave background
@@ -46,6 +46,7 @@ X.fillStyle='#fff';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillText
 if(nearMisses>0){X.fillStyle='#ffd700';X.font='bold 14px "Segoe UI"';X.textAlign='right';X.fillText('Near Miss x'+nearMisses,W-10,30)}
 X.textAlign='right';X.fillStyle=timeLeft<10?'#ff4757':'#fff';X.font='bold 18px "Segoe UI"';X.fillText(Math.ceil(timeLeft)+'s',W-10,55);
 X.restore();
+if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.shadowColor='#ff4757';X.shadowBlur=15;X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('SPIKE JUMP',W/2,H/2-30);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap to jump over the spikes',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.shadowColor='#ff4757';X.shadowBlur=15;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('HIT!',W/2,H/2-20);X.shadowBlur=0;X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Dodged: '+score+' | Near Misses: '+nearMisses,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+55)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#0f0';X.shadowColor='#0f0';X.shadowBlur=20;X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 SURVIVED! \u2728',W/2,H/2-20);X.shadowBlur=0;X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Dodged: '+score+' | Near Misses: '+nearMisses,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+55)}}
 function loop(){update();draw();requestAnimationFrame(loop)}init();loop()

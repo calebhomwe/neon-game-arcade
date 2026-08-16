@@ -3,7 +3,10 @@
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
+let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#FFF8DC');bgGrad.addColorStop(.5,'#FFE4B5');bgGrad.addColorStop(1,'#DEB887');needDraw=true}resize();window.addEventListener('resize',resize);
+const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
+function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
+let starSpr=null;function starImg(){if(!starSpr){starSpr=document.createElement('canvas');starSpr.width=starSpr.height=64;let g=starSpr.getContext('2d');g.font='24px sans-serif';g.textAlign='center';g.textBaseline='middle';g.shadowColor='#ffd700';g.shadowBlur=10;g.fillStyle='#ffd700';g.fillText('\u2B50',32,32)}return starSpr}
 let levels,currentLevel,ball,ropes,cutting=false,startCut=null,particles=[],scorePopups=[],shakeTime=0,swingAngle=0,swingVel=0,levelComplete=false,fell=false;
 const LEVELS=[
 {anchor:{x:W/2,y:80},platform:{x:W/2-50,y:H-120,w:100,h:15}},
@@ -18,32 +21,32 @@ let d=(x1-x2)*(ay-by)-(y1-y2)*(ax-bx);if(Math.abs(d)<.001)continue;
 let t=((x1-ax)*(ay-by)-(y1-ay)*(ax-bx))/d;
 if(t>=0&&t<=1){rope.cut=true;
 let cx=ax+t*(bx-ax),cy=ay+t*(by-ay);
-for(let i=0;i<10;i++)particles.push({x:cx,y:cy,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5-2,life:25,s:Math.random()*3+2,col:'#8B4513'});
+if(particles.length<220)for(let i=0;i<10;i++)particles.push({x:cx,y:cy,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5-2,life:25,s:Math.random()*3+2,col:'#8B4513'});
 ball.falling=true;ball.expression='scared';break}}}
-C.addEventListener('pointerdown',e=>{if(currentLevel>=LEVELS.length){currentLevel=0;loadLevel();return}if(ball.falling&&(levelComplete||fell)){currentLevel++;if(currentLevel>=LEVELS.length){state='win'}else{loadLevel()};return}
-let r=C.getBoundingClientRect();startCut={x:e.clientX-r.left,y:e.clientY-r.top};cutting=true});
-C.addEventListener('pointermove',e=>{if(!cutting||!startCut)return;let r=C.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;
+C.addEventListener('pointerdown',e=>{if(state==='ready'){state='play';return}if(currentLevel>=LEVELS.length){currentLevel=0;loadLevel();state='play';return}if(ball.falling&&fell){loadLevel();return}if(ball.falling&&levelComplete){currentLevel++;if(currentLevel>=LEVELS.length){state='win'}else{loadLevel()};return}
+startCut={x:e.clientX-CRECT.left,y:e.clientY-CRECT.top};cutting=true});
+C.addEventListener('pointermove',e=>{if(!cutting||!startCut)return;let px=e.clientX-CRECT.left,py=e.clientY-CRECT.top;
 if(!ball.falling)cutRopeAtLine(startCut.x,startCut.y,px,py);startCut={x:px,y:py}});
 C.addEventListener('pointerup',()=>{cutting=false;startCut=null});
-document.addEventListener('keydown',e=>{if(e.code==='Space'){if(currentLevel>=LEVELS.length){currentLevel=0;loadLevel()}else if(ball.falling&&(levelComplete||fell)){currentLevel++;if(currentLevel>=LEVELS.length){state='win'}else{loadLevel()}}}});
+document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='ready'){state='play';return}if(currentLevel>=LEVELS.length){currentLevel=0;loadLevel();state='play'}else if(ball.falling&&fell){loadLevel()}else if(ball.falling&&levelComplete){currentLevel++;if(currentLevel>=LEVELS.length){state='win'}else{loadLevel()}}}});
 let state='ready';
-function update(){if(state==='ready'){state='play';return}if(state!=='play'&&state!=='win')return;
+function update(){if(state!=='play'&&state!=='win')return;
 if(!ball.falling){swingVel+=(-.003)*Math.cos(swingAngle);swingAngle+=swingVel;swingAngle*=.997;ball.x=ropes[0].anchor.x+Math.sin(swingAngle)*150;ball.y=ropes[0].anchor.y+Math.cos(swingAngle)*150;ball.eyeDir=Math.sin(swingAngle)*.3}else{
 ball.vy+=.35;ball.x+=ball.vx;ball.y+=ball.vy;
 let lv=LEVELS[Math.min(currentLevel,LEVELS.length-1)];
 if(ball.x>lv.platform.x&&ball.x<lv.platform.x+lv.platform.w&&ball.y+ball.r>lv.platform.y&&ball.y-ball.r<lv.platform.y+lv.platform.h){
 levelComplete=true;ball.expression='happy';
-for(let i=0;i<20;i++)particles.push({x:ball.x,y:ball.y,vx:(Math.random()-.5)*6,vy:-Math.random()*4-2,life:30,s:Math.random()*4+2,col:`hsl(${Math.random()*60+30},100%,60%)`});
+if(particles.length<220)for(let i=0;i<20;i++)particles.push({x:ball.x,y:ball.y,vx:(Math.random()-.5)*6,vy:-Math.random()*4-2,life:30,s:Math.random()*4+2,col:`hsl(${Math.random()*60+30},100%,60%)`});
 scorePopups.push({x:ball.x,y:ball.y-30,txt:'PERFECT!',life:40,vy:-1.5});
 if(shakeTime>0)shakeTime--}
 if(ball.y>H+50){fell=true;ball.expression='sad';shakeTime=10}}
 if(shakeTime>0)shakeTime--;
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}particles=particles.filter(p=>p.life>0);
-for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}scorePopups=scorePopups.filter(sp=>sp.life>0)}
+for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
+for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife)}
 function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
 X.clearRect(-15,-15,W+30,H+30);
 // Background
-let grad=X.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#FFF8DC');grad.addColorStop(.5,'#FFE4B5');grad.addColorStop(1,'#DEB887');X.fillStyle=grad;X.fillRect(0,0,W,H);
+X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
 // Decorative leaves
 X.fillStyle='rgba(76,175,80,.15)';for(let i=0;i<8;i++){let lx=(i*W/8+Date.now()*.005)%W;X.beginPath();X.ellipse(lx,H-20-i*5,15,8,i*.3,0,Math.PI*2);X.fill()}
 // Ropes
@@ -56,9 +59,9 @@ X.fillStyle='#5D4037';X.beginPath();X.arc(LEVELS[Math.min(currentLevel,2)].ancho
 // Platform
 let lv=LEVELS[Math.min(currentLevel,LEVELS.length-1)];X.fillStyle='#795548';X.fillRect(lv.platform.x,lv.platform.y,lv.platform.w,lv.platform.h);X.fillStyle='#8D6E63';X.fillRect(lv.platform.x,lv.platform.y,lv.platform.w,4);
 // Star on platform
-X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=10;X.font='24px sans-serif';X.textAlign='center';X.fillText('\u2B50',lv.platform.x+lv.platform.w/2,lv.platform.y-8);X.shadowBlur=0;
+X.drawImage(starImg(),lv.platform.x+lv.platform.w/2-32,lv.platform.y-48,64,64);
 // Ball body
-X.fillStyle='#4CAF50';X.shadowColor='#4CAF50';X.shadowBlur=10;X.beginPath();X.arc(ball.x,ball.y,ball.r,0,Math.PI*2);X.fill();X.shadowBlur=0;
+glowAt('#4CAF50',ball.x,ball.y,ball.r+10);X.fillStyle='#4CAF50';X.beginPath();X.arc(ball.x,ball.y,ball.r,0,Math.PI*2);X.fill();
 // Ball highlight
 X.fillStyle='rgba(255,255,255,.3)';X.beginPath();X.arc(ball.x-4,ball.y-4,ball.r*.4,0,Math.PI*2);X.fill();
 // Eyes
@@ -73,7 +76,7 @@ X.stroke();
 // Particles
 for(let p of particles){X.globalAlpha=p.life/30;X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/30),0,Math.PI*2);X.fill()}X.globalAlpha=1;
 // Score popups
-for(let sp of scorePopups){X.globalAlpha=sp.life/40;X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=10;X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y);X.shadowBlur=0}X.globalAlpha=1;
+for(let sp of scorePopups){X.globalAlpha=sp.life/40;X.fillStyle='#ffd700';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
 // Level indicator
 X.fillStyle='#5D4037';X.font='bold 18px "Segoe UI"';X.textAlign='center';X.fillText('Level '+(currentLevel+1)+' / 3',W/2,25);
 X.restore();
@@ -81,5 +84,5 @@ if(state==='ready'){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 24px "Segoe UI"';X
 if(fell){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillStyle='#ff4757';X.fillText('FELL OFF!',W/2,H/2-20);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.5)';X.fillText('Tap to retry level',W/2,H/2+15)}
 if(levelComplete){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillStyle='#ffd700';X.fillText('\u2728 PERFECT! \u2728',W/2,H/2-20);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.5)';X.fillText(currentLevel>=LEVELS.length-1?'Tap for new game':'Tap for next level',W/2,H/2+15)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=20;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ALL LEVELS COMPLETE! \u2728',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+let pState='';function loop(){update();if(state!==pState){pState=state;needDraw=true}if(state==='play'||particles.length>0||scorePopups.length>0||shakeTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>

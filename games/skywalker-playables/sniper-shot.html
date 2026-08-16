@@ -6,9 +6,9 @@ const C=document.querySelector('canvas'),X=C.getContext('2d');
 let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
 let target,hitTimer,shotTimer,hits,shots,state,scopeAlpha,muzzleFlash,stars=[],particles=[],scorePopups=[],shakeTime=0,pulseT=0,crosshairSize=20;
 for(let i=0;i<60;i++)stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.3,t:Math.random()*Math.PI*2});
-function init(){hits=0;shots=0;state='ready';target={x:W/2,y:H*.5,r:22,visible:false,appearTime:0,duration:50};muzzleFlash=0;hitTimer=0;particles=[];scorePopups=[];shakeTime=0;pulseT=0;crosshairSize=20}
-C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='play'&&target.visible)fire()});
-document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='play'&&target.visible)fire()}});
+function init(){hits=0;shots=0;shotTimer=0;state='ready';target={x:W/2,y:H*.5,r:22,visible:false,appearTime:0,duration:50};muzzleFlash=0;hitTimer=0;particles=[];scorePopups=[];shakeTime=0;pulseT=0;crosshairSize=20}
+C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}if(state==='play'&&target.visible)fire()});
+document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='ready')state='play';else if(state==='play'&&target.visible)fire()}});
 function fire(){shots++;muzzleFlash=8;shakeTime=4;
 let cx=mouseX||W/2,cy=mouseY||H/2;
 let dx=cx-target.x,dy=cy-target.y;let dist=Math.sqrt(dx*dx+dy*dy);

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Stack Tower</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(165,94,234,.3)}</style></head>
 <body><canvas class="c"></canvas>
 <script>
@@ -6,10 +6,10 @@ const C=document.querySelector('canvas'),X=C.getContext('2d');
 let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
 let blocks,blockW,blockH,camY,score,state,dir,speed,lastCol,particles=[],scorePopups=[],perfectCount=0,camTargetY=0,shakeTime=0,fallingPieces=[];
 const COLORS=['#ff4757','#ffa502','#2ed573','#1e90ff','#a55eea','#ff6b81','#00d2d3','#ff9ff3'];
-function init(){blockW=W*.65;blockH=24;camY=0;camTargetY=0;score=0;perfectCount=0;state='play';dir=1;speed=3.5;lastCol=0;shakeTime=0;particles=[];scorePopups=[];fallingPieces=[];blocks=[{x:0,w:blockW,y:H-60,col:COLORS[0]}];nextBlock()}
+function init(){blockW=W*.65;blockH=24;camY=0;camTargetY=0;score=0;perfectCount=0;state='ready';dir=1;speed=3.5;lastCol=0;shakeTime=0;particles=[];scorePopups=[];fallingPieces=[];blocks=[{x:0,w:blockW,y:H-60,col:COLORS[0]}];nextBlock()}
 function nextBlock(){let b=blocks[blocks.length-1];let nx=b.x+(Math.random()>.5?60:-60);blockW=b.w;let ci=(lastCol+1)%COLORS.length;blocks.push({x:nx,w:blockW,y:b.y-blockH,col:COLORS[ci],animIn:1})}
-C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state!=='play')return;dropBlock()});
-document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='play')dropBlock()}});
+C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}if(state!=='play')return;dropBlock()});
+document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='ready')state='play';else if(state==='play')dropBlock()}});
 function dropBlock(){let top=blocks[blocks.length-1],prev=blocks[blocks.length-2];top.animIn=0;
 let overlap=Math.min(top.x+top.w,prev.x+prev.w)-Math.max(top.x,prev.x);
 if(overlap<=0){state='over';shakeTime=10;spawnFallParticles(top);return}
@@ -21,7 +21,7 @@ let cutW=top.w-overlap;if(cutW>5){let cutX=top.x<prev.x?top.x:top.x+top.w-cutW;f
 nextBlock()}
 function spawnPerfectParticles(x,y){for(let i=0;i<20;i++){let a=Math.PI*2/20*i;particles.push({x,y,vx:Math.cos(a)*4,vy:Math.sin(a)*4,life:30,s:Math.random()*4+2,col:'#ffd700'})}}
 function spawnFallParticles(block){for(let i=0;i<8;i++)particles.push({x:block.x+Math.random()*block.w,y:block.y+blockH/2,vx:(Math.random()-.5)*4,vy:Math.random()*3+1,life:25,s:Math.random()*3+2,col:block.col})}
-function spawnWinParticles(){for(let i=0;i<80;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*10+2),vy:Math.sin(a)*(Math.random()*10+2)-3,life:60,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`)}}
+function spawnWinParticles(){for(let i=0;i<80;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*10+2),vy:Math.sin(a)*(Math.random()*10+2)-3,life:60,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
 function update(){if(state!=='play')return;
 if(shakeTime>0)shakeTime--;else{let sx=(Math.random()-.5)*shakeTime;let sy=(Math.random()-.5)*shakeTime}
 let top=blocks[blocks.length-1];if(top&&top.animIn!==0){top.animIn=Math.max(0,top.animIn-.1)}
@@ -55,6 +55,7 @@ for(let sp of scorePopups){X.globalAlpha=sp.life/40;X.fillStyle=sp.txt.includes(
 // Particles
 for(let p of particles){X.globalAlpha=p.life/60;X.fillStyle=p.col;X.shadowColor=p.col;X.shadowBlur=6;X.beginPath();X.arc(p.x,p.y+offY,p.s*(p.life/60),0,Math.PI*2);X.fill();X.shadowBlur=0}X.globalAlpha=1;
 X.restore();
+if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);X.fillStyle='#a55eea';X.shadowColor='#a55eea';X.shadowBlur=15;X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('STACK TOWER',W/2,H/2-30);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap to drop the moving block',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.shadowColor='#ff4757';X.shadowBlur=15;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('MISSED!',W/2,H/2-20);X.shadowBlur=0;X.fillStyle='#fff';X.font='24px "Segoe UI"';X.fillText('Blocks: '+score,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+55)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#a55eea';X.shadowColor='#a55eea';X.shadowBlur=20;X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 TOWER COMPLETE! \u2728',W/2,H/2-20);X.shadowBlur=0;X.fillStyle='#fff';X.font='24px "Segoe UI"';X.fillText('Score: '+score+' / 20',W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+55)}}
 function loop(){update();draw();requestAnimationFrame(loop)}init();loop()

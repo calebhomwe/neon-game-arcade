@@ -1,47 +1,54 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Lane Switcher</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,150,255,.3)}</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
+let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#0a0a2a');bgGrad.addColorStop(1,'#1a1a4a');needDraw=true}resize();window.addEventListener('resize',resize);
+const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
+function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}function pNotDead(o){return !o.dead}function pNotCol(c){return !c.collected}
+let moneySpr={};function moneyImg(n){let s=moneySpr[n];if(!s){s=document.createElement('canvas');s.width=80;s.height=32;let g=s.getContext('2d');g.font='bold 22px "Segoe UI"';g.textAlign='right';g.textBaseline='alphabetic';g.fillStyle=n>0?'#ffd700':'#fff';g.fillText('\uD83D\uDCB0 '+n,78,24);moneySpr[n]=s}return s}
 let player,lane,obstacles,coins,frame,score,coinsCol,timeLeft,state,roadOff=0,particles=[],scorePopups=[],shakeTime=0,neonPulse=0;
-function init(){player={lane:1,x:W/3,y:H-100};obstacles=[];coins=[];frame=0;score=0;coinsCol=0;timeLeft=60;state='play';roadOff=0;particles=[];scorePopups=[];shakeTime=0;neonPulse=0}
-C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();return}let r=C.getBoundingClientRect(),mx=e.clientX-r.left;if(mx<W/2)player.lane=Math.max(0,player.lane-1);else player.lane=Math.min(2,player.lane+1)});
-document.addEventListener('keydown',e=>{if(e.code==='ArrowLeft')player.lane=Math.max(0,player.lane-1);if(e.code==='ArrowRight')player.lane=Math.min(2,player.lane+1)});
-function update(){if(state!=='play')return;frame++;roadOff=(roadOff+4)%40;neonPulse+=.05;player.x+=(W*.3*(player.lane-1)-player.x)*.15;timeLeft-=1/60;
-if(frame%Math.max(12,38-score)===0){let lane=Math.floor(Math.random()*3);let types=['barrier','cone'];obstacles.push({x:W*.3*(lane-1),y:-40,w:45,h:types[lane%2]==='cone'?35:35,lane,type:types[lane%2]})}
-if(frame%50===0){let lane=Math.floor(Math.random()*3);coins.push({x:W*.3*(lane-1),y:-20,collected:false,bob:Math.random()*Math.PI*2})}
+function laneX(l){return W*(l*2+1)/6}
+function init(){player={lane:1,x:W/2,y:H-100};obstacles=[];coins=[];frame=0;score=0;coinsCol=0;timeLeft=60;state='ready';roadOff=0;particles=[];scorePopups=[];shakeTime=0;neonPulse=0}
+C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}let mx=e.clientX-CRECT.left;if(mx<W/2)player.lane=Math.max(0,player.lane-1);else player.lane=Math.min(2,player.lane+1)});
+document.addEventListener('keydown',e=>{if(state==='ready'&&(e.code==='Space'||e.code==='ArrowLeft'||e.code==='ArrowRight')){state='play';return}if(e.code==='ArrowLeft')player.lane=Math.max(0,player.lane-1);if(e.code==='ArrowRight')player.lane=Math.min(2,player.lane+1)});
+function update(){if(state!=='play')return;frame++;roadOff=(roadOff+4)%40;neonPulse+=.05;player.x+=(laneX(player.lane)-player.x)*.15;timeLeft-=1/60;
+if(frame%Math.max(12,38-score)===0&&obstacles.length<30){let lane=Math.floor(Math.random()*3);let types=['barrier','cone'];obstacles.push({x:laneX(lane),y:-40,w:45,h:types[lane%2]==='cone'?35:35,lane,type:types[lane%2]})}
+if(frame%50===0&&coins.length<10){let lane=Math.floor(Math.random()*3);coins.push({x:laneX(lane),y:-20,collected:false,bob:Math.random()*Math.PI*2})}
 for(let o of obstacles){o.y+=3+score*.06;if(o.y>H){o.dead=true}if(player.x>o.x-o.w/2&&player.x<o.x+o.w/2&&player.y>o.y-o.h/2&&player.y<o.y+o.h/2){state='over';shakeTime=12;spawnCrashParticles();return}}
-for(let c of coins){c.bob+=.1;c.y+=3;if(!c.collected&&Math.abs(player.x-c.x)<25&&Math.abs(player.y-c.y)<25){c.collected=true;coinsCol++;score+=5;scorePopups.push({x:c.x,y:c.y-10,txt:'+5',life:25,vy:-1.5});for(let i=0;i<6;i++)particles.push({x:c.x,y:c.y,vx:(Math.random()-.5)*4,vy:(Math.random()-.5)*4,life:15,s:Math.random()*3+2,col:'#ffd700'})}}
-obstacles=obstacles.filter(o=>!o.dead);coins=coins.filter(c=>!c.collected);if(timeLeft<=0)state='win';if(shakeTime>0)shakeTime--}
-function spawnCrashParticles(){for(let i=0;i<20;i++){let a=Math.random()*Math.PI*2;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2),life:30,s:Math.random()*4+2,col:['#ff4757','#ffa502'][Math.floor(Math.random()*2)]})}}
-function spawnWinParticles(){for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`)}}}
+for(let c of coins){c.bob+=.1;c.y+=3;if(!c.collected&&Math.abs(player.x-c.x)<25&&Math.abs(player.y-c.y)<25){c.collected=true;coinsCol++;score+=5;scorePopups.push({x:c.x,y:c.y-10,txt:'+5',life:25,vy:-1.5});if(particles.length<220)for(let i=0;i<6;i++)particles.push({x:c.x,y:c.y,vx:(Math.random()-.5)*4,vy:(Math.random()-.5)*4,life:15,s:Math.random()*3+2,col:'#ffd700'})}}
+prune(obstacles,pNotDead);prune(coins,pNotCol);if(timeLeft<=0){state='win';spawnWinParticles()}if(shakeTime>0)shakeTime--;
+for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.life--}prune(particles,pLife);
+for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife)}
+function spawnCrashParticles(){if(particles.length>180)return;for(let i=0;i<20;i++){let a=Math.random()*Math.PI*2;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2),life:30,s:Math.random()*4+2,col:['#ff4757','#ffa502'][Math.floor(Math.random()*2)]})}}
+function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
 function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
 X.clearRect(-15,-15,W+30,H+30);
 // Cyberpunk road
-let grad=X.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#0a0a2a');grad.addColorStop(1,'#1a1a4a');X.fillStyle=grad;X.fillRect(0,0,W,H);
+X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
 // Lane lines
-X.strokeStyle='rgba(0,150,255,.3)';X.lineWidth=2;for(let i=0;i<3;i++){let lx=W*.3*i;X.beginPath();X.moveTo(lx,0);X.lineTo(lx,H);X.stroke()}
+X.strokeStyle='rgba(0,150,255,.3)';X.lineWidth=2;for(let i=0;i<=3;i++){let lx=W*i/3;X.beginPath();X.moveTo(lx,0);X.lineTo(lx,H);X.stroke()}
 // Road markings
-X.setLineDash([20,20]);X.strokeStyle=`rgba(0,150,255,${.4+Math.sin(neonPulse)*.1})`;for(let i=0;i<2;i++){let lx=W*.3*(i+.5);X.beginPath();for(let y=-40+roadOff;y<H;y+=40){X.moveTo(lx,y);X.lineTo(lx,y+20)}}X.stroke();X.setLineDash([]);
+X.setLineDash([20,20]);X.strokeStyle=`rgba(0,150,255,${.4+Math.sin(neonPulse)*.1})`;for(let i=1;i<3;i++){let lx=W*i/3;X.beginPath();for(let y=-40+roadOff;y<H;y+=40){X.moveTo(lx,y);X.lineTo(lx,y+20)}}X.stroke();X.setLineDash([]);
 // Obstacles
-for(let o of obstacles){X.fillStyle=o.type==='barrier'?'#ff4757':'#ffa502';X.shadowColor=X.fillStyle;X.shadowBlur=10;
-if(o.type==='barrier'){X.fillRect(o.x-o.w/2,o.y-o.h/2,o.w,o.h);X.fillStyle='rgba(255,255,255,.2)';X.fillRect(o.x-o.w/2,o.y-o.h/2,o.w,4)}
-else{X.beginPath();X.moveTo(o.x,o.y-o.h/2);X.lineTo(o.x+o.w/2,o.y+o.h/2);X.lineTo(o.x-o.w/2,o.y+o.h/2);X.closePath();X.fill()}X.shadowBlur=0}
+for(let o of obstacles){let oc=o.type==='barrier'?'#ff4757':'#ffa502';
+if(o.type==='barrier'){X.drawImage(glow(oc),o.x-o.w/2-10,o.y-o.h/2-10,o.w+20,o.h+20);X.fillStyle=oc;X.fillRect(o.x-o.w/2,o.y-o.h/2,o.w,o.h);X.fillStyle='rgba(255,255,255,.2)';X.fillRect(o.x-o.w/2,o.y-o.h/2,o.w,4)}
+else{glowAt(oc,o.x,o.y,o.w/2+10);X.fillStyle=oc;X.beginPath();X.moveTo(o.x,o.y-o.h/2);X.lineTo(o.x+o.w/2,o.y+o.h/2);X.lineTo(o.x-o.w/2,o.y+o.h/2);X.closePath();X.fill()}}
 // Coins
-for(let c of coins){if(c.collected)continue;let cy=c.y+Math.sin(c.bob)*3;X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=12;X.beginPath();X.arc(c.x,cy,10,0,Math.PI*2);X.fill();X.shadowBlur=0;X.fillStyle='rgba(255,255,255,.4)';X.beginPath();X.arc(c.x-2,cy-2,4,0,Math.PI*2);X.fill()}
+for(let c of coins){if(c.collected)continue;let cy=c.y+Math.sin(c.bob)*3;glowAt('#ffd700',c.x,cy,22);X.fillStyle='#ffd700';X.beginPath();X.arc(c.x,cy,10,0,Math.PI*2);X.fill();X.fillStyle='rgba(255,255,255,.4)';X.beginPath();X.arc(c.x-2,cy-2,4,0,Math.PI*2);X.fill()}
 // Player
-X.fillStyle='#00d2d3';X.shadowColor='#00d2d3';X.shadowBlur=15;X.beginPath();X.arc(player.x,player.y,14,0,Math.PI*2);X.fill();X.shadowBlur=0;
+glowAt('#00d2d3',player.x,player.y,29);X.fillStyle='#00d2d3';X.beginPath();X.arc(player.x,player.y,14,0,Math.PI*2);X.fill();
 X.fillStyle='rgba(255,255,255,.5)';X.beginPath();X.arc(player.x-3,player.y-3,5,0,Math.PI*2);X.fill();
 // Particles
-for(let p of particles){X.globalAlpha=p.life/30;X.fillStyle=p.col;X.shadowColor=p.col;X.shadowBlur=6;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/30),0,Math.PI*2);X.fill();X.shadowBlur=0}X.globalAlpha=1;
+for(let p of particles){let pr=p.s*(p.life/30);X.globalAlpha=p.life/30;glowAt(p.col,p.x,p.y,pr+6);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}X.globalAlpha=1;
 // Score popups
-for(let sp of scorePopups){X.globalAlpha=sp.life/25;X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=6;X.font='bold 16px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y);X.shadowBlur=0}X.globalAlpha=1;
+for(let sp of scorePopups){X.globalAlpha=sp.life/25;X.fillStyle='#ffd700';X.font='bold 16px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
 // HUD
-X.fillStyle='#fff';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText('Score: '+score,W/2,30);X.textAlign='right';X.fillStyle=coinsCol>0?'#ffd700':'#fff';X.fillText('\uD83D\uDCB0 '+coinsCol,W-10,30);
+X.fillStyle='#fff';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText('Score: '+score,W/2,30);X.textAlign='right';X.drawImage(moneyImg(coinsCol),W-10-80,30-24);
 X.textAlign='right';X.fillStyle=timeLeft<10?'#ff4757':'#fff';X.font='bold 18px "Segoe UI"';X.fillText(Math.ceil(timeLeft)+'s',W-10,55);
 X.restore();
+if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);X.fillStyle='#00d2d3';X.shadowColor='#00d2d3';X.shadowBlur=15;X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('LANE SWITCHER',W/2,H/2-30);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap left/right or use arrow keys',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.shadowColor='#ff4757';X.shadowBlur=15;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('CRASHED!',W/2,H/2-20);X.shadowBlur=0;X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Coins: '+coinsCol,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+55)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#0f0';X.shadowColor='#0f0';X.shadowBlur=20;X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ESCAPED! \u2728',W/2,H/2-20);X.shadowBlur=0;X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Coins: '+coinsCol,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+55)}}
-function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+let pState='';function loop(){update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>

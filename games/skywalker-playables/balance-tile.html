@@ -1,13 +1,15 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Balance Tile</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(255,165,0,.3)</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
-let tile,player,tilt,tiltSpeed,facing,state,progress,finishLine,particles=[],scorePopups=[],shakeTime=0,pulseT=0,camShake=0;
-function init(){tile={w:W*.55,h:22};player={x:W/2,y:0};tilt=0;tiltSpeed=.025;facing='left';state='play';progress=0;finishLine=W*.15;particles=[];scorePopups=[];shakeTime=0;pulseT=0}
-C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}facing=facing==='left'?'right':'left';camShake=3});
-document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else facing=facing==='left'?'right':'left';camShake=3}});
+let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#1a2a3a');bgGrad.addColorStop(.5,'#2a3a5a');bgGrad.addColorStop(1,'#1a2a3a');needDraw=true}resize();window.addEventListener('resize',resize);
+const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
+function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
+let tile,player,tilt,tiltSpeed,facing,state,progress,finishLine,particles=[],scorePopups=[],shakeTime=0,pulseT=0,camShake=0,tileGrad=null,tgW=0;
+function init(){tile={w:W*.55,h:22};player={x:W/2,y:0};tilt=0;tiltSpeed=.025;facing='left';state='ready';progress=0;finishLine=W*.15;particles=[];scorePopups=[];shakeTime=0;pulseT=0}
+C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}facing=facing==='left'?'right':'left';camShake=3});
+document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}facing=facing==='left'?'right':'left';camShake=3}});
 function update(){if(state!=='play')return;pulseT+=.03;tilt+=tiltSpeed*(facing==='left'?-1:1);
 if(tilt>.75||tilt<-.75)tiltSpeed*=-1;
 let centerX=W/2,edge=centerX+tilt*tile.w/2;
@@ -17,17 +19,17 @@ progress++;if(progress>=300){state='win';spawnWinParticles()}
 tile.w=Math.max(55,W*.55-progress*.0008);
 if(camShake>0)camShake--;
 if(shakeTime>0)shakeTime--;
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.1;p.life--}particles=particles.filter(p=>p.life>0)}
-function spawnFallParticles(){for(let i=0;i<15;i++)particles.push({x:player.x,y:player.y,vx:(Math.random()-.5)*5,vy:Math.random()*3+1,life:25,s:Math.random()*3+2,col:'#ffd700'})}
-function spawnWinParticles(){for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`)}}}
+for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.1;p.life--}prune(particles,pLife)}
+function spawnFallParticles(){if(particles.length>180)return;for(let i=0;i<15;i++)particles.push({x:player.x,y:player.y,vx:(Math.random()-.5)*5,vy:Math.random()*3+1,life:25,s:Math.random()*3+2,col:'#ffd700'})}
+function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
 function draw(){X.save();let sx=camShake?(Math.random()-.5)*camShake*2:0,sy=camShake?(Math.random()-.5)*camShake*2:0;X.translate(sx,sy);
 X.clearRect(-10,-10,W+20,H+20);
-let grad=X.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#1a2a3a');grad.addColorStop(.5,'#2a3a5a');grad.addColorStop(1,'#1a2a3a');X.fillStyle=grad;X.fillRect(0,0,W,H);
+X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
 // Clouds
 X.fillStyle='rgba(255,255,255,.05)';for(let i=0;i<4;i++){let cx=(i*W/4+pulseT*20)%W;X.beginPath();X.ellipse(cx,80+i*30,30+i*5,12,0,0,Math.PI*2);X.fill()}
 let centerY=H*.55;X.save();X.translate(W/2,centerY);X.rotate(tilt);
 // Tile body
-let tg=X.createLinearGradient(-tile.w/2,0,tile.w/2,0);tg.addColorStop(0,'#8B6914');tg.addColorStop(.5,'#A0782C');tg.addColorStop(1,'#8B6914');X.fillStyle=tg;X.fillRect(-tile.w/2,-tile.h/2,tile.w,tile.h);
+if(!tileGrad||Math.round(tile.w)!==tgW){tgW=Math.round(tile.w);tileGrad=X.createLinearGradient(-tile.w/2,0,tile.w/2,0);tileGrad.addColorStop(0,'#8B6914');tileGrad.addColorStop(.5,'#A0782C');tileGrad.addColorStop(1,'#8B6914')}X.fillStyle=tileGrad;X.fillRect(-tile.w/2,-tile.h/2,tile.w,tile.h);
 // Wood grain
 X.strokeStyle='rgba(0,0,0,.1)';X.lineWidth=1;for(let i=-tile.w/2+10;i<tile.w/2;i+=15){X.beginPath();X.moveTo(i,-tile.h/2);X.lineTo(i,tile.h/2);X.stroke()}
 // Warning zones
@@ -36,21 +38,22 @@ X.restore();
 // Edge indicator
 let edgeX=W/2+tilt*tile.w/2;X.fillStyle=`rgba(255,200,0,${.3+Math.sin(pulseT*3)*.2})`;X.fillRect(edgeX-2,centerY-35,4,70);
 // Finish line
-X.fillStyle='#2ed573';X.shadowColor='#2ed573';X.shadowBlur=10;X.fillRect(finishLine,centerY-40,4,80);X.shadowBlur=0;
+glowAt('#2ed573',finishLine+2,centerY,50);X.fillStyle='#2ed573';X.fillRect(finishLine,centerY-40,4,80);
 // Progress bar
 let barW=100,barH=6,barX=W/2-barW/2,barY=H-30;X.fillStyle='rgba(255,255,255,.1)';X.fillRect(barX,barY,barW,barH);
-let progFill=Math.min(1,progress/300);X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=6;X.fillRect(barX,barY,barW*progFill,barH);X.shadowBlur=0;
+let progFill=Math.min(1,progress/300);if(barW*progFill>1)X.drawImage(glow('#ffd700'),barX-6,barY-6,barW*progFill+12,barH+12);X.fillStyle='#ffd700';X.fillRect(barX,barY,barW*progFill,barH);
 // Player
-player.y=centerY-15;X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=15;X.beginPath();X.arc(player.x,player.y,10,0,Math.PI*2);X.fill();X.shadowBlur=0;
+player.y=centerY-15;glowAt('#ffd700',player.x,player.y,25);X.fillStyle='#ffd700';X.beginPath();X.arc(player.x,player.y,10,0,Math.PI*2);X.fill();
 X.fillStyle='rgba(255,255,255,.4)';X.beginPath();X.arc(player.x-2,player.y-2,3,0,Math.PI*2);X.fill();
 // Eyes on player
 X.fillStyle='#1a1a2e';X.beginPath();X.arc(player.x+(facing==='left'?-2:2)-2,player.y-2,1.5,0,Math.PI*2);X.fill();X.beginPath();X.arc(player.x+(facing==='left'?-2:2)+2,player.y-2,1.5,0,Math.PI*2);X.fill();
 // Particles
-for(let p of particles){X.globalAlpha=p.life/50;X.fillStyle=p.col;X.shadowColor=p.col;X.shadowBlur=6;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/50),0,Math.PI*2);X.fill();X.shadowBlur=0}X.globalAlpha=1;
+for(let p of particles){let pr=p.s*(p.life/50);X.globalAlpha=p.life/50;glowAt(p.col,p.x,p.y,pr+6);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}X.globalAlpha=1;
 // HUD
 X.fillStyle='#fff';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillText('Hold position!',W/2,30);
 X.restore();
+if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=15;X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('BALANCE TILE',W/2,H/2-30);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap to flip walking direction',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.shadowColor='#ff4757';X.shadowBlur=15;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('FELL OFF!',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=20;X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 BALANCED! \u2728',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+let pState='';function loop(){update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>

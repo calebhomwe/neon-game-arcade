@@ -5,31 +5,33 @@
 const C=document.querySelector('canvas'),X=C.getContext('2d');
 let W,H,COLS,ROWS,SZ,grid,score,targetScore,state,particles=[],selTile=null,combo=0,comboTimer=0;
 const SHAPES=['circle','diamond','triangle','square','hexagon'],GCOLORS=['#ff4757','#ffa502','#2ed573','#1e90ff','#a55eea'];
-function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);COLS=6;ROWS=8;SZ=Math.floor(Math.min(W/COLS,(H-60)/ROWS))}resize();window.addEventListener('resize',resize);
-function init(){COLS=6;ROWS=8;SZ=Math.floor(Math.min(W/COLS,(H-60)/ROWS));grid=[];score=0;targetScore=100;state='play';particles=[];selTile=null;combo=0;comboTimer=0;makeGrid()}
-function makeGrid(){for(let r=0;r<ROWS;r++){grid[r]=[];for(let c=0;c<COLS;c++){grid[r][c]={type:Math.floor(Math.random()*SHAPES.length),alive:true,animScale:1,flash:0}}}
+let bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);COLS=6;ROWS=8;SZ=Math.floor(Math.min(W/COLS,(H-60)/ROWS));CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#1a1025');bgGrad.addColorStop(1,'#0f0a18');needDraw=true}resize();window.addEventListener('resize',resize);
+const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
+function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
+function init(){COLS=6;ROWS=8;SZ=Math.floor(Math.min(W/COLS,(H-60)/ROWS));grid=[];score=0;targetScore=100;state='ready';particles=[];selTile=null;combo=0;comboTimer=0;makeGrid()}
+function makeGrid(){for(let r=0;r<ROWS;r++){grid[r]=[];for(let c=0;c<COLS;c++){grid[r][c]={type:Math.floor(Math.random()*SHAPES.length),alive:true,animScale:1,flash:0}}}}
 function swapTiles(r1,c1,r2,c2){if(grid[r1]&&grid[r1][c1]&&grid[r2]&&grid[r2][c2]){let tmp=grid[r1][c1];grid[r1][c1]=grid[r2][c2];grid[r2][c2]=tmp;checkMatches()}}
-C.addEventListener('pointerdown',e=>{if(state!=='play')return;let r=C.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+C.addEventListener('pointerdown',e=>{if(state==='win'||state==='over'){init();return}if(state==='ready'){state='play';return}if(state!=='play')return;let mx=e.clientX-CRECT.left,my=e.clientY-CRECT.top;
 let col=Math.floor(mx/SZ),row=Math.floor(my/SZ);if(row<0||row>=ROWS||col<0||col>=COLS)return;if(!grid[row]||!grid[row][col])return;
-if(!selTile){selTile={r:row,c:col}}else{let dr=Math.abs(selTile.r-row),dc=Math.abs(selTile.c-col);if(dr+dc===1){swapTiles(selTile.r,selTile.c,row,col);selTile=null}else{selTile={r:row,c:col}}}
+if(!selTile){selTile={r:row,c:col}}else{let dr=Math.abs(selTile.r-row),dc=Math.abs(selTile.c-col);if(dr+dc===1){swapTiles(selTile.r,selTile.c,row,col);selTile=null}else{selTile={r:row,c:col}}}});
 function checkMatches(){let matched=true;while(matched){matched=false;
 for(let r=0;r<ROWS;r++)for(let c=0;c<COLS-2;c++){if(grid[r][c].alive&&grid[r][c+1].alive&&grid[r][c+2].alive&&grid[r][c].type===grid[r][c+1].type&&grid[r][c+1].type===grid[r][c+2].type){matchLine([[r,c],[r,c+1],[r,c+2]]);matched=true}}
 for(let r=0;r<ROWS-2;r++)for(let c=0;c<COLS;c++){if(grid[r][c].alive&&grid[r+1][c].alive&&grid[r+2][c].alive&&grid[r][c].type===grid[r+1][c].type&&grid[r+1][c].type===grid[r+2][c].type){matchLine([[r,c],[r+1,c],[r+2,c]]);matched=true}}}
 dropTiles();fillEmpty()}
 function matchLine(cells){combo++;comboTimer=60;let pts=combo*10;score+=pts;
 for(let [r,c]of cells){let tile=grid[r][c];tile.alive=false;tile.flash=15;
-for(let i=0;i<6;i++)particles.push({x:c*SZ+SZ/2,y:r*SZ+SZ/2+40,vx:(Math.random()-.5)*6,vy:(Math.random()-.5)*6,life:25,s:Math.random()*4+2,col:GCOLORS[tile.type]})}
+if(particles.length<220)for(let i=0;i<6;i++)particles.push({x:c*SZ+SZ/2,y:r*SZ+SZ/2+40,vx:(Math.random()-.5)*6,vy:(Math.random()-.5)*6,life:25,s:Math.random()*4+2,col:GCOLORS[tile.type]})}
 if(combo>1){particles.push({x:W/2,y:H/2,vx:0,vy:0,life:30,s:0,col:'#ffd700',text:''+combo+'x COMBO!'})}}
-function dropTiles(){for(let c=0;c<COLS;c++){let empty=0;for(let r=ROWS-1;r>=0;r--){if(!grid[r][c].alive)empty++;else if(empty>0){grid[r+empty][c]=grid[r][c];grid[r][c].alive=false}}}
+function dropTiles(){for(let c=0;c<COLS;c++){let empty=0;for(let r=ROWS-1;r>=0;r--){if(!grid[r][c].alive)empty++;else if(empty>0){grid[r+empty][c]=grid[r][c];grid[r][c].alive=false}}}}
 function fillEmpty(){for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){if(!grid[r][c].alive)grid[r][c]={type:Math.floor(Math.random()*SHAPES.length),alive:true,animScale:0}}}
-function update(){for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}particles=particles.filter(p=>p.life>0);
+function update(){for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
 if(comboTimer>0)comboTimer--;else combo=0;
 for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){if(grid[r][c].animScale<1)grid[r][c].animScale=Math.min(1,grid[r][c].animScale+.1);if(grid[r][c].flash>0)grid[r][c].flash--}
 if(score>=targetScore)state='win'}
-function drawShape(type,x,y,sz,col){X.fillStyle=col;X.shadowColor=col;X.shadowBlur=8;
-if(type===0){X.beginPath();X.arc(x,y,sz/2.8,0,Math.PI*2)}else if(type===1){X.beginPath();X.moveTo(x,y-sz/2.2);X.lineTo(x+sz/2.5,y);X.lineTo(x,y+sz/2.2);X.lineTo(x-sz/2.5,y);X.closePath()}else if(type===2){X.beginPath();X.moveTo(x,y-sz/2.2);X.lineTo(x+sz/2.5,y+sz/2.5);X.lineTo(x-sz/2.5,y+sz/2.5);X.closePath()}else if(type===3){X.fillRect(x-sz/2.8,y-sz/2.8,sz/1.4,sz/1.4)}else{X.beginPath();for(let i=0;i<6;i++){let a=Math.PI/3*i-Math.PI/6;X.lineTo(x+Math.cos(a)*sz/2.5,y+Math.sin(a)*sz/2.5)}X.closePath()}X.fill();X.shadowBlur=0;
+function drawShape(type,x,y,sz,col){glowAt(col,x,y,sz/2.2+8);X.fillStyle=col;
+if(type===0){X.beginPath();X.arc(x,y,sz/2.8,0,Math.PI*2)}else if(type===1){X.beginPath();X.moveTo(x,y-sz/2.2);X.lineTo(x+sz/2.5,y);X.lineTo(x,y+sz/2.2);X.lineTo(x-sz/2.5,y);X.closePath()}else if(type===2){X.beginPath();X.moveTo(x,y-sz/2.2);X.lineTo(x+sz/2.5,y+sz/2.5);X.lineTo(x-sz/2.5,y+sz/2.5);X.closePath()}else if(type===3){X.fillRect(x-sz/2.8,y-sz/2.8,sz/1.4,sz/1.4)}else{X.beginPath();for(let i=0;i<6;i++){let a=Math.PI/3*i-Math.PI/6;X.lineTo(x+Math.cos(a)*sz/2.5,y+Math.sin(a)*sz/2.5)}X.closePath()}X.fill();
 X.fillStyle='rgba(255,255,255,.25)';X.beginPath();X.arc(x-sz/8,y-sz/8,sz/6,0,Math.PI*2);X.fill()}
-function draw(){X.clearRect(0,0,W,H);let grad=X.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#1a1025');grad.addColorStop(1,'#0f0a18');X.fillStyle=grad;X.fillRect(0,0,W,H);
+function draw(){X.clearRect(0,0,W,H);X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
 let offX=(W-COLS*SZ)/2,offY=50;
 // Grid bg
 X.fillStyle='rgba(255,255,255,.03)';X.fillRect(offX,offY,COLS*SZ,ROWS*SZ);
@@ -39,10 +41,11 @@ if(selTile&&selTile.r===r&&selTile.c===c){X.fillStyle='rgba(255,255,255,.15)';X.
 if(tile.flash>0){X.globalAlpha=tile.flash/15*.5;X.fillStyle='#fff';X.beginPath();X.arc(x,y,SZ*.4*s,0,Math.PI*2);X.fill();X.globalAlpha=1}
 X.save();X.translate(x,y);X.scale(s,s);X.translate(-x,-y);drawShape(tile.type,x,y,SZ-tile.flash*.3,GCOLORS[tile.type]);X.restore()}
 // Particles
-for(let p of particles){if(p.text){X.globalAlpha=p.life/30;X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=12;X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText(p.text,W/2,H/2);X.shadowBlur=0;X.globalAlpha=1}else{X.globalAlpha=p.life/25;X.fillStyle=p.col;X.shadowColor=p.col;X.shadowBlur=6;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/25),0,Math.PI*2);X.fill();X.shadowBlur=0}}X.globalAlpha=1;
+for(let p of particles){if(p.text){X.globalAlpha=p.life/30;X.fillStyle='#ffd700';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText(p.text,W/2,H/2);X.globalAlpha=1}else{let pr=p.s*(p.life/25);X.globalAlpha=p.life/25;glowAt(p.col,p.x,p.y,pr+6);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}}X.globalAlpha=1;
 // HUD
 X.fillStyle='#fff';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText(score+' / '+targetScore,W/2,28);
 if(combo>1){X.fillStyle='#ffd700';X.font='bold 16px "Segoe UI"';X.textAlign='right';X.fillText(combo+'x',W-15,28)}
+if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);X.fillStyle='#a55eea';X.shadowColor='#a55eea';X.shadowBlur=15;X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('MATCH SWIPE',W/2,H/2-30);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap two adjacent tiles to swap',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#a55eea';X.shadowColor='#a55eea';X.shadowBlur=20;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 MATCH MASTER! \u2728',W/2,H/2-20);X.shadowBlur=0;X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Score: '+score,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+55)}}
-function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+let pState='';function loop(){update();if(state!==pState){pState=state;needDraw=true}if(state==='play'||particles.length>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>

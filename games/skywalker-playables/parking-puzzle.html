@@ -1,9 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Parking Puzzle</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(46,213,115,.3)</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
+let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#3a3a3a');bgGrad.addColorStop(1,'#2a2a2a');needDraw=true}resize();window.addEventListener('resize',resize);
+const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
+function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}function pSpark(s){return s.life>0&&(s.life--)>0}
+let sparkleSpr=null;function sparkleImg(){if(!sparkleSpr){sparkleSpr=document.createElement('canvas');sparkleSpr.width=sparkleSpr.height=20;let g=sparkleSpr.getContext('2d');g.font='10px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='#2ed573';g.fillText('\u2728',10,10)}return sparkleSpr}
 let car,zone,level,state,steerAngle,particles=[],scorePopups=[],shakeTime=0,pulseT=0,sparkles=[];
 const LEVELS=[
 {car:{x:W*.3,y:H*.35},zone:{x:W*.65,y:H*.3,w:75,h:50},walls:[{x:W*.5,y:H*.22,w:10,h:90},{x:W*.2,y:H*.6,w:90,h:10}]},
@@ -12,10 +15,10 @@ const LEVELS=[
 ];
 function init(){level=0;state='ready';particles=[];scorePopups=[];shakeTime=0;sparkles=[]}
 function loadLevel(){let lv=LEVELS[level];car={...lv.car,vx:0,vy:0,angle:0};zone={...lv.zone};state='play'}
-C.addEventListener('pointermove',e=>{if(state!=='play')return;let r=C.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+C.addEventListener('pointermove',e=>{if(state!=='play')return;let mx=e.clientX-CRECT.left,my=e.clientY-CRECT.top;
 steerAngle=Math.atan2(my-car.y,mx-car.x)});
 C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){loadLevel();return}
-let r=C.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;steerAngle=Math.atan2(my-car.y,mx-car.x)});
+let mx=e.clientX-CRECT.left,my=e.clientY-CRECT.top;steerAngle=Math.atan2(my-car.y,mx-car.x)});
 document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win'){init();return}if(state==='ready')loadLevel()}});
 function update(){if(state!=='play')return;pulseT+=.05;
 let spd=2.2;car.vx=Math.cos(steerAngle)*spd;car.vy=Math.sin(steerAngle)*spd;car.x+=car.vx;car.y+=car.vy;
@@ -25,16 +28,16 @@ if(car.x<-30||car.x>W+30||car.y<-30||car.y>H+30){state='over';shakeTime=8;return
 let dx=car.x-(zone.x+zone.w/2),dy=car.y-(zone.y+zone.h/2);
 if(Math.abs(dx)<zone.w/2-10&&Math.abs(dy)<zone.h/2-10){parked()}
 if(shakeTime>0)shakeTime--;
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}particles=particles.filter(p=>p.life>0);
-for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}scorePopups=scorePopups.filter(sp=>sp.life>0);
-for(let s of sparkles){s.t=(s.t||0)+.05;s.x+=s.vx||0;s.y+=s.vy||0}sparkles=sparkles.filter(s=>s.life>0&&(s.life--)>0)}
+for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
+for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife);
+for(let s of sparkles){s.t=(s.t||0)+.05;s.x+=s.vx||0;s.y+=s.vy||0}prune(sparkles,pSpark)}
 function parked(){level++;if(level>=LEVELS.length){state='win';spawnWinParticles()}else{scorePopups.push({x:zone.x+zone.w/2,y:zone.y,txt:'PARKED!',life:40,vy:-1.5});loadLevel()}}
-function spawnCrashParticles(){for(let i=0;i<15;i++)particles.push({x:car.x,y:car.y,vx:(Math.random()-.5)*6,vy:(Math.random()-.5)*6,life:25,s:Math.random()*4+2,col:['#ff4757','#ffa502'][Math.floor(Math.random()*2)]})}
-function spawnWinParticles(){for(let i=0;i<50;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`)}}}
-function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
+function spawnCrashParticles(){if(particles.length>180)return;for(let i=0;i<15;i++)particles.push({x:car.x,y:car.y,vx:(Math.random()-.5)*6,vy:(Math.random()-.5)*6,life:25,s:Math.random()*4+2,col:['#ff4757','#ffa502'][Math.floor(Math.random()*2)]})}
+function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<50;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
+function draw(){if(!car){X.clearRect(0,0,W,H);X.fillStyle='#fff';X.font='bold 30px sans-serif';X.textAlign='center';X.fillText('PARKING PUZZLE',W/2,H/2-10);X.font='16px sans-serif';X.fillStyle='rgba(255,255,255,.6)';X.fillText('Tap to start',W/2,H/2+24);return}X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
 X.clearRect(-15,-15,W+30,H+30);
 // Asphalt
-let grad=X.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#3a3a3a');grad.addColorStop(1,'#2a2a2a');X.fillStyle=grad;X.fillRect(0,0,W,H);
+X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
 // Road texture
 X.fillStyle='rgba(255,255,255,.02)';for(let i=0;i<30;i++){X.fillRect(Math.random()*W,Math.random()*H,Math.random()*30+5,1)}
 // Parking zone
@@ -43,7 +46,7 @@ X.fillStyle='rgba(46,213,115,.15)';X.fillRect(zone.x,zone.y,zone.w,zone.h);
 X.strokeStyle='#2ed573';X.lineWidth=2;X.setLineDash([6,4]);X.strokeRect(zone.x,zone.y,zone.w,zone.h);X.setLineDash([]);
 X.fillStyle='rgba(46,213,115,.6)';X.font='bold 11px sans-serif';X.textAlign='center';X.fillText('PARK',zone.x+zone.w/2,zone.y+zone.h/2+4);
 // Sparkles in zone
-for(let i=0;i<3;i++){let sx=zone.x+10+Math.sin(pulseT+i*2)*zone.w*.3+zone.w*.3,sy=zone.y+5+Math.cos(pulseT+i*3)*zone.h*.2+zone.h*.3;X.fillStyle=`rgba(46,213,115,${.3+Math.sin(pulseT*2+i)*.2})`;X.font='10px sans-serif';X.fillText('\u2728',sx,sy)}
+let spImg=sparkleImg();for(let i=0;i<3;i++){let sx=zone.x+10+Math.sin(pulseT+i*2)*zone.w*.3+zone.w*.3,sy=zone.y+5+Math.cos(pulseT+i*3)*zone.h*.2+zone.h*.3;X.globalAlpha=.3+Math.sin(pulseT*2+i)*.2;X.drawImage(spImg,sx-10,sy-10)}X.globalAlpha=1;
 X.restore();
 // Walls
 for(let w of LEVELS[Math.min(level,LEVELS.length-1)].walls){X.fillStyle='#666';X.fillRect(w.x-w.w/2,w.y-w.h/2,w.w,w.h);X.fillStyle='rgba(255,255,255,.1)';X.fillRect(w.x-w.w/2,w.y-w.h/2,w.w,2)}
@@ -52,7 +55,7 @@ X.save();X.translate(car.x,car.y);X.rotate(steerAngle);
 // Headlight beams
 X.fillStyle='rgba(255,255,200,.05)';X.beginPath();X.moveTo(18,-8);X.lineTo(60,-20);X.lineTo(60,20);X.lineTo(18,8);X.closePath();X.fill();
 // Body
-X.fillStyle='#e74c3c';X.shadowColor='#e74c3c';X.shadowBlur=8;X.fillRect(-20,-13,40,26);X.shadowBlur=0;
+X.drawImage(glow('#e74c3c'),-28,-21,56,42);X.fillStyle='#e74c3c';X.fillRect(-20,-13,40,26);
 // Windshield
 X.fillStyle='rgba(100,200,255,.5)';X.fillRect(6,-10,10,20);
 // Roof detail
@@ -65,9 +68,9 @@ X.fillStyle='#ffff00';X.shadowColor='#ffff00';X.shadowBlur=muzzleFlash||0;X.fill
 X.fillStyle='#ff0000';X.fillRect(-20,-10,3,5);X.fillRect(-20,5,3,5);
 X.restore();
 // Particles
-for(let p of particles){X.globalAlpha=p.life/50;X.fillStyle=p.col;X.shadowColor=p.col;X.shadowBlur=6;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/50),0,Math.PI*2);X.fill();X.shadowBlur=0}X.globalAlpha=1;
+for(let p of particles){let pr=p.s*(p.life/50);X.globalAlpha=p.life/50;glowAt(p.col,p.x,p.y,pr+6);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}X.globalAlpha=1;
 // Score popups
-for(let sp of scorePopups){X.globalAlpha=sp.life/40;X.fillStyle='#2ed573';X.shadowColor='#2ed573';X.shadowBlur=10;X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y);X.shadowBlur=0}X.globalAlpha=1;
+for(let sp of scorePopups){X.globalAlpha=sp.life/40;X.fillStyle='#2ed573';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
 // HUD
 X.fillStyle='#fff';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillText('Level '+(level+1)+' / '+LEVELS.length,W/2,25);
 X.restore();
@@ -75,5 +78,5 @@ if(state==='ready'){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 24px "Segoe UI"';X
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.shadowColor='#ff4757';X.shadowBlur=15;X.font='bold 36px "Segoe UI"';X.textAlign='center';X.fillText('CRASHED!',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#2ed573';X.shadowColor='#2ed573';X.shadowBlur=20;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 PARKING MASTER! \u2728',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
 let muzzleFlash=0;let origUpdate=update;let origDraw=draw;
-function loop(){muzzleFlash=Math.max(0,muzzleFlash-1);update();draw();requestAnimationFrame(loop)}init();loop()
+let pState='';function loop(){muzzleFlash=Math.max(0,muzzleFlash-1);update();if(state!==pState){pState=state;needDraw=true}if(state==='play'||particles.length>0||scorePopups.length>0||shakeTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>
