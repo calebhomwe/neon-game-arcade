@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Mini Life Sim</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #f9fafb;
+      --muted: #9ca3af;
+      --good: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --accent: #3b82f6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+    }
+
+    header {
+      padding: 12px 16px;
+      background: #020617;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+
+    .stat {
+      background: var(--panel-2);
+      padding: 8px 10px;
+      border-radius: 10px;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .stat.small {
+      min-width: 56px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-left: auto;
+    }
+
+    button {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid #475569;
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      filter: brightness(1.15);
+    }
+
+    button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    label {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      background: var(--panel-2);
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    main {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      align-items: flex-start;
+    }
+
+    aside {
+      background: var(--panel);
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    #needs {
+      width: 240px;
+      display: grid;
+      gap: 10px;
+    }
+
+    #side {
+      width: 300px;
+      display: grid;
+      gap: 12px;
+    }
+
+    #canvas-wrap {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      background: var(--panel);
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 12px;
+      overflow: auto;
+    }
+
+    canvas {
+      background: white;
+      border-radius: 12px;
+      max-width: 100%;
+      height: auto;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+
+    .need {
+      display: grid;
+      gap: 4px;
+    }
+
+    .need-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .bar {
+      height: 14px;
+      background: #334155;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 50%;
+      transition: width 0.15s linear;
+    }
+
+    .bar-fill.good {
+      background: var(--good);
+    }
+
+    .bar-fill.warn {
+      background: var(--warn);
+    }
+
+    .bar-fill.bad {
+      background: var(--bad);
+    }
+
+    #objectName {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    #objectActions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .action {
+      display: grid;
+      gap: 2px;
+      text-align: left;
+      padding: 10px;
+    }
+
+    .action small {
+      color: var(--muted);
+    }
+
+    .current {
+      background: var(--panel-2);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .notification {
+      font-size: 13px;
+      padding: 6px 0;
+      border-bottom: 1px solid #334155;
+      color: #e5e7eb;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 1200px) {
+      main {
+        flex-wrap: wrap;
+      }
+
+      #needs,
+      #side {
+        width: 100%;
+      }
+    }
+  
+    /* iPhone/touch playability */
+    button, label, canvas { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    body { min-height: 100dvh; padding-bottom: env(safe-area-inset-bottom); }
+    @media (max-width: 700px) {
+      header { padding: calc(8px + env(safe-area-inset-top)) 8px 8px; gap: 6px; position: relative; }
+      .title { width: 100%; font-size: 18px; }
+      .stat, .stat.small { min-width: 0; flex: 1; padding: 7px 6px; font-size: 13px; }
+      .controls { width: 100%; margin-left: 0; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 3px; }
+      .controls button, .controls label { flex: 0 0 auto; min-height: 42px; }
+      main { display: grid; grid-template-columns: 1fr; padding: 6px; gap: 8px; }
+      #canvas-wrap { order: -3; width: 100%; padding: 3px; overflow: hidden; border-radius: 10px; }
+      canvas { width: 100%; height: auto; border-radius: 8px; }
+      #needs { order: -2; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+      #needs h2 { grid-column: 1 / -1; margin: 0; }
+      #side { order: -1; }
+      #needs, #side { width: 100%; padding: 10px; }
+      #objectActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .notification { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">Mini Life Sim</div>
+    <div class="stat" id="clock">Day 1 08:00</div>
+    <div class="stat small" id="money">$120</div>
+    <div class="stat small" id="mood">🙂</div>
+
+    <div class="controls">
+      <button id="pauseBtn">Pause</button>
+      <button class="speed" data-speed="1">1x</button>
+      <button class="speed active" data-speed="5">5x</button>
+      <button class="speed" data-speed="15">15x</button>
+      <button class="speed" data-speed="60">60x</button>
+      <label>
+        <input type="checkbox" id="autonomy" checked />
+        Autonomy
+      </label>
+      <button id="saveBtn">Save</button>
+      <button id="loadBtn">Load</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+  </header>
+
+  <main>
+    <aside id="needs"></aside>
+
+    <div id="canvas-wrap">
+      <canvas id="game" width="960" height="600"></canvas>
+    </div>
+
+    <aside id="side">
+      <div>
+        <h2>Selected</h2>
+        <div id="objectName">None</div>
+        <div id="objectActions"></div>
+      </div>
+
+      <div>
+        <h2>Log</h2>
+        <div id="notificationList"></div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    const NEEDS = [
+      { id: "hunger", label: "Hunger" },
+      { id: "bladder", label: "Bladder" },
+      { id: "energy", label: "Energy" },
+      { id: "hygiene", label: "Hygiene" },
+      { id: "fun", label: "Fun" },
+      { id: "social", label: "Social" }
+    ];
+
+    const OBJECTS = [
+      { id: "fridge", name: "Fridge", emoji: "🧊", x: 45, y: 70, w: 64, h: 64 },
+      { id: "stove", name: "Stove", emoji: "🍳", x: 135, y: 70, w: 64, h: 64 },
+      { id: "sink", name: "Sink", emoji: "🚰", x: 225, y: 70, w: 64, h: 64 },
+      { id: "trash", name: "Trash", emoji: "🗑️", x: 315, y: 150, w: 50, h: 50 },
+      { id: "toilet", name: "Toilet", emoji: "🚽", x: 665, y: 70, w: 64, h: 64 },
+      { id: "shower", name: "Shower", emoji: "🚿", x: 775, y: 70, w: 64, h: 64 },
+      { id: "bathSink", name: "Sink", emoji: "🧼", x: 880, y: 70, w: 64, h: 64 },
+      { id: "bed", name: "Bed", emoji: "🛏️", x: 45, y: 430, w: 130, h: 80 },
+      { id: "tv", name: "TV", emoji: "📺", x: 665, y: 430, w: 80, h: 50 },
+      { id: "sofa", name: "Sofa", emoji: "🛋️", x: 780, y: 480, w: 100, h: 50 },
+      { id: "computer", name: "Computer", emoji: "💻", x: 875, y: 390, w: 64, h: 64 },
+      { id: "phone", name: "Phone", emoji: "📱", x: 470, y: 290, w: 48, h: 48 }
+    ];
+
+    const ACTIONS = {
+      snack: {
+        label: "Grab Snack",
+        objectIds: ["fridge"],
+        duration: 10,
+        cost: 3,
+        effects: { hunger: 25, hygiene: -1, fun: 1 },
+        notify: "Ate a snack."
+      },
+      cook: {
+        label: "Cook Meal",
+        objectIds: ["stove"],
+        duration: 35,
+        cost: 8,
+        effects: { hunger: 65, fun: 4, energy: -4, hygiene: -2 },
+        notify: "Cooked and ate a meal."
+      },
+      wash: {
+        label: "Wash Hands",
+        objectIds: ["sink", "bathSink"],
+        duration: 4,
+        effects: { hygiene: 6, fun: 1 },
+        notify: "Washed hands."
+      },
+      toilet: {
+        label: "Use Toilet",
+        objectIds: ["toilet"],
+        duration: 10,
+        effects: { bladder: 95, hygiene: -1 },
+        notify: "Used the toilet."
+      },
+      shower: {
+        label: "Take Shower",
+        objectIds: ["shower"],
+        duration: 25,
+        effects: { hygiene: 85, energy: 3, fun: 2 },
+        notify: "Took a shower."
+      },
+      nap: {
+        label: "Nap",
+        objectIds: ["bed"],
+        duration: 60,
+        effects: { energy: 35, hunger: -4, bladder: -4 },
+        notify: "Took a nap."
+      },
+      sleep: {
+        label: "Sleep",
+        objectIds: ["bed"],
+        duration: 360,
+        effects: { energy: 95, hunger: -8, bladder: -8, hygiene: -2 },
+        notify: "Slept and recovered energy."
+      },
+      watch: {
+        label: "Watch TV",
+        objectIds: ["tv"],
+        duration: 35,
+        effects: { fun: 50, energy: -2, social: 4 },
+        notify: "Watched TV."
+      },
+      sit: {
+        label: "Relax on Sofa",
+        objectIds: ["sofa"],
+        duration: 20,
+        effects: { energy: 12, fun: 10, social: 2 },
+        notify: "Relaxed on the sofa."
+      },
+      work: {
+        label: "Work",
+        objectIds: ["computer"],
+        duration: 120,
+        money: 140,
+        effects: { energy: -18, fun: -12, hygiene: -6, social: -4 },
+        notify: "Finished work and earned money."
+      },
+      browse: {
+        label: "Browse Internet",
+        objectIds: ["computer"],
+        duration: 20,
+        effects: { fun: 22, social: 6, energy: -2 },
+        notify: "Browsed the internet."
+      },
+      call: {
+        label: "Call Friend",
+        objectIds: ["phone"],
+        duration: 25,
+        effects: { social: 65, fun: 12, energy: -3 },
+        notify: "Called a friend."
+      },
+      clean: {
+        label: "Clean Up",
+        objectIds: ["trash"],
+        duration: 25,
+        effects: { hygiene: 10, fun: -4, energy: -6 },
+        notify: "Cleaned up the house."
+      }
+    };
+
+    const DECAY = {
+      hunger: -0.045,
+      bladder: -0.055,
+      energy: -0.035,
+      hygiene: -0.035,
+      fun: -0.040,
+      social: -0.025
+    };
+
+    function createInitialState() {
+      return {
+        time: 8 * 60,
+        day: 1,
+        speed: 5,
+        paused: false,
+        autonomy: true,
+        money: 120,
+        needs: {
+          hunger: 80,
+          bladder: 80,
+          energy: 80,
+          hygiene: 80,
+          fun: 80,
+          social: 80
+        },
+        char: {
+          x: 480,
+          y: 300
+        },
+        moveTarget: null,
+        currentAction: null,
+        selectedObject: null,
+        notifications: [],
+        warnings: {},
+        autonomyCooldown: 0
+      };
+    }
+
+    let state = createInitialState();
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function formatClock() {
+      const h = Math.floor(state.time / 60) % 24;
+      const m = Math.floor(state.time % 60);
+      return `Day ${state.day} ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
+
+    function notify(msg) {
+      state.notifications.unshift({ time: formatClock(), msg });
+      state.notifications = state.notifications.slice(0, 10);
+      renderNotifications();
+    }
+
+    function renderNotifications() {
+      const el = document.getElementById("notificationList");
+      el.innerHTML = "";
+
+      state.notifications.forEach((n) => {
+        const div = document.createElement("div");
+        div.className = "notification";
+        div.textContent = `[${n.time}] ${n.msg}`;
+        el.appendChild(div);
+      });
+    }
+
+    function buildNeedsUI() {
+      const needsPanel = document.getElementById("needs");
+      needsPanel.innerHTML = "<h2>Needs</h2>";
+
+      NEEDS.forEach((need) => {
+        const div = document.createElement("div");
+        div.className = "need";
+        div.innerHTML = `
+          <div class="need-label">
+            <span>${need.label}</span>
+            <span id="value-${need.id}">0</span>
+          </div>
+          <div class="bar">
+            <div id="bar-${need.id}" class="bar-fill good"></div>
+          </div>
+        `;
+        needsPanel.appendChild(div);
+      });
+    }
+
+    function moodEmoji() {
+      const avg =
+        NEEDS.reduce((sum, need) => sum + state.needs[need.id], 0) /
+        NEEDS.length;
+
+      if (avg > 75) return "😄";
+      if (avg > 55) return "🙂";
+      if (avg > 35) return "😐";
+      if (avg > 20) return "😟";
+      return "😭";
+    }
+
+    function updateHUD() {
+      document.getElementById("clock").textContent = formatClock();
+      document.getElementById("money").textContent = `$${Math.round(state.money)}`;
+      document.getElementById("mood").textContent = moodEmoji();
+      document.getElementById("pauseBtn").textContent = state.paused ? "Resume" : "Pause";
+      document.getElementById("autonomy").checked = state.autonomy;
+
+      NEEDS.forEach((need) => {
+        const value = Math.round(state.needs[need.id]);
+        const bar = document.getElementById(`bar-${need.id}`);
+        const label = document.getElementById(`value-${need.id}`);
+
+        if (bar) {
+          bar.style.width = `${value}%`;
+          bar.className = `bar-fill ${value > 60 ? "good" : value > 30 ? "warn" : "bad"}`;
+        }
+
+        if (label) {
+          label.textContent = value;
+        }
+      });
+
+      document.querySelectorAll(".speed").forEach((btn) => {
+        btn.classList.toggle(
+          "active",
+          Number(btn.dataset.speed) === state.speed && !state.paused
+        );
+      });
+    }
+
+    function renderPanel() {
+      const objectName = document.getElementById("objectName");
+      const objectActions = document.getElementById("objectActions");
+
+      objectActions.innerHTML = "";
+
+      if (state.currentAction) {
+        const action = state.currentAction;
+
+        objectName.textContent = action.label;
+
+        const current = document.createElement("div");
+        current.className = "current";
+        current.innerHTML = `
+          <strong>${action.label}</strong><br />
+          ${action.phase === "move" ? `Moving to ${action.targetName}` : "Doing action"}<br />
+          ${action.phase === "doing" ? `${Math.floor(action.elapsed)} / ${action.duration} min` : ""}
+        `;
+
+        const cancel = document.createElement("button");
+        cancel.textContent = "Cancel Action";
+        cancel.onclick = () => {
+          state.currentAction = null;
+          state.moveTarget = null;
+          notify("Action cancelled.");
+          renderPanel();
+        };
+
+        objectActions.appendChild(current);
+        objectActions.appendChild(cancel);
+        return;
+      }
+
+      const obj = OBJECTS.find((o) => o.id === state.selectedObject);
+
+      if (!obj) {
+        objectName.textContent = "None";
+        objectActions.innerHTML = `
+          <div class="hint">
+            Click an object to choose an interaction.<br /><br />
+            Click the floor to move.<br /><br />
+            Keep needs healthy, earn money, and survive the day.
+          </div>
+        `;
+        return;
+      }
+
+      objectName.textContent = `${obj.emoji} ${obj.name}`;
+
+      const actions = Object.entries(ACTIONS).filter(([, action]) =>
+        action.objectIds.includes(obj.id)
+      );
+
+      if (!actions.length) {
+        objectActions.innerHTML = `<div class="hint">No interactions available.</div>`;
+        return;
+      }
+
+      actions.forEach(([id, action]) => {
+        const btn = document.createElement("button");
+        btn.className = "action";
+
+        const costText = action.cost ? `-$${action.cost}` : "";
+        const moneyText = action.money ? `+$${action.money}` : "";
+        const moneyParts = [costText, moneyText].filter(Boolean).join(" ");
+
+        btn.innerHTML = `
+          <span>${action.label}</span>
+          <small>${action.duration} min ${moneyParts}</small>
+        `;
+
+        btn.onclick = () => startAction(id);
+        objectActions.appendChild(btn);
+      });
+    }
+
+    function applyEffects(effects) {
+      if (!effects) return;
+
+      for (const [key, value] of Object.entries(effects)) {
+        if (state.needs[key] !== undefined) {
+          state.needs[key] = clamp(state.needs[key] + value, 0, 100);
+        }
+      }
+    }
+
+    function startAction(id) {
+      const action = ACTIONS[id];
+      if (!action) return;
+
+      if (action.cost && state.money < action.cost) {
+        notify(`Not enough money for ${action.label}.`);
+        return;
+      }
+
+      const targetId =
+        state.selectedObject && action.objectIds.includes(state.selectedObject)
+          ? state.selectedObject
+          : action.objectIds[0];
+
+      const obj = OBJECTS.find((o) => o.id === targetId);
+      if (!obj) return;
+
+      state.selectedObject = obj.id;
+      state.moveTarget = null;
+
+      state.currentAction = {
+        id,
+        label: action.label,
+        duration: action.duration,
+        cost: action.cost || 0,
+        money: action.money || 0,
+        effects: action.effects || {},
+        notify: action.notify || `${action.label} finished.`,
+        phase: "move",
+        elapsed: 0,
+        targetX: obj.x + obj.w / 2,
+        targetY: obj.y + obj.h / 2,
+        targetName: obj.name
+      };
+
+      renderPanel();
+    }
+
+    function completeAction() {
+      const action = state.currentAction;
+      if (!action) return;
+
+      if (action.cost) {
+        state.money -= action.cost;
+      }
+
+      if (action.money) {
+        state.money += action.money;
+      }
+
+      applyEffects(action.effects);
+      notify(action.notify);
+
+      state.currentAction = null;
+      state.autonomyCooldown = 3;
+
+      renderPanel();
+    }
+
+    function moveTowards(target, dt) {
+      const dx = target.x - state.char.x;
+      const dy = target.y - state.char.y;
+      const dist = Math.hypot(dx, dy);
+
+      const step = 170 * dt * Math.max(1, Math.min(state.speed, 10));
+
+      if (dist <= step || dist < 2) {
+        state.char.x = target.x;
+        state.char.y = target.y;
+        return true;
+      }
+
+      state.char.x += (dx / dist) * step;
+      state.char.y += (dy / dist) * step;
+      return false;
+    }
+
+    function decayNeeds(gameMinutes) {
+      for (const [key, rate] of Object.entries(DECAY)) {
+        state.needs[key] = clamp(state.needs[key] + rate * gameMinutes, 0, 100);
+      }
+    }
+
+    function checkWarnings() {
+      NEEDS.forEach((need) => {
+        const value = state.needs[need.id];
+
+        if (value < 20 && !state.warnings[need.id]) {
+          notify(`${need.label} is critically low!`);
+          state.warnings[need.id] = true;
+        } else if (value > 30 && state.warnings[need.id]) {
+          state.warnings[need.id] = false;
+        }
+      });
+    }
+
+    function chooseAutonomous() {
+      const n = state.needs;
+      const candidates = [];
+
+      if (n.bladder < 70) {
+        candidates.push({
+          id: "toilet",
+          score: 110 - n.bladder + (n.bladder < 30 ? 30 : 0)
+        });
+      }
+
+      if (n.hunger < 70) {
+        const wantsCook = n.hunger < 35 && state.money >= (ACTIONS.cook.cost || 0);
+
+        candidates.push({
+          id: wantsCook ? "cook" : "snack",
+          score: 105 - n.hunger + (n.hunger < 30 ? 25 : 0)
+        });
+      }
+
+      if (n.energy < 65) {
+        candidates.push({
+          id: n.energy < 25 ? "sleep" : "nap",
+          score: 100 - n.energy + (n.energy < 20 ? 25 : 0)
+        });
+      }
+
+      if (n.hygiene < 65) {
+        candidates.push({
+          id: "shower",
+          score: 95 - n.hygiene
+        });
+      }
+
+      if (n.fun < 60) {
+        candidates.push({
+          id: "watch",
+          score: 90 - n.fun
+        });
+      }
+
+      if (n.social < 60) {
+        candidates.push({
+          id: "call",
+          score: 90 - n.social
+        });
+      }
+
+      if (state.money < 80 && n.energy > 35 && n.bladder > 35 && n.hunger > 35) {
+        candidates.push({
+          id: "work",
+          score: 80
+        });
+      }
+
+      if (!candidates.length) {
+        candidates.push(
+          { id: "sit", score: 10 },
+          { id: "browse", score: 8 },
+          { id: "clean", score: 6 }
+        );
+      }
+
+      let affordable = candidates.filter((candidate) => {
+        const action = ACTIONS[candidate.id];
+        return !action.cost || state.money >= action.cost;
+      });
+
+      if (!affordable.length) {
+        affordable = [
+          { id: "sit", score: 10 },
+          { id: "browse", score: 8 },
+          { id: "clean", score: 6 },
+          { id: "work", score: 5 }
+        ];
+      }
+
+      const chosen = affordable.sort((a, b) => b.score - a.score)[0];
+
+      if (chosen) {
+        startAction(chosen.id);
+      }
+    }
+
+    function update(dt) {
+      const gameMinutes = dt * state.speed;
+
+      state.time += gameMinutes;
+
+      if (state.time >= 1440) {
+        state.time -= 1440;
+        state.day += 1;
+        notify("A new day begins.");
+      }
+
+      decayNeeds(gameMinutes);
+
+      if (state.currentAction) {
+        const action = state.currentAction;
+
+        if (action.phase === "move") {
+          const arrived = moveTowards(
+            { x: action.targetX, y: action.targetY },
+            dt
+          );
+
+          if (arrived) {
+            action.phase = "doing";
+          }
+        } else {
+          action.elapsed += gameMinutes;
+
+          if (action.elapsed >= action.duration) {
+            completeAction();
+          }
+        }
+      } else if (state.moveTarget) {
+        const arrived = moveTowards(state.moveTarget, dt);
+
+        if (arrived) {
+          state.moveTarget = null;
+        }
+      }
+
+      if (state.autonomy && !state.currentAction && !state.moveTarget) {
+        state.autonomyCooldown -= gameMinutes;
+
+        if (state.autonomyCooldown <= 0) {
+          chooseAutonomous();
+          state.autonomyCooldown = 5;
+        }
+      }
+
+      checkWarnings();
+      updateHUD();
+    }
+
+    function drawRooms() {
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "#e2e8f0";
+      ctx.fillRect(20, 20, 920, 560);
+
+      const rooms = [
+        { name: "Kitchen", x: 20, y: 20, w: 300, h: 220, color: "#fde68a" },
+        { name: "Bathroom", x: 640, y: 20, w: 300, h: 220, color: "#bae6fd" },
+        { name: "Bedroom", x: 20, y: 360, w: 300, h: 220, color: "#ddd6fe" },
+        { name: "Living Room", x: 640, y: 360, w: 300, h: 220, color: "#bbf7d0" }
+      ];
+
+      rooms.forEach((room) => {
+        ctx.fillStyle = room.color;
+        ctx.fillRect(room.x, room.y, room.w, room.h);
+
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(room.x, room.y, room.w, room.h);
+
+        ctx.fillStyle = "#334155";
+        ctx.font = "16px Arial";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText(room.name, room.x + 10, room.y + 24);
+      });
+    }
+
+    function drawObjects() {
+      OBJECTS.forEach((obj) => {
+        const selected = state.selectedObject === obj.id;
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+
+        ctx.strokeStyle = selected ? "#2563eb" : "#334155";
+        ctx.lineWidth = selected ? 4 : 2;
+        ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
+
+        ctx.font = `${Math.min(obj.w, obj.h) * 0.45}px serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#111827";
+        ctx.fillText(obj.emoji, obj.x + obj.w / 2, obj.y + obj.h / 2);
+
+        ctx.font = "11px Arial";
+        ctx.fillStyle = "#334155";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText(obj.name, obj.x + obj.w / 2, obj.y + obj.h + 12);
+      });
+    }
+
+    function drawCharacter() {
+      let status = "Idle";
+
+      if (state.currentAction) {
+        const action = state.currentAction;
+
+        status =
+          action.phase === "move"
+            ? `Moving to ${action.targetName}`
+            : `${action.label} ${Math.floor(action.elapsed)}/${action.duration}m`;
+      } else if (state.moveTarget) {
+        status = "Moving";
+      }
+
+      ctx.beginPath();
+      ctx.arc(state.char.x, state.char.y, 16, 0, Math.PI * 2);
+      ctx.fillStyle = "#f97316";
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.font = "20px serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#111827";
+      ctx.fillText(moodEmoji(), state.char.x, state.char.y);
+
+      ctx.font = "14px Arial";
+      ctx.fillStyle = "#111827";
+      ctx.fillText(status, state.char.x, state.char.y - 34);
+
+      if (state.currentAction && state.currentAction.phase === "doing") {
+        const action = state.currentAction;
+        const pct = clamp(action.elapsed / action.duration, 0, 1);
+
+        ctx.fillStyle = "#111827";
+        ctx.fillRect(state.char.x - 40, state.char.y - 54, 80, 8);
+
+        ctx.fillStyle = "#22c55e";
+        ctx.fillRect(state.char.x - 40, state.char.y - 54, 80 * pct, 8);
+      }
+    }
+
+    function draw() {
+      drawRooms();
+      drawObjects();
+      drawCharacter();
+    }
+
+    function getObjectAt(x, y) {
+      for (let i = OBJECTS.length - 1; i >= 0; i--) {
+        const obj = OBJECTS[i];
+
+        if (x >= obj.x && x <= obj.x + obj.w && y >= obj.y && y <= obj.y + obj.h) {
+          return obj;
+        }
+      }
+
+      return null;
+    }
+
+    function selectObject(obj) {
+      state.selectedObject = obj.id;
+      renderPanel();
+    }
+
+    function saveGame() {
+      localStorage.setItem("miniLifeSimSave", JSON.stringify(state));
+      notify("Game saved.");
+    }
+
+    function loadGame() {
+      const raw = localStorage.getItem("miniLifeSimSave");
+
+      if (!raw) {
+        notify("No save found.");
+        return;
+      }
+
+      try {
+        const data = JSON.parse(raw);
+        const base = createInitialState();
+
+        state = {
+          ...base,
+          ...data,
+          needs: { ...base.needs, ...(data.needs || {}) },
+          char: { ...base.char, ...(data.char || {}) },
+          warnings: { ...base.warnings, ...(data.warnings || {}) }
+        };
+
+        state.currentAction = null;
+        state.moveTarget = null;
+
+        renderPanel();
+        renderNotifications();
+        notify("Game loaded.");
+      } catch (err) {
+        notify("Save could not be loaded.");
+      }
+    }
+
+    function resetGame() {
+      localStorage.removeItem("miniLifeSimSave");
+      state = createInitialState();
+      renderPanel();
+      renderNotifications();
+      notify("New game started.");
+    }
+
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+
+      const obj = getObjectAt(x, y);
+
+      if (obj) {
+        selectObject(obj);
+      } else {
+        state.currentAction = null;
+        state.moveTarget = { x, y };
+        renderPanel();
+      }
+    });
+
+    document.getElementById("pauseBtn").onclick = () => {
+      state.paused = !state.paused;
+      updateHUD();
+    };
+
+    document.querySelectorAll(".speed").forEach((btn) => {
+      btn.onclick = () => {
+        state.speed = Number(btn.dataset.speed);
+        state.paused = false;
+        updateHUD();
+      };
+    });
+
+    document.getElementById("autonomy").onchange = (e) => {
+      state.autonomy = e.target.checked;
+      notify(`Autonomy ${state.autonomy ? "enabled" : "disabled"}.`);
+    };
+
+    document.getElementById("saveBtn").onclick = saveGame;
+    document.getElementById("loadBtn").onclick = loadGame;
+    document.getElementById("resetBtn").onclick = resetGame;
+
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        state.paused = !state.paused;
+        updateHUD();
+      }
+
+      if (e.key === "1") {
+        state.speed = 1;
+        state.paused = false;
+        updateHUD();
+      }
+
+      if (e.key === "2") {
+        state.speed = 5;
+        state.paused = false;
+        updateHUD();
+      }
+
+      if (e.key === "3") {
+        state.speed = 15;
+        state.paused = false;
+        updateHUD();
+      }
+
+      if (e.key === "4") {
+        state.speed = 60;
+        state.paused = false;
+        updateHUD();
+      }
+    });
+
+    buildNeedsUI();
+    renderPanel();
+    renderNotifications();
+    notify("Welcome! Click objects to interact.");
+
+    let last = performance.now();
+
+    function loop(now) {
+      const dt = Math.min((now - last) / 1000, 0.1);
+      last = now;
+
+      if (!state.paused) {
+        update(dt);
+      }
+
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
