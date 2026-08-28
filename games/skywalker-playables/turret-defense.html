@@ -3,7 +3,9 @@
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720)}resize();window.addEventListener('resize',resize);
+let W,H,bgGrad,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#030308');bgGrad.addColorStop(1,'#080818');needDraw=true}resize();window.addEventListener('resize',resize);
+const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
+function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
 let turret,enemies,bullets,particles,wave,waveTimer,kills,targetKills,state,lives,stars=[],mouseAngle=0,mouseX=W/2,mouseY=H/2,shakeTime=0,combo=0,comboTimer=0,waveText='',waveTextTime=0,muzzleFlash=0;
 function init(){turret={x:W/2,y:H-60,angle:0};enemies=[];bullets=[];particles=[];wave=1;waveTimer=0;kills=0;targetKills=8;lives=3;state='ready';mouseAngle=0;combo=0;comboTimer=0;waveText='WAVE 1';waveTextTime=60;muzzleFlash=0;makeStars()}
 function makeStars(){stars=[];for(let i=0;i<100;i++)stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.3,t:Math.random()*Math.PI*2,nb:Math.random()*1000|0})}
@@ -17,29 +19,29 @@ spd=1+wave*.25+Math.random()*.5;hp=1+(wave>5&&Math.random()<.3?1:0);col=['#ff475
 let angle=Math.atan2(turret.y-ey,turret.x-ex);enemies.push({x:ex,y:ey,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd,hp,maxHp:hp,rad:11+Math.random()*5,col,spin:Math.random()*Math.PI*2,spinSpd:(Math.random()-.5)*.1})}
 function update(){if(state!=='play')return;waveTimer++;if(shakeTime>0)shakeTime--;if(comboTimer>0)comboTimer--;else combo=0;if(waveTextTime>0)waveTextTime--;if(muzzleFlash>0)muzzleFlash--;
 if(waveTimer%Math.max(25,80-wave*4)===0)spawnEnemy();
-for(let b of bullets){b.trail.push({x:b.x,y:b.y,life:8});for(let t of b.trail)t.life--;b.trail=b.trail.filter(t=>t.life>0);b.x+=b.vx;b.y+=b.vy;b.life--;
+for(let b of bullets){b.trail.push({x:b.x,y:b.y,life:8});for(let t of b.trail)t.life--;prune(b.trail,t=>t.life>0);b.x+=b.vx;b.y+=b.vy;b.life--;
 for(let e of enemies){if(e.hp<=0)continue;let dx=b.x-e.x,dy=b.y-e.y;if(dx*dx+dy*dy<(e.rad+4)*(e.rad+4)){b.life=0;e.hp--;
-for(let i=0;i<5;i++)particles.push({x:b.x,y:b.y,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5,life:15,s:Math.random()*3+1,col:'#0ff'});
-if(e.hp<=0){kills++;combo++;comboTimer=60;for(let i=0;i<15;i++){let a=Math.PI*2/15*i;particles.push({x:e.x,y:e.y,vx:Math.cos(a)*(Math.random()*5+2),vy:Math.sin(a)*(Math.random()*5+2),life:30,s:Math.random()*4+2,col:e.col})}shakeTime=6;
+if(particles.length<300)for(let i=0;i<5;i++)particles.push({x:b.x,y:b.y,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5,life:15,s:Math.random()*3+1,col:'#0ff'});
+if(e.hp<=0){kills++;combo++;comboTimer=60;if(particles.length<300)for(let i=0;i<15;i++){let a=Math.PI*2/15*i;particles.push({x:e.x,y:e.y,vx:Math.cos(a)*(Math.random()*5+2),vy:Math.sin(a)*(Math.random()*5+2),life:30,s:Math.random()*4+2,col:e.col})}shakeTime=6;
 if(kills>=targetKills){wave++;kills=0;targetKills=8+wave*2;waveTimer=0;enemies=[];waveText='WAVE '+wave;waveTextTime=80;if(wave>10){state='win'}}}}}
-enemies=enemies.filter(e=>{if(e.hp<=0)return false;let d=Math.hypot(e.x-turret.x,e.y-turret.y);if(d<=60){lives--;shakeTime=10;if(lives<=0)state='over';return false}return true});bullets=bullets.filter(b=>b.life>0);
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vx*=.96;p.vy*=.96;p.life--}particles=particles.filter(p=>p.life>0);
+prune(enemies,e=>{if(e.hp<=0)return false;let d=Math.hypot(e.x-turret.x,e.y-turret.y);if(d<=60){lives--;shakeTime=10;if(lives<=0)state='over';return false}return true});prune(bullets,b=>b.life>0);
+for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vx*=.96;p.vy*=.96;p.life--}prune(particles,pLife);
 let closest=null,minD=Infinity;for(let e of enemies){let d=Math.hypot(e.x-turret.x,e.y-turret.y);if(d<minD){minD=d;closest=e}}
 if(closest)turret.angle+=(Math.atan2(closest.y-turret.y,closest.x-turret.x)-turret.angle)*.15;
 for(let e of enemies)e.spin+=e.spinSpd}}
 function draw(){X.save();if(shakeTime>0){X.translate((Math.random()-.5)*shakeTime*1.5,(Math.random()-.5)*shakeTime*1.5)}
 X.clearRect(-15,-15,W+30,H+30);
-let grad=X.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#030308');grad.addColorStop(1,'#080818');X.fillStyle=grad;X.fillRect(0,0,W,H);
+X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
 // Stars
 for(let s of stars){let nb=Math.sin(Date.now()*.001+s.nb)*.5+.5;s.t+=.005;X.fillStyle=`rgba(255,255,255,${.15+nb*.25})`;X.beginPath();X.arc(s.x,s.y,s.s,0,Math.PI*2);X.fill()}
 // Enemy trails
 for(let e of enemies){X.fillStyle=e.col+'33';X.beginPath();X.arc(e.x-e.vx*3,e.y-e.vy*3,e.rad*.6,0,Math.PI*2);X.fill()}
 // Bullets + trails
 for(let b of bullets){for(let t of b.trail){X.globalAlpha=t.life/8*.4;X.fillStyle='#0ff';X.beginPath();X.arc(t.x,t.y,2,0,Math.PI*2);X.fill()}X.globalAlpha=1;
-X.fillStyle='#0ff';X.shadowColor='#0ff';X.shadowBlur=12;X.beginPath();X.arc(b.x,b.y,3,0,Math.PI*2);X.fill();X.shadowBlur=0}
+glowAt('#0ff',b.x,b.y,15);X.fillStyle='#0ff';X.beginPath();X.arc(b.x,b.y,3,0,Math.PI*2);X.fill()}
 // Enemies
-for(let e of enemies){X.save();X.translate(e.x,e.y);X.rotate(e.spin);X.fillStyle=e.col;X.shadowColor=e.col;X.shadowBlur=12;
-X.beginPath();for(let i=0;i<6;i++){let a=Math.PI/3*i;X.lineTo(Math.cos(a)*e.rad,Math.sin(a)*e.rad)}X.closePath();X.fill();X.shadowBlur=0;
+for(let e of enemies){X.save();X.translate(e.x,e.y);X.rotate(e.spin);glowAt(e.col,0,0,e.rad+12);X.fillStyle=e.col;
+X.beginPath();for(let i=0;i<6;i++){let a=Math.PI/3*i;X.lineTo(Math.cos(a)*e.rad,Math.sin(a)*e.rad)}X.closePath();X.fill();
 X.fillStyle='rgba(0,0,0,.3)';X.beginPath();for(let i=0;i<6;i++){let a=Math.PI/3*i+.3;X.lineTo(Math.cos(a)*e.rad*.5,Math.sin(a)*e.rad*.5)}X.closePath();X.fill();
 if(e.maxHp>1){X.fillStyle='#fff';X.font='bold 8px sans-serif';X.textAlign='center';X.textBaseline='middle';X.fillText(e.hp,0,0)}X.restore()}
 // Turret base
@@ -50,16 +52,16 @@ X.save();X.translate(turret.x,turret.y);X.rotate(turret.angle);
 if(muzzleFlash>0){X.fillStyle='rgba(255,200,50,'+muzzleFlash/6+')';X.beginPath();X.arc(30,0,12+muzzleFlash,0,Math.PI*2);X.fill()}
 X.fillStyle='#444';X.fillRect(0,-5,30,10);X.fillStyle='#555';X.fillRect(26,-7,8,14);X.restore();
 // Center dot
-X.fillStyle='#0f0';X.shadowColor='#0f0';X.shadowBlur=8;X.beginPath();X.arc(turret.x,turret.y,5,0,Math.PI*2);X.fill();X.shadowBlur=0;
+glowAt('#0f0',turret.x,turret.y,13);X.fillStyle='#0f0';X.beginPath();X.arc(turret.x,turret.y,5,0,Math.PI*2);X.fill();
 // Particles
-for(let p of particles){X.globalAlpha=p.life/30;X.fillStyle=p.col;X.shadowColor=p.col;X.shadowBlur=6;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/30),0,Math.PI*2);X.fill();X.shadowBlur=0}X.globalAlpha=1;
+for(let p of particles){let pr=p.s*(p.life/30);X.globalAlpha=p.life/30;glowAt(p.col,p.x,p.y,pr+6);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}X.globalAlpha=1;
 // HUD
 X.fillStyle='#fff';X.font='bold 18px "Segoe UI"';X.textAlign='left';X.fillText('Wave '+wave+'/10',12,28);X.textAlign='right';X.fillText(kills+'/'+targetKills,W-12,28);X.textAlign='center';X.fillStyle='#ff4757';X.fillText('\u2764 '+lives,W/2,28);X.fillStyle='#fff';
-if(combo>1){X.fillStyle='#ffd700';X.shadowColor='#ffd700';X.shadowBlur=8;X.font='bold 16px "Segoe UI"';X.textAlign='center';X.fillText(combo+'x COMBO!',W/2,50);X.shadowBlur=0}
-if(waveTextTime>0){X.globalAlpha=waveTextTime/80;X.fillStyle='#fff';X.shadowColor='#fff';X.shadowBlur=15;X.font='bold 36px "Segoe UI"';X.textAlign='center';X.fillText(waveText,W/2,H/2);X.shadowBlur=0;X.globalAlpha=1}
+if(combo>1){glowAt('#ffd700',W/2,50,40);X.fillStyle='#ffd700';X.font='bold 16px "Segoe UI"';X.textAlign='center';X.fillText(combo+'x COMBO!',W/2,50)}
+if(waveTextTime>0){X.globalAlpha=waveTextTime/80;glowAt('#ffffff',W/2,H/2,120);X.fillStyle='#fff';X.font='bold 36px "Segoe UI"';X.textAlign='center';X.fillText(waveText,W/2,H/2);X.globalAlpha=1}
 X.restore();
-if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#0f0';X.shadowColor='#0f0';X.shadowBlur=20;X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 VICTORY! \u2728',W/2,H/2-20);X.shadowBlur=0;X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('All 10 waves survived!',W/2,H/2+25);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Click to play again',W/2,H/2+55)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.shadowColor='#ff4757';X.shadowBlur=15;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('OVERRUN!',W/2,H/2-20);X.shadowBlur=0;X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Reached Wave '+wave,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Click to retry',W/2,H/2+50)}
-if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.shadowColor='#ff4757';X.shadowBlur=15;X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('TURRET DEFENSE',W/2,H/2-30);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Click to shoot. Do not let enemies reach you!',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Click to start',W/2,H/2+35)}}
-function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 VICTORY! \u2728',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('All 10 waves survived!',W/2,H/2+25);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Click to play again',W/2,H/2+55)}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('OVERRUN!',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Reached Wave '+wave,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Click to retry',W/2,H/2+50)}
+if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-30,110);X.fillStyle='#ff4757';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('TURRET DEFENSE',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Click to shoot. Do not let enemies reach you!',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Click to start',W/2,H/2+35)}}
+let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play'||particles.length>0||waveTextTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>

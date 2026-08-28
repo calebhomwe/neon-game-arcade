@@ -16,7 +16,7 @@ document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||
 function update(){if(state!=='play')return;pulseT+=.03;
 hole.x+=(mx-hole.x)*.08;hole.y+=(my-hole.y)*.08;
 // Trail
-trail.push({x:hole.x,y:hole.y,life:10});for(let t of trail)t.life--;trail=trail.filter(t=>t.life>0);
+trail.push({x:hole.x,y:hole.y,life:10});for(let t of trail)t.life--;prune(trail,pLife);
 // Orbit objects
 for(let o of objects){if(!o.alive)continue;o.orbitAngle+=o.orbitSpeed;
 let dist=Math.hypot(hole.x-o.x,hole.y-o.y);if(dist<hole.r*3&&dist>hole.r){o.orbitDist=Math.max(0,o.orbitDist-.5);o.x=hole.x+Math.cos(o.orbitAngle)*(hole.r*2+o.orbitDist);o.y=hole.y+Math.sin(o.orbitAngle)*(hole.r*2+o.orbitDist)}
@@ -69,8 +69,8 @@ for(let p of particles){let pr=p.s*(p.life/60);X.globalAlpha=p.life/60;glowAt(p.
 // Score popups
 for(let sp of scorePopups){X.globalAlpha=sp.life/30;X.fillStyle='#0cf';X.font='bold 18px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
 X.restore();
-if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);X.fillStyle='#0cf';X.shadowColor='#0cf';X.shadowBlur=15;X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('HOLE EATER',W/2,H/2-30);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Eat small objects, avoid big ones',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.shadowColor='#ff4757';X.shadowBlur=15;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('CHOKED!',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
-if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#0cf';X.shadowColor='#0cf';X.shadowBlur=20;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 COSMIC HOLE! \u2728',W/2,H/2-20);X.shadowBlur=0;X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-let pState='';function loop(){update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#0cf',W/2,H/2-30,110);X.fillStyle='#0cf';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('HOLE EATER',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Eat small objects, avoid big ones',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('CHOKED!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0cf',W/2,H/2-20,110);X.fillStyle='#0cf';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 COSMIC HOLE! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
+let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>

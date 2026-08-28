@@ -3,10 +3,15 @@
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H,COLS,ROWS,SZ;function resize(){W=C.width=Math.min(window.innerWidth-20,520);H=C.height=Math.min(window.innerHeight-20,720);COLS=Math.floor(W/22);ROWS=Math.floor((H-40)/22);SZ=Math.floor(Math.min(W/COLS,(H-40)/ROWS))}resize();window.addEventListener('resize',resize);
+let W,H,COLS,ROWS,SZ,bgGrad,gridSpr,needDraw=true;function buildGrid(){gridSpr=document.createElement('canvas');gridSpr.width=W;gridSpr.height=H;let g=gridSpr.getContext('2d');for(let i=0;i<COLS;i++)for(let j=0;j<ROWS;j++){if((i+j)%2===0){g.fillStyle='rgba(255,255,255,0.02)';g.fillRect(i*SZ,j*SZ+40,SZ,SZ)}}}function resize(){W=C.width=Math.min(window.innerWidth-20,520);H=C.height=Math.min(window.innerHeight-20,720);COLS=Math.floor(W/22);ROWS=Math.floor((H-40)/22);SZ=Math.floor(Math.min(W/COLS,(H-40)/ROWS));bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#081a08');bgGrad.addColorStop(1,'#122a12');buildGrid();needDraw=true}resize();window.addEventListener('resize',resize);
+const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
+function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
+const SCACHE=new Map();function segCol(h,l){let h2=Math.round(h/5)*5,l2=Math.round(l/5)*5,k=h2+':'+l2;let c=SCACHE.get(k);if(!c){if(SCACHE.size>120)SCACHE.clear();c='hsl('+h2+', 90%, '+l2+'%)';SCACHE.set(k,c)}return c}
+let emojiSpr=null;function emojiImg(){if(!emojiSpr){emojiSpr=document.createElement('canvas');emojiSpr.width=emojiSpr.height=28;let g=emojiSpr.getContext('2d');g.font='24px "Segoe UI"';g.textAlign='center';g.textBaseline='middle';g.fillText('\uD83D\uDC0D',14,15)}return emojiSpr}
 let snake,dir,nextDir,food,score,over,won,state,tick,spd,interval,particles=[],scorePopups=[],trail=[],pulseT=0,glowOffset=0,snakeGlow=0;
 function init(){snake=[{x:Math.floor(COLS/2),y:Math.floor(ROWS/2)}];dir={x:1,y:0};nextDir={x:1,y:0};score=0;over=false;won=false;state='ready';particles=[];scorePopups=[];trail=[];pulseT=0;glowOffset=0;snakeGlow=0;placeFood();startSpeed()}
 function startSpeed(){clearInterval(interval);spd=130;interval=setInterval(update,spd)}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(state==='play'&&!over&&!won){clearInterval(interval);interval=0}}else if(state==='play'&&!over&&!won&&!interval){interval=setInterval(update,spd)}});
 function placeFood(){do{food={x:Math.floor(Math.random()*COLS),y:Math.floor(Math.random()*(ROWS-1))+1}}while(snake.some(s=>s.x===food.x&&s.y===food.y))}
 function setDir(dx,dy){if(dir.x!==-dx||dir.y!==-dy)nextDir={x:dx,y:dy}}
 document.addEventListener('keydown',e=>{if(e.code==='ArrowUp'||e.code==='KeyW')setDir(0,-1);if(e.code==='ArrowDown'||e.code==='KeyS')setDir(0,1);if(e.code==='ArrowLeft'||e.code==='KeyA')setDir(-1,0);if(e.code==='ArrowRight'||e.code==='KeyD')setDir(1,0);if(state==='ready'&&(e.code==='Space'||e.code.startsWith('Arrow')||e.code.startsWith('Key')))state='play';if((over||won)&&e.code==='Space')init()});
@@ -38,7 +43,7 @@ scorePopups.push({
     vy:-1.8,
     scale:1
 });
-if(score>=30){won=true;clearInterval(interval);spawnWinParticles()}else{placeFood();if(spd>65){spd-=5;startSpeed()}}}else{let tail=snake.pop();trail.push({x:tail.x,y:tail.y,life:15});for(let t of trail)t.life--;trail=trail.filter(t=>t.life>0)}
+if(score>=30){won=true;clearInterval(interval);spawnWinParticles()}else{placeFood();if(spd>65){spd-=5;startSpeed()}}}else{let tail=snake.pop();trail.push({x:tail.x,y:tail.y,life:15});for(let t of trail)t.life--;prune(trail,t=>t.life>0)}
 // Update particles with gravity
 for(let p of particles){
     p.x+=p.vx;
@@ -46,18 +51,19 @@ for(let p of particles){
     p.vy+=p.gravity || 0;
     p.life--;
 }
-particles=particles.filter(p=>p.life>0);
+prune(particles,pLife);
 // Update score popups with scaling
 for(let sp of scorePopups){
     sp.y+=sp.vy;
     sp.life--;
     sp.scale = 1.3 - (40-sp.life)/40 * 0.3;
 }
-scorePopups=scorePopups.filter(sp=>sp.life>0);
+prune(scorePopups,pLife);
 glowOffset += 0.05;
 snakeGlow = 1 + Math.sin(glowOffset*2)*0.5;
 }
 function spawnDeathParticles(){
+    if(particles.length>300)return;
     // Add death particles with better distribution
     for(let s of snake){
         for(let i=0;i<6;i++){
@@ -91,6 +97,7 @@ function spawnDeathParticles(){
     }
 }
 function spawnWinParticles(){
+    if(particles.length>300)return;
     for(let i=0;i<80;i++){
         let a=Math.random()*Math.PI*2;
         particles.push({
@@ -107,23 +114,13 @@ function spawnWinParticles(){
 }
 function draw(){
     X.clearRect(0,0,W,H);
-    let grad=X.createLinearGradient(0,0,0,H);
-    grad.addColorStop(0,'#081a08');
-    grad.addColorStop(1,'#122a12');
-    X.fillStyle=grad;
+    X.fillStyle=bgGrad;
     X.fillRect(0,0,W,H);
     
     pulseT+=.03;
     
-    // Enhanced grid with animated pattern
-    for(let i=0;i<COLS;i++){
-        for(let j=0;j<ROWS;j++){
-            if((i+j)%2===0){
-                X.fillStyle='rgba(255,255,255,0.02)';
-                X.fillRect(i*SZ,j*SZ+40,SZ,SZ);
-            }
-        }
-    }
+    // Pre-rendered checkerboard grid
+    X.drawImage(gridSpr,0,0);
     
     // Snake trail with glow effect
     for(let t of trail){
@@ -137,13 +134,11 @@ function draw(){
     
     // Enhanced food with pulsing effect and glow
     let foodPulse=1+Math.sin(pulseT*3)*.2;
-    X.shadowColor='#ff4757';
-    X.shadowBlur=20;
+    glowAt('#ff4757',food.x*SZ+SZ/2,food.y*SZ+SZ/2,SZ/2.5*foodPulse+15);
     X.fillStyle='#ff4757';
     X.beginPath();
     X.arc(food.x*SZ+SZ/2,food.y*SZ+SZ/2,SZ/2.5*foodPulse,0,Math.PI*2);
     X.fill();
-    X.shadowBlur=0;
     
     // Food inner highlight
     X.fillStyle='rgba(255,255,255,0.6)';
@@ -159,22 +154,15 @@ function draw(){
         let hue=120+t*50;
         let light=55-t*20;
         
-        // Enhanced snake body with gradient and glow
-        let snakeBody=X.createLinearGradient(s.x*SZ+ox,s.y*SZ+ox+40,s.x*SZ+ox+sz2,s.y*SZ+ox+sz2+40);
-        snakeBody.addColorStop(0,`hsl(${hue}, 90%, ${light+10}%)`);
-        snakeBody.addColorStop(0.5,`hsl(${hue}, 90%, ${light}%)`);
-        snakeBody.addColorStop(1,`hsl(${hue}, 90%, ${light-10}%)`);
-        
-        X.fillStyle=snakeBody;
+        // Snake body with cached color
+        X.fillStyle=segCol(hue,light);
         
         // Add glow for head
         if(i === 0){
-            X.shadowColor=`hsl(${hue}, 90%, 60%)`;
-            X.shadowBlur=20;
+            glowAt(segCol(hue,60),s.x*SZ+SZ/2,s.y*SZ+SZ/2+40,sz2*.75+12);
             X.beginPath();
             X.roundRect(s.x*SZ+ox,s.y*SZ+ox+40,sz2,sz2,6);
             X.fill();
-            X.shadowBlur=0;
         } else {
             X.beginPath();
             X.roundRect(s.x*SZ+ox,s.y*SZ+ox+40,sz2,sz2,6);
@@ -226,14 +214,13 @@ function draw(){
     
     // Enhanced particles with gravity
     for(let p of particles){
+        let pr=p.s*(p.life/50);
         X.globalAlpha=p.life/50;
+        glowAt(p.col,p.x,p.y,pr+6);
         X.fillStyle=p.col;
-        X.shadowColor=p.col;
-        X.shadowBlur=8;
         X.beginPath();
-        X.arc(p.x,p.y,p.s*(p.life/50),0,Math.PI*2);
+        X.arc(p.x,p.y,pr,0,Math.PI*2);
         X.fill();
-        X.shadowBlur=0;
     }
     X.globalAlpha=1;
     
@@ -244,33 +231,28 @@ function draw(){
         X.translate(sp.x, sp.y);
         X.scale(sp.scale, sp.scale);
         X.fillStyle='#ffd700';
-        X.shadowColor='#ffd700';
-        X.shadowBlur=10;
         X.font='bold 24px "Segoe UI"';
         X.textAlign='center';
         X.fillText(sp.txt,0,0);
-        X.shadowBlur=0;
         X.restore();
     }
     X.globalAlpha=1;
     
     // Enhanced HUD
+    let hudTxt='Length: '+score+' / 30';
+    X.drawImage(emojiImg(),W/2-146,12);
     X.fillStyle='#fff';
-    X.shadowColor='#ffffff';
-    X.shadowBlur=15;
     X.font='bold 28px "Segoe UI"';
+    X.textAlign='left';
+    X.fillText(hudTxt,W/2-112,32);
     X.textAlign='center';
-    X.fillText('\uD83D\uDC0D Length: '+score+' / 30',W/2,32);
-    X.shadowBlur=0;
     
     // Enhanced ready state
     if(state==='ready'){
+        glowAt('#ffffff',W/2,H/2-20,90);
         X.fillStyle='rgba(255,255,255,0.9)';
-        X.shadowColor='#ffffff';
-        X.shadowBlur=20;
         X.font='bold 30px "Segoe UI"';
         X.fillText('SNAKE',W/2,H/2-20);
-        X.shadowBlur=0;
         
         // Pulsing instruction
         let pulse = 0.8 + Math.sin(pulseT*5)*0.2;
@@ -293,19 +275,14 @@ function draw(){
         // Animated border
         X.strokeStyle=won ? 'rgba(46, 213, 115, 0.8)' : 'rgba(255, 71, 87, 0.8)';
         X.lineWidth=3;
-        X.shadowColor=won ? '#2ed573' : '#ff4757';
-        X.shadowBlur=20;
         X.strokeRect(W/2-150, H/2-90, 300, 180);
-        X.shadowBlur=0;
         
         // Main message
+        glowAt(won?'#2ed573':'#ff4757',W/2,H/2-20,120);
         X.fillStyle=won?'#2ed573':'#ff4757';
-        X.shadowColor=won?'#2ed573':'#ff4757';
-        X.shadowBlur=25;
         X.font='bold 45px "Segoe UI"';
         X.textAlign='center';
         X.fillText(won?'\u2728 PERFECT! \u2728':'GAME OVER',W/2,H/2-20);
-        X.shadowBlur=0;
         
         // Score display
         X.fillStyle='#fff';
@@ -321,5 +298,5 @@ function draw(){
         X.globalAlpha=1;
     }
 }
-function loop(){update();draw();requestAnimationFrame(loop)}init();loop()
+let pKey='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();let key=state+(over?'-o':'')+(won?'-w':'');if(key!==pKey){pKey=key;needDraw=true}if(state==='play'&&!over&&!won)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>
