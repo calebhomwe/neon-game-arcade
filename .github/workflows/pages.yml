@@ -1,7 +1,6 @@
-name: Deploy playable arcade
+name: Deploy to GitHub Pages
 on:
   push:
-    branches: ["master"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -9,9 +8,14 @@ permissions:
   id-token: write
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   deploy:
+    # Runs on the repository's default branch whatever it is called, so this
+    # keeps working if the branch is ever renamed.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.ref_name == github.event.repository.default_branch
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -19,11 +23,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
+      - name: Stage publishable files
+        run: |
+          mkdir -p _site
+          # index.html is the hub -- it is the only page here that links a game
+          # library (32 links, all resolving). games.html, games-arcade.html,
+          # bridge-race.html and dashboard.html each resolve zero links: they are
+          # standalone pages, not competing landings, and nothing links to them.
+          cp index.html _site/
+          cp -r games _site/
+          # Not published: research/ (a design research note), setup.ps1 (an
+          # operator script), WORKFLOW_GUIDE.md, skywalker-studio/ (a second,
+          # unlinked copy of the games). A Pages URL is public even when the
+          # repo is not, so the site is an allowlist rather than path: '.'.
+          echo "--- staged for publication ---"
+          du -sh _site
+          ls -la _site
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
-      - name: Deploy
-        id: deployment
+          path: _site
+      - id: deployment
         uses: actions/deploy-pages@v4
