@@ -7,6 +7,8 @@ permissions:
   pages: write
   id-token: write
 concurrency:
+  # Changed from cancel-in-progress: true. GitHub's own Pages guidance is to let
+  # an in-flight production deployment finish rather than cancel it part-way.
   group: pages
   cancel-in-progress: false
 jobs:
@@ -23,6 +25,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+        with:
+          # Kept from the workflow this replaces: it enables Pages via the API
+          # so no manual Settings toggle is needed. Dropping it would have been
+          # a silent regression.
+          enablement: true
       - name: Stage publishable files
         run: |
           mkdir -p _site
