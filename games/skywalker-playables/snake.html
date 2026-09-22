@@ -3,13 +3,13 @@
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H,COLS,ROWS,SZ,bgGrad,gridSpr,needDraw=true;function buildGrid(){gridSpr=document.createElement('canvas');gridSpr.width=W;gridSpr.height=H;let g=gridSpr.getContext('2d');for(let i=0;i<COLS;i++)for(let j=0;j<ROWS;j++){if((i+j)%2===0){g.fillStyle='rgba(255,255,255,0.02)';g.fillRect(i*SZ,j*SZ+40,SZ,SZ)}}}function resize(){W=C.width=Math.min(window.innerWidth-20,520);H=C.height=Math.min(window.innerHeight-20,720);COLS=Math.floor(W/22);ROWS=Math.floor((H-40)/22);SZ=Math.floor(Math.min(W/COLS,(H-40)/ROWS));bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#081a08');bgGrad.addColorStop(1,'#122a12');buildGrid();needDraw=true}resize();window.addEventListener('resize',resize);
+let W,H,COLS,ROWS,SZ,bgGrad,gridSpr,needDraw=true,gameInited=false,graceTicks=0;function buildGrid(){gridSpr=document.createElement('canvas');gridSpr.width=W;gridSpr.height=H;let g=gridSpr.getContext('2d');for(let i=0;i<COLS;i++)for(let j=0;j<ROWS;j++){if((i+j)%2===0){g.fillStyle='rgba(255,255,255,0.02)';g.fillRect(i*SZ,j*SZ+40,SZ,SZ)}}}function resize(){const oc=COLS,orr=ROWS;W=C.width=Math.min(window.innerWidth-20,520);H=C.height=Math.min(window.innerHeight-20,720);COLS=Math.floor(W/22);ROWS=Math.floor((H-40)/22);SZ=Math.floor(Math.min(W/COLS,(H-40)/ROWS));bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#081a08');bgGrad.addColorStop(1,'#122a12');buildGrid();if(gameInited&&oc&&(COLS!==oc||ROWS!==orr)){if(state==='ready'){snake=[{x:Math.floor(COLS/2),y:Math.floor(ROWS/2)}];dir={x:1,y:0};nextDir={x:1,y:0}}else{for(const s of snake){s.x=Math.max(0,Math.min(COLS-1,s.x));s.y=Math.max(0,Math.min(ROWS-1,s.y))}}if(food){food.x=Math.max(0,Math.min(COLS-1,food.x));food.y=Math.max(1,Math.min(ROWS-1,food.y))}graceTicks=Math.max(graceTicks,3)}needDraw=true}resize();window.addEventListener('resize',resize);
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
 function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
 const SCACHE=new Map();function segCol(h,l){let h2=Math.round(h/5)*5,l2=Math.round(l/5)*5,k=h2+':'+l2;let c=SCACHE.get(k);if(!c){if(SCACHE.size>120)SCACHE.clear();c='hsl('+h2+', 90%, '+l2+'%)';SCACHE.set(k,c)}return c}
 let emojiSpr=null;function emojiImg(){if(!emojiSpr){emojiSpr=document.createElement('canvas');emojiSpr.width=emojiSpr.height=28;let g=emojiSpr.getContext('2d');g.font='24px "Segoe UI"';g.textAlign='center';g.textBaseline='middle';g.fillText('\uD83D\uDC0D',14,15)}return emojiSpr}
 let snake,dir,nextDir,food,score,over,won,state,tick,spd,interval,particles=[],scorePopups=[],trail=[],pulseT=0,glowOffset=0,snakeGlow=0;
-function init(){snake=[{x:Math.floor(COLS/2),y:Math.floor(ROWS/2)}];dir={x:1,y:0};nextDir={x:1,y:0};score=0;over=false;won=false;state='ready';particles=[];scorePopups=[];trail=[];pulseT=0;glowOffset=0;snakeGlow=0;placeFood();startSpeed()}
+function init(){snake=[{x:Math.floor(COLS/2),y:Math.floor(ROWS/2)}];dir={x:1,y:0};nextDir={x:1,y:0};score=0;over=false;won=false;state='ready';particles=[];scorePopups=[];trail=[];pulseT=0;glowOffset=0;snakeGlow=0;graceTicks=3;gameInited=true;placeFood();startSpeed()}
 function startSpeed(){clearInterval(interval);spd=130;interval=setInterval(update,spd)}
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(state==='play'&&!over&&!won){clearInterval(interval);interval=0}}else if(state==='play'&&!over&&!won&&!interval){interval=setInterval(update,spd)}});
 function placeFood(){do{food={x:Math.floor(Math.random()*COLS),y:Math.floor(Math.random()*(ROWS-1))+1}}while(snake.some(s=>s.x===food.x&&s.y===food.y))}
@@ -18,6 +18,7 @@ document.addEventListener('keydown',e=>{if(e.code==='ArrowUp'||e.code==='KeyW')s
 let tx,ty;C.addEventListener('pointerdown',e=>{tx=e.clientX;ty=e.clientY;if(over||won){init();return}if(state==='ready'){state='play';return}});
 C.addEventListener('pointerup',e=>{let dx=e.clientX-tx,dy=e.clientY-ty;if(Math.abs(dx)+Math.abs(dy)<15)return;if(Math.abs(dx)>Math.abs(dy)){setDir(dx>0?1:-1,0)}else{setDir(0,dy>0?1:-1)}});
 function update(){if(state!=='play')return;dir={...nextDir};let head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+if(graceTicks>0){graceTicks--;head.x=Math.max(0,Math.min(COLS-1,head.x));head.y=Math.max(0,Math.min(ROWS-1,head.y))}
 if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS||snake.some(s=>s.x===head.x&&s.y===head.y)){over=true;clearInterval(interval);spawnDeathParticles();return}
 snake.unshift(head);
 if(head.x===food.x&&head.y===food.y){score++;
@@ -298,5 +299,5 @@ function draw(){
         X.globalAlpha=1;
     }
 }
-let pKey='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();let key=state+(over?'-o':'')+(won?'-w':'');if(key!==pKey){pKey=key;needDraw=true}if(state==='play'&&!over&&!won)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+let pKey='';function loop(){if(document.hidden)return requestAnimationFrame(loop);let key=state+(over?'-o':'')+(won?'-w':'');if(key!==pKey){pKey=key;needDraw=true}if(state==='play'&&!over&&!won)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>

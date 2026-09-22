@@ -30,19 +30,19 @@ if(!ball.falling)cutRopeAtLine(startCut.x,startCut.y,px,py);startCut={x:px,y:py}
 C.addEventListener('pointerup',()=>{cutting=false;startCut=null});
 document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='ready'){state='play';return}if(currentLevel>=LEVELS.length){currentLevel=0;loadLevel();state='play'}else if(ball.falling&&fell){loadLevel()}else if(ball.falling&&levelComplete){currentLevel++;if(currentLevel>=LEVELS.length){state='win'}else{loadLevel()}}}});
 let state='ready';
-function update(){if(state!=='play'&&state!=='win')return;
-if(!ball.falling){swingVel+=(-.003)*Math.cos(swingAngle);swingAngle+=swingVel;swingAngle*=.997;ball.x=ropes[0].anchor.x+Math.sin(swingAngle)*150;ball.y=ropes[0].anchor.y+Math.cos(swingAngle)*150;ball.eyeDir=Math.sin(swingAngle)*.3}else{
-ball.vy+=.35;ball.x+=ball.vx;ball.y+=ball.vy;
+function update(dt){if(state!=='play'&&state!=='win')return;
+if(!ball.falling){swingVel+=(-.003)*Math.cos(swingAngle)*dt;swingAngle+=swingVel*dt;swingAngle*=Math.pow(.997,dt);ball.x=ropes[0].anchor.x+Math.sin(swingAngle)*150;ball.y=ropes[0].anchor.y+Math.cos(swingAngle)*150;ball.eyeDir=Math.sin(swingAngle)*.3}else{
+ball.vy+=.35*dt;ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;
 let lv=LEVELS[Math.min(currentLevel,LEVELS.length-1)];
 if(ball.x>lv.platform.x&&ball.x<lv.platform.x+lv.platform.w&&ball.y+ball.r>lv.platform.y&&ball.y-ball.r<lv.platform.y+lv.platform.h){
 levelComplete=true;ball.expression='happy';
 if(particles.length<220)for(let i=0;i<20;i++)particles.push({x:ball.x,y:ball.y,vx:(Math.random()-.5)*6,vy:-Math.random()*4-2,life:30,s:Math.random()*4+2,col:`hsl(${Math.random()*60+30},100%,60%)`});
 scorePopups.push({x:ball.x,y:ball.y-30,txt:'PERFECT!',life:40,vy:-1.5});
-if(shakeTime>0)shakeTime--}
+if(shakeTime>0)shakeTime-=dt}
 if(ball.y>H+50){fell=true;ball.expression='sad';shakeTime=10}}
-if(shakeTime>0)shakeTime--;
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
-for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife)}
+if(shakeTime>0)shakeTime-=dt;
+for(let p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=.05*dt;p.life-=dt}prune(particles,pLife);
+for(let sp of scorePopups){sp.y+=sp.vy*dt;sp.life-=dt}prune(scorePopups,pLife)}
 function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
 X.clearRect(-15,-15,W+30,H+30);
 // Background
@@ -84,5 +84,5 @@ if(state==='ready'){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 24px "Segoe UI"';X
 if(fell){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillStyle='#ff4757';X.fillText('FELL OFF!',W/2,H/2-20);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.5)';X.fillText('Tap to retry level',W/2,H/2+15)}
 if(levelComplete){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillStyle='#ffd700';X.fillText('\u2728 PERFECT! \u2728',W/2,H/2-20);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.5)';X.fillText(currentLevel>=LEVELS.length-1?'Tap for new game':'Tap for next level',W/2,H/2+15)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ffd700',W/2,H/2-20,110);X.fillStyle='#ffd700';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ALL LEVELS COMPLETE! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play'||particles.length>0||scorePopups.length>0||shakeTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+let pState='',lastT=performance.now();function loop(t){if(document.hidden){lastT=performance.now();return requestAnimationFrame(loop)}let dt=Math.min((t-lastT)/1000,.05)*60;lastT=t;update(dt);if(state!==pState){pState=state;needDraw=true}if(state==='play'||particles.length>0||scorePopups.length>0||shakeTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();requestAnimationFrame(loop)
 </script></body></html>

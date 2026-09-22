@@ -230,6 +230,43 @@
         width: 100%;
       }
     }
+
+    /* Keep the desktop 3-column layout at every width above the phone
+       breakpoint instead of letting the side panels stack full-width and
+       push the page taller than the viewport; each panel scrolls within
+       its own bounded height instead. */
+    @media (min-width: 701px) {
+      body {
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      main {
+        flex: 1 1 auto;
+        min-height: 0;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        overflow: hidden;
+      }
+
+      #needs {
+        width: 240px;
+        max-height: 100%;
+        overflow-y: auto;
+      }
+
+      #side {
+        width: 300px;
+        max-height: 100%;
+        overflow-y: auto;
+      }
+
+      #canvas-wrap {
+        max-height: 100%;
+      }
+    }
   
     /* iPhone/touch playability */
     button, label, canvas { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
