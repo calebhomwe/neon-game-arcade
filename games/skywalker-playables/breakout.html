@@ -15,24 +15,24 @@ function makeBricks(){bricks=[];for(let r=0;r<BROWS;r++)for(let c=0;c<BCOLS;c++)
 C.addEventListener('pointermove',e=>{paddle.x=e.clientX-CRECT.left-BW/2;paddle.x=Math.max(0,Math.min(W-BW,paddle.x));needDraw=true});
 C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready')state='play'});
 document.addEventListener('keydown',e=>{if(e.code==='ArrowLeft')paddle.x-=25;if(e.code==='ArrowRight')paddle.x+=25;paddle.x=Math.max(0,Math.min(W-BW,paddle.x));if(e.code==='Space'){if(state==='over'||state==='win'){init();return}if(state==='ready')state='play'}if(state==='ready'&&(e.code==='ArrowLeft'||e.code==='ArrowRight'))state='play'});
-let over=false,won=false;
-function update(){if(state!=='play')return;neonPulse+=.05;
-if(comboTimer>0)comboTimer--;else combo=0;
-ball.x+=ball.vx;ball.y+=ball.vy;
+let over=false,won=false;const MAX_VY=9;
+function update(dt){if(state!=='play')return;let s=dt*60;neonPulse+=.05*s;
+if(comboTimer>0)comboTimer-=s;else combo=0;
+ball.x+=ball.vx*s;ball.y+=ball.vy*s;
 if(ball.x-BR<=0||ball.x+BR>=W)ball.vx*=-1;if(ball.y-BR<=0)ball.vy*=-1;
-if(ball.y+BR>=paddle.y&&ball.y+BR<=paddle.y+BH&&ball.x>=paddle.x&&ball.x<=paddle.x+paddle.w&&ball.vy>0){ball.vy*=-1;let hit=(ball.x-paddle.x)/paddle.w-.5;ball.vx=hit*7;ball.vy=-Math.abs(ball.vy)*1.01;
+if(ball.y+BR>=paddle.y&&ball.y+BR<=paddle.y+BH&&ball.x>=paddle.x&&ball.x<=paddle.x+paddle.w&&ball.vy>0){ball.vy*=-1;let hit=(ball.x-paddle.x)/paddle.w-.5;ball.vx=hit*7;ball.vy=-Math.min(Math.abs(ball.vy)*1.01,MAX_VY);
 if(particles.length<220)for(let i=0;i<4;i++)particles.push({x:ball.x,y:paddle.y,vx:(Math.random()-.5)*4,vy:-Math.random()*3,life:15,s:Math.random()*3+1,col:'#0ff'})}
 if(ball.y+BR>H){lives--;if(lives<=0){state='over';shakeTime=15}else{ball.x=paddle.x+BW/2;ball.y=H-70;ball.vx=3.5*(Math.random()>.5?1:-1);ball.vy=-3.5}}
-for(let b of bricks){if(!b.alive)continue;b.flash=Math.max(0,b.flash-1);
+for(let b of bricks){if(!b.alive)continue;b.flash=Math.max(0,b.flash-s);
 if(ball.x+BR>b.x&&ball.x-BR<b.x+b.w&&ball.y+BR>b.y&&ball.y-BR<b.y+b.h){b.alive=false;ball.vy*=-1;combo++;comboTimer=60;score+=10*combo;b.flash=10;shakeTime=4;
 if(particles.length<220)for(let i=0;i<10;i++){let a=Math.PI*2/10*i;particles.push({x:b.x+b.w/2,y:b.y+b.h/2,vx:Math.cos(a)*(Math.random()*4+2),vy:Math.sin(a)*(Math.random()*4+2),life:25,s:Math.random()*4+2,col:b.color})}
 scorePopups.push({x:b.x+b.w/2,y:b.y,txt:'+'+(10*combo),life:25,vy:-1.5});break}}
 prune(bricks,pAlive);
 if(bricks.length===0){won=true;state='win';spawnWinParticles()}
-trail.push({x:ball.x,y:ball.y,life:8});for(let t of trail)t.life--;prune(trail,pLife);
-if(shakeTime>0)shakeTime--;
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
-for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife)}
+trail.push({x:ball.x,y:ball.y,life:8});for(let t of trail)t.life-=s;prune(trail,pLife);
+if(shakeTime>0)shakeTime-=s;
+for(let p of particles){p.x+=p.vx*s;p.y+=p.vy*s;p.vy+=.05*s;p.life-=s}prune(particles,pLife);
+for(let sp of scorePopups){sp.y+=sp.vy*s;sp.life-=s}prune(scorePopups,pLife)}
 function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<80;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*10+2),vy:Math.sin(a)*(Math.random()*10+2)-3,life:60,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
 function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
 X.clearRect(-15,-15,W+30,H+30);
@@ -62,5 +62,5 @@ X.restore();
 if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#00d2d3',W/2,H/2-30,110);X.fillStyle='#00d2d3';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('BRICK BREAKER',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Move mouse or use arrow keys',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('GAME OVER',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Score: '+score,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+55)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ALL CLEAR! \u2728',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Score: '+score,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+55)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+let pState='',lastT=performance.now();function loop(){if(document.hidden){lastT=performance.now();return requestAnimationFrame(loop)}let now=performance.now(),dt=Math.min(.05,(now-lastT)/1000);lastT=now;update(dt);if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>

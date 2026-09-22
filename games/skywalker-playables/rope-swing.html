@@ -11,16 +11,16 @@ function init(){platforms=[];ropeLen=H*.32;swingAngle=-.5;swingVel=0;released=fa
 function makePlatforms(){platforms=[{x:30,y:H*.6,w:90,h:12},{x:180,y:H*.48,w:70,h:12},{x:320,y:H*.4,w:70,h:12},{x:W+100,y:H*.35,w:90,h:12}]}
 C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}if(!released)released=true});
 document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='ready')state='play';else if(!released)released=true}});
-function update(){if(state!=='play')return;pulseT+=.03;
-if(!released){swingAngle+=swingVel;swingVel+=(-.0035)*Math.cos(swingAngle);swingAngle*=.997;
+function update(dts){if(state!=='play')return;pulseT+=.03*dts;
+if(!released){swingAngle+=swingVel*dts;swingVel+=(-.0035)*Math.cos(swingAngle)*dts;swingAngle*=Math.pow(.997,dts);
 let anchorX=platforms[0].x+platforms[0].w/2;playerX=anchorX+Math.sin(swingAngle)*ropeLen;playerY=platforms[0].y-Math.cos(swingAngle)*ropeLen;
-for(let p of platforms)p.x-=1.5}else{playerVY+=.3;playerX+=playerVX;playerY+=playerVY;
+for(let p of platforms)p.x-=1.5*dts}else{playerVY+=.3*dts;playerX+=playerVX*dts;playerY+=playerVY*dts;
 for(let i=1;i<platforms.length;i++){let p=platforms[i];if(playerX>p.x&&playerX<p.x+p.w&&playerY+playerR>p.y&&playerY-playerR<p.y+p.h){playerY=p.y-playerR;playerVY=0;playerVX=.06;onPlatform=true;break}}}
 if(playerY>H+50){state='over';shakeTime=10}
 if(playerX>platforms[platforms.length-1].x+platforms[platforms.length-1].w){state='win';spawnWinParticles()}
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
-if(Math.random()<.2&&particles.length<120)particles.push({x:playerX,y:playerY+playerR,vx:(Math.random()-.5)*2,vy:Math.random()*2,life:15,s:Math.random()*3+1,col:'#90EE90'});
-if(shakeTime>0)shakeTime--}
+for(let p of particles){p.x+=p.vx*dts;p.y+=p.vy*dts;p.vy+=.05*dts;p.life-=dts}prune(particles,pLife);
+if(Math.random()<.2*dts&&particles.length<120)particles.push({x:playerX,y:playerY+playerR,vx:(Math.random()-.5)*2,vy:Math.random()*2,life:15,s:Math.random()*3+1,col:'#90EE90'});
+if(shakeTime>0)shakeTime-=dts}
 let playerX=80,playerY=0,playerVX=0,playerVY=0,playerR=12;
 function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<50;i++){let a=Math.random()*Math.PI*2;particles.push({x:playerX,y:playerY,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:40,s:Math.random()*4+2,col:`hsl(${Math.random()*360},100%,60%)`})}}
 function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
@@ -50,5 +50,5 @@ X.restore();
 if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#2ed573',W/2,H/2-30,110);X.fillStyle='#2ed573';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('ROPE SWING',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap to release the rope and land',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('FELL!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 REACHED THE END! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+let pState='',lastTs=null;function loop(ts){if(document.hidden){lastTs=null;return requestAnimationFrame(loop)}if(lastTs===null)lastTs=ts;let dtMs=ts-lastTs;lastTs=ts;if(dtMs<0)dtMs=0;if(dtMs>50)dtMs=50;const dts=dtMs/1000*60;update(dts);if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();requestAnimationFrame(loop)
 </script></body></html>

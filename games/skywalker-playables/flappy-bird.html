@@ -11,7 +11,7 @@ function pipeGrad(k){let g=PGC[k];if(!g){let h=k*15;g=X.createLinearGradient(0,0
 function stripeCol(k){let s=STC[k];if(!s){s='hsla('+((k*15+180)%360)+', 50%, 30%, 0.3)';STC[k]=s}return s}
 function trailCol(k){let s=TRC[k];if(!s){s='hsl('+(k*15)+', 80%, 50%)';TRC[k]=s}return s}
 const G=.48,J=-8,PW=64,GAP=150,PIPE_SPD=3,BR=18;
-let bird,pipes,frame,score,state,over,won,stars=[],clouds=[],particles=[],scorePopups=[],shakeX=0,shakeY=0,shakeTime=0,glowOffset=0,effectsEnabled=true,birdRad=null,birdBeak=null;
+let bird,pipes,frame,score,state,over,won,stars=[],clouds=[],particles=[],scorePopups=[],shakeX=0,shakeY=0,shakeTime=0,glowOffset=0,effectsEnabled=true,birdRad=null,birdBeak=null,pipeTimer=0;
 
 // Initialize stars with colors
 for(let i=0;i<120;i++){
@@ -54,6 +54,7 @@ function init(){
     };
     pipes=[];
     frame=0;
+    pipeTimer=0;
     score=0;
     over=false;
     won=false;
@@ -192,9 +193,9 @@ function update(){
     if(state!=='play')return;
     frame++;
     glowOffset += 0.05;
-    
-    bird.v+=G;
-    bird.y+=bird.v;
+
+    bird.v+=G*dtK;
+    bird.y+=bird.v*dtK;
     bird.rot=Math.max(-.4,Math.min(bird.v*.1,.9));
     bird.wingT+=.5; // Faster wing movement
     
@@ -214,11 +215,11 @@ function update(){
         shakeY=0;
     }
 
-    if(frame%90===0)addPipe();
+    pipeTimer+=dtK;if(pipeTimer>=90){pipeTimer-=90;addPipe();}
 
     for(let p of pipes){
-        p.x-=PIPE_SPD;
-        
+        p.x-=PIPE_SPD*dtK;
+
         // Add pipe glow effect
         p.glowPhase += 0.05;
         
@@ -548,8 +549,11 @@ function draw(){
 }
 
 let pState='';
-function loop(){
-    if(document.hidden)return requestAnimationFrame(loop);
+let lastT=0,dtK=1;
+function loop(now){
+    if(document.hidden){lastT=0;return requestAnimationFrame(loop);}
+    const dt=lastT?Math.min((now-lastT)/1000,.05):1/60;lastT=now;
+    dtK=dt*60;
     update();
     if(state!==pState){pState=state;needDraw=true}
     if(state==='play'||particles.length>0||shakeTime>0||scorePopups.length>0)needDraw=true;

@@ -6,21 +6,21 @@ const C=document.querySelector('canvas'),X=C.getContext('2d');
 let W,H,bgGrad,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#1a0a0a');bgGrad.addColorStop(.5,'#2a1a1a');bgGrad.addColorStop(1,'#1a0a0a');needDraw=true}resize();window.addEventListener('resize',resize);
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
 function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
-let player,spikes,frame,score,timeLeft,state,jumping,groundY,shakeTimer=0,particles=[],scorePopups=[],nearMisses=0,neonPulse=0;
-function init(){player={x:W/2,y:H-80,vx:0,vy:0,onGround:true};spikes=[];frame=0;score=0;timeLeft=40;state='ready';jumping=false;groundY=H-80;shakeTimer=0;particles=[];scorePopups=[];nearMisses=0;neonPulse=0}
+let player,spikes,frame,score,timeLeft,state,jumping,groundY,shakeTimer=0,particles=[],scorePopups=[],nearMisses=0,neonPulse=0,dustAcc=0,spikeAcc=0;
+function init(){player={x:W/2,y:H-80,vx:0,vy:0,onGround:true};spikes=[];frame=0;score=0;timeLeft=40;state='ready';jumping=false;groundY=H-80;shakeTimer=0;particles=[];scorePopups=[];nearMisses=0;neonPulse=0;dustAcc=0;spikeAcc=0}
 C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}if(player.onGround&&!jumping){jumping=true;player.vy=-13;player.onGround=false}});
 document.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){if(state==='over'||state==='win')init();else if(state==='ready')state='play';else if(player.onGround&&!jumping){jumping=true;player.vy=-13;player.onGround=false}}});
-function update(){if(state!=='play')return;frame++;neonPulse+=.05;timeLeft-=1/60;player.vy+=.65;player.y+=player.vy;
+function update(dts,dt){if(state!=='play')return;frame+=dts;neonPulse+=.05*dts;timeLeft-=dt;player.vy+=.65*dts;player.y+=player.vy*dts;
 if(player.y>=groundY){player.y=groundY;player.vy=0;player.onGround=true;jumping=false;
-if(!jumping&&frame>5){let dust=frame%5===0;dust&&particles.length<280&&particles.push({x:player.x+(Math.random()-.5)*10,y:groundY,vx:(Math.random()-.5)*2,vy:-Math.random()*2,life:15,s:Math.random()*3+1,col:'rgba(150,150,150,.5)'})}}
-if(frame%Math.max(12,35-score)===0){let type=Math.random()<.5?'single':'double';if(type==='single'){spikes.push({x:Math.random()*(W-60)+30,y:groundY-25,w:30,h:25})}else{spikes.push({x:Math.random()*(W-120)+30,y:groundY-25,w:30,h:25});spikes.push({x:spikes[spikes.length-1].x+50,y:groundY-25,w:30,h:25})}}
-for(let s of spikes){s.y+=.5;if(s.y>groundY){s.dead=true;score++}
+if(!jumping&&frame>5){dustAcc+=dts;if(dustAcc>=5){dustAcc-=5;particles.length<280&&particles.push({x:player.x+(Math.random()-.5)*10,y:groundY,vx:(Math.random()-.5)*2,vy:-Math.random()*2,life:15,s:Math.random()*3+1,col:'rgba(150,150,150,.5)'})}}}
+spikeAcc+=dts;const spikeNeed=Math.max(12,35-score);if(spikeAcc>=spikeNeed){spikeAcc-=spikeNeed;let type=Math.random()<.5?'single':'double';if(type==='single'){spikes.push({x:Math.random()*(W-60)+30,y:groundY-25,w:30,h:25})}else{spikes.push({x:Math.random()*(W-120)+30,y:groundY-25,w:30,h:25});spikes.push({x:spikes[spikes.length-1].x+50,y:groundY-25,w:30,h:25})}}
+for(let s of spikes){s.y+=.5*dts;if(s.y>groundY){s.dead=true;score++}
 if(player.x>s.x-12&&player.x<s.x+s.w+12&&player.y>s.y&&player.y<groundY+8){
 let nearMiss=Math.abs(player.y-s.y)<15;if(nearMiss){nearMisses++;scorePopups.push({x:player.x,y:player.y-30,txt:'NEAR MISS!',life:30,vy:-1.5});if(particles.length<280)for(let i=0;i<5;i++)particles.push({x:player.x,y:player.y-10,vx:(Math.random()-.5)*4,vy:-Math.random()*3,life:15,s:Math.random()*3+1,col:'#ffd700'})}else{state='over';shakeTimer=15;spawnDeathParticles();return}}}
 prune(spikes,s=>!s.dead);
-if(shakeTimer>0)shakeTimer--;
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.1;p.life--}prune(particles,pLife);
-for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife);
+if(shakeTimer>0)shakeTimer-=dts;
+for(let p of particles){p.x+=p.vx*dts;p.y+=p.vy*dts;p.vy+=.1*dts;p.life-=dts}prune(particles,pLife);
+for(let sp of scorePopups){sp.y+=sp.vy*dts;sp.life-=dts}prune(scorePopups,pLife);
 if(timeLeft<=0){state='win';spawnWinParticles()}}
 function spawnDeathParticles(){if(particles.length>300)return;for(let i=0;i<25;i++){let a=Math.random()*Math.PI*2;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2),life:35,s:Math.random()*4+2,col:'#ff4757'})}}
 function spawnWinParticles(){if(particles.length>300)return;for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
@@ -51,5 +51,5 @@ X.restore();
 if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-30,110);X.fillStyle='#ff4757';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('SPIKE JUMP',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap to jump over the spikes',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('HIT!',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Dodged: '+score+' | Near Misses: '+nearMisses,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+55)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 SURVIVED! \u2728',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Dodged: '+score+' | Near Misses: '+nearMisses,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+55)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+let pState='',lastTs=null;function loop(ts){if(document.hidden){lastTs=null;return requestAnimationFrame(loop)}if(lastTs===null)lastTs=ts;let dtMs=ts-lastTs;lastTs=ts;if(dtMs<0)dtMs=0;if(dtMs>50)dtMs=50;const dt=dtMs/1000,dts=dt*60;update(dts,dt);if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();requestAnimationFrame(loop)
 </script></body></html>
