@@ -1,0 +1,40 @@
+{
+  "gameId": "sky-maze-runner",
+  "title": "Maze Runner",
+  "howto": [
+    "Press Play to generate the maze.",
+    "Move one tile at a time with swipes or arrow keys.",
+    "Reach the green exit before the timer expires."
+  ],
+  "tips": [
+    "Back out of dead ends immediately instead of hoping they open up.",
+    "Long straight corridors are usually the fastest first guess.",
+    "Use Hint when you need just the next safe step."
+  ],
+  "controls": {
+    "keyboard": "Arrow keys or WASD move; Space starts a fresh maze set.",
+    "touch": "Swipe in the direction you want to move."
+  },
+  "difficulty": "Easy and hard adjust the pace of the run while keeping the core objective the same.",
+  "cheats": [
+    {
+      "code": "PARTY",
+      "effect": "Applies a rainbow hue shift to the whole run."
+    },
+    {
+      "code": "CHILL",
+      "effect": "Slows the overall game pace."
+    },
+    {
+      "code": "BOOST",
+      "effect": "Gives you a small game-specific advantage."
+    }
+  ],
+  "features": {
+    "titleCard": "A title card explains the run before play starts.",
+    "results": "A result card reports your latest score and best score.",
+    "bestScore": "Best score is stored locally and cheated runs do not overwrite it.",
+    "tutorial": "Tutorial steps are available from the title card and the SDK tutorial hook."
+  },
+  "pauseButton": "br"
+}

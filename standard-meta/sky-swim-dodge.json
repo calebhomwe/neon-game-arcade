@@ -1,0 +1,40 @@
+{
+  "gameId": "sky-swim-dodge",
+  "title": "Swim Dodge",
+  "howto": [
+    "Press Play to start Swim Dodge.",
+    "Use the game controls shown below once the run begins.",
+    "Finish the objective, then replay to beat your best result."
+  ],
+  "tips": [
+    "Short, controlled moves beat panic inputs.",
+    "Read the next obstacle before you commit.",
+    "If a run falls apart, replay quickly while the pattern is fresh."
+  ],
+  "controls": {
+    "keyboard": "Space starts or restarts the swim.",
+    "touch": "Move your finger to steer the swimmer."
+  },
+  "difficulty": "Easy and hard adjust the pace of the run while keeping the core objective the same.",
+  "cheats": [
+    {
+      "code": "PARTY",
+      "effect": "Applies a rainbow hue shift to the whole run."
+    },
+    {
+      "code": "CHILL",
+      "effect": "Slows the overall game pace."
+    },
+    {
+      "code": "BOOST",
+      "effect": "Gives you a small game-specific advantage."
+    }
+  ],
+  "features": {
+    "titleCard": "A title card explains the run before play starts.",
+    "results": "A result card reports your latest score and best score.",
+    "bestScore": "Best score is stored locally and cheated runs do not overwrite it.",
+    "tutorial": "Tutorial steps are available from the title card and the SDK tutorial hook."
+  },
+  "pauseButton": "br"
+}

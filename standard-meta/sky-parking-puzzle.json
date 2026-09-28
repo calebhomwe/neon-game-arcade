@@ -1,0 +1,40 @@
+{
+  "gameId": "sky-parking-puzzle",
+  "title": "Parking Puzzle",
+  "howto": [
+    "Press Play to load the parking bay.",
+    "Guide the car with your finger or mouse in a smooth arc.",
+    "Line the car up fully inside the green zone to clear the lot."
+  ],
+  "tips": [
+    "Small steering changes beat big swings around walls.",
+    "Line up with the center of the bay before the final approach.",
+    "If a wall is close, arc around it before straightening out."
+  ],
+  "controls": {
+    "keyboard": "Space starts or restarts the parking set.",
+    "touch": "Move your finger to steer the car nose toward that point."
+  },
+  "difficulty": "Easy and hard adjust the pace of the run while keeping the core objective the same.",
+  "cheats": [
+    {
+      "code": "PARTY",
+      "effect": "Applies a rainbow hue shift to the whole run."
+    },
+    {
+      "code": "CHILL",
+      "effect": "Slows the overall game pace."
+    },
+    {
+      "code": "BOOST",
+      "effect": "Gives you a small game-specific advantage."
+    }
+  ],
+  "features": {
+    "titleCard": "A title card explains the run before play starts.",
+    "results": "A result card reports your latest score and best score.",
+    "bestScore": "Best score is stored locally and cheated runs do not overwrite it.",
+    "tutorial": "Tutorial steps are available from the title card and the SDK tutorial hook."
+  },
+  "pauseButton": "br"
+}

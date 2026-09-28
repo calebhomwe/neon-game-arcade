@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Lane Switcher</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,150,255,.3)}</style></head>
+<!DOCTYPE html>
+<html lang="en"><head><script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Lane Switcher</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,150,255,.3)}</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#0a0a2a');bgGrad.addColorStop(1,'#1a1a4a');needDraw=true}resize();window.addEventListener('resize',resize);
+let W,H,bgGrad,CRECT,needDraw=true;function resize(){const dpr=Math.min(window.devicePixelRatio||1,2);W=Math.min(window.innerWidth-20,420);H=Math.min(window.innerHeight-20,720);C.style.width=W+'px';C.style.height=H+'px';C.width=Math.round(W*dpr);C.height=Math.round(H*dpr);X.setTransform(dpr,0,0,dpr,0,0);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#0a0a2a');bgGrad.addColorStop(1,'#1a1a4a');needDraw=true}resize();window.addEventListener('resize',resize);
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
 function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}function pNotDead(o){return !o.dead}function pNotCol(c){return !c.collected}
 let moneySpr={};function moneyImg(n){let s=moneySpr[n];if(!s){s=document.createElement('canvas');s.width=80;s.height=32;let g=s.getContext('2d');g.font='bold 22px "Segoe UI"';g.textAlign='right';g.textBaseline='alphabetic';g.fillStyle=n>0?'#ffd700':'#fff';g.fillText('\uD83D\uDCB0 '+n,78,24);moneySpr[n]=s}return s}
@@ -53,4 +53,81 @@ if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#0
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('CRASHED!',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Coins: '+coinsCol,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('Best: '+best,W/2,H/2+42);X.fillText('\u25B6 Tap to retry',W/2,H/2+68)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ESCAPED! \u2728',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Coins: '+coinsCol,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+55)}}
 let pState='',lastT=performance.now();function loop(t){if(document.hidden){lastT=performance.now();return requestAnimationFrame(loop)}let dt=Math.min((t-lastT)/1000,.05)*60;lastT=t;update(dt);if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();requestAnimationFrame(loop)
-</script></body></html>
+</script><script>
+(()=>{
+const GAME_ID='sky-lane-switcher',TITLE='Lane Switcher',BEST_KEY=GAME_ID+'-best',SEEN_KEY=GAME_ID+'-seen',DIFF_KEY=GAME_ID+'-difficulty',PAUSE_BUTTON='br';
+const HOWTO=["Press Play to start Lane Switcher.", "Use the game controls shown below once the run begins.", "Finish the objective, then replay to beat your best result."],TIPS=["Short, controlled moves beat panic inputs.", "Read the next obstacle before you commit.", "If a run falls apart, replay quickly while the pattern is fresh."],KEYBOARD="Left and Right arrows change lanes; Space starts.",TOUCH="Tap the left or right half of the road to switch lanes.";
+const CODE_LIST=[
+  {code:'PARTY',effect:'Party lights: hue-shift the whole run.'},
+  {code:'CHILL',effect:'Chill mode: slow the whole run down.'},
+  {code:'BOOST',effect:'Take a quick advantage for this run.'}
+];
+const read=(k,f)=>{try{const v=localStorage.getItem(k);return v==null?f:v;}catch(e){return f;}};
+const readNum=(k,f=0)=>{const v=parseInt(read(k,''),10);return Number.isFinite(v)?v:f;};
+let best=readNum(BEST_KEY,0),difficulty=read(DIFF_KEY,'normal')||'normal',titleOpen=false,resultOpen=false,reportedOver=false,party=false,chill=false,frameAcc=0;
+const reduced=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+const rawSetItem=window.localStorage&&localStorage.setItem?localStorage.setItem.bind(localStorage):null;
+if(rawSetItem){localStorage.setItem=function(key,val){if(String(key)===BEST_KEY&&window.ArcadeSDK&&ArcadeSDK.cheated)return;return rawSetItem(key,val);};}
+if(typeof saveBest==='function'){const keepSaveBest=saveBest;saveBest=function(){if(window.ArcadeSDK&&ArcadeSDK.cheated)return;return keepSaveBest();};}
+function difficultyScale(){const base=difficulty==='easy'?0.85:difficulty==='hard'?1.18:1;return chill?base*0.72:base;}
+function scoreValue(){try{return Math.max(0,Math.round(coinsCol||score||0||0));}catch(e){return 0;}}
+function persistBest(force){const score=scoreValue();if((force||score>best)&&!(window.ArcadeSDK&&ArcadeSDK.cheated)){best=score;try{localStorage.setItem(BEST_KEY,String(best));}catch(e){}}return best;}
+function sceneName(){
+  if(resultOpen) return 'over';
+  if(titleOpen) return 'title';
+  if(typeof over==='boolean'&&over) return 'over';
+  if(typeof won==='boolean'&&won) return 'over';
+  if(state==='play'||state==='aiming') return 'play';
+  if(state==='over'||state==='win') return 'over';
+  return 'title';
+}
+function postScene(){if(window.ArcadeSDK)ArcadeSDK.state({scene:sceneName(),score:scoreValue()});}
+function applyIntervalScale(){if(typeof interval!=='undefined'&&typeof spd==='number'&&typeof update==='function'){clearInterval(interval);interval=setInterval(update,Math.max(40,Math.round(spd/difficultyScale())));}}
+function setDiffButtons(){diffWrap.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.mode===difficulty));}
+function setDifficulty(next){difficulty=next;try{localStorage.setItem(DIFF_KEY,difficulty);}catch(e){}setDiffButtons();applyIntervalScale();needDraw=true;}
+function hideTitle(){titleOpen=false;overlay.hidden=true;}
+function hideResult(){resultOpen=false;results.hidden=true;}
+function showTitle(forceTutorial){titleOpen=true;resultOpen=false;overlay.hidden=false;results.hidden=true;const first=read(SEEN_KEY,'0')!=='1';titleInfo.innerHTML='<h1>'+TITLE+'</h1><p>'+(forceTutorial||first?'Learn it in three quick steps and jump in.':'Back at the title. Pick a difficulty and play again.')+'</p><ol>'+HOWTO.map(s=>'<li>'+s+'</li>').join('')+'</ol><div class="sky-mini">💡 '+(TIPS[0]||'')+'</div>';setDiffButtons();postScene();}
+function showResult(){resultOpen=true;persistBest();resultTitle.textContent=(state==='win'||(typeof won==='boolean'&&won))?'Run complete!':'Run over';resultScore.textContent='Score: '+scoreValue();resultBest.textContent='Best: '+best;results.hidden=false;codesBadge.hidden=!(window.ArcadeSDK&&ArcadeSDK.cheated);postScene();}
+function startRun(){reportedOver=false;hideResult();hideTitle();try{localStorage.setItem(SEEN_KEY,'1');}catch(e){}state="play";applyIntervalScale();postScene();needDraw=true;}
+function restartRun(){if(typeof init==='function')init();startRun();}
+function exitToTitle(){if(typeof init==='function')init();hideResult();showTitle(false);applyIntervalScale();needDraw=true;}
+function genericBoost(){let changed=false;if(typeof lives==='number'){lives=Math.min(lives+1,9);changed=true;}if(typeof timeLeft==='number'){timeLeft+=10;changed=true;}if(typeof timer==='number'){timer+=8;changed=true;}if(typeof score==='number'){score+=25;changed=true;}if(typeof targetScore==='number'){targetScore=Math.max(20,targetScore-20);changed=true;}if(typeof targetKills==='number'){targetKills=Math.max(1,targetKills-2);changed=true;}return changed;}
+function applyBoost(){let changed=genericBoost();if(!changed&&typeof score==='number')score+=10;needDraw=true;return {ok:true,message:CODE_LIST[2].effect};}
+function onHint(){return state!=="play"?"Press Play, then use the quick tutorial steps on the title card.":(TIPS[1]||TIPS[0]||"Stay calm and make the next clean move.");}
+const shell=document.createElement('div');
+shell.innerHTML=`<style>#sky-codes-on{position:fixed;top:12px;left:12px;z-index:9998;background:#ffd257;color:#111;padding:6px 12px;border-radius:999px;font:900 12px/1 'Segoe UI',system-ui,sans-serif;letter-spacing:.12em}#sky-codes-on[hidden]{display:none}#sky-arcade-ui,#sky-arcade-results{position:fixed;inset:0;display:grid;place-items:center;padding:18px;z-index:9997}#sky-arcade-ui{background:rgba(4,8,18,.62);backdrop-filter:blur(6px)}#sky-arcade-results{background:rgba(4,8,18,.48)}#sky-arcade-ui[hidden],#sky-arcade-results[hidden]{display:none}#sky-arcade-ui .card,#sky-arcade-results .card{width:min(100%,420px);border-radius:22px;padding:22px 20px 18px;background:linear-gradient(180deg,rgba(12,18,42,.96),rgba(7,10,26,.96));border:1px solid rgba(255,255,255,.14);box-shadow:0 22px 55px rgba(0,0,0,.35);font-family:'Segoe UI',system-ui,sans-serif;color:#fff}#sky-arcade-ui h1,#sky-arcade-results h2{margin:0 0 8px;font-size:clamp(28px,8vw,38px);line-height:.95}#sky-arcade-ui p,#sky-arcade-results p,#sky-arcade-ui li{font-size:14px;line-height:1.45;color:rgba(255,255,255,.82)}#sky-arcade-ui ol{padding-left:20px;margin:12px 0}#sky-arcade-ui button,#sky-arcade-results button{appearance:none;border:0;border-radius:16px;min-height:44px;padding:12px 16px;font:800 16px 'Segoe UI',system-ui,sans-serif;cursor:pointer}#sky-arcade-play,#sky-arcade-replay{width:100%;background:linear-gradient(135deg,#43ddff,#1c9ee8);color:#04122b;box-shadow:0 10px 22px rgba(0,180,255,.28)}#sky-arcade-ui .sky-mini,#sky-arcade-results .sky-mini{font-size:13px;color:rgba(255,255,255,.68)}#sky-arcade-ui .diff{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}#sky-arcade-ui .diff button{background:rgba(255,255,255,.08);color:#dfe7ff;border:1px solid rgba(255,255,255,.12)}#sky-arcade-ui .diff button.active{background:#ffd257;color:#16171d}@media (prefers-reduced-motion:reduce){#sky-arcade-ui{backdrop-filter:none}}</style><div id="sky-codes-on" hidden>CODES ON</div><div id="sky-arcade-ui"><div class="card"><div id="sky-arcade-info"></div><div class="diff"><button type="button" data-mode="easy">Easy</button><button type="button" data-mode="normal">Normal</button><button type="button" data-mode="hard">Hard</button></div><button id="sky-arcade-play" type="button">Play</button><p class="sky-mini">Keyboard: ${KEYBOARD}</p><p class="sky-mini">Touch: ${TOUCH}</p></div></div><div id="sky-arcade-results" hidden><div class="card"><h2 id="sky-arcade-result-title"></h2><p id="sky-arcade-result-score"></p><p id="sky-arcade-result-best"></p><button id="sky-arcade-replay" type="button">Play again</button><p class="sky-mini">Tip: ${TIPS[1]||TIPS[0]||''}</p></div></div>`;
+document.body.appendChild(shell);
+const overlay=shell.querySelector('#sky-arcade-ui'),results=shell.querySelector('#sky-arcade-results'),titleInfo=shell.querySelector('#sky-arcade-info'),resultTitle=shell.querySelector('#sky-arcade-result-title'),resultScore=shell.querySelector('#sky-arcade-result-score'),resultBest=shell.querySelector('#sky-arcade-result-best'),codesBadge=shell.querySelector('#sky-codes-on'),diffWrap=overlay.querySelector('.diff');
+diffWrap.querySelectorAll('button').forEach(btn=>btn.onclick=()=>setDifficulty(btn.dataset.mode));
+overlay.querySelector('#sky-arcade-play').onclick=startRun;results.querySelector('#sky-arcade-replay').onclick=restartRun;
+window.addEventListener('keydown',e=>{if(!(titleOpen||resultOpen))return;if(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))return;if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopImmediatePropagation();resultOpen?restartRun():startRun();}},true);
+if(typeof update==='function'){
+  const coreUpdate=update;
+  update=function(...args){
+    const scale=difficultyScale();
+    if(args.length===0){
+      if(typeof dtK==='number'){
+        const keep=dtK;dtK*=scale;coreUpdate();dtK=keep;
+      }else{
+        frameAcc+=scale;
+        let guard=0;
+        while(frameAcc>=1&&guard<3){coreUpdate();frameAcc-=1;guard++;}
+      }
+    }else if(args.length===1){
+      coreUpdate(args[0]*scale);
+    }else if(args.length===2){
+      coreUpdate(args[0]*scale,args[1]*scale);
+    }else{
+      coreUpdate(...args);
+    }
+    if(reduced){if(typeof shakeTime==='number')shakeTime=0;if(typeof camShake==='number')camShake=0;if(typeof muzzleFlash==='number')muzzleFlash=0;}
+    C.style.filter=party?'hue-rotate('+((Date.now()/18)%360)+'deg) saturate(1.25)':'';
+  };
+}
+const monitor=()=>{const scene=sceneName();if(scene==='over'&&!reportedOver){reportedOver=true;showResult();}if(scene==='play')reportedOver=false;requestAnimationFrame(monitor);};requestAnimationFrame(monitor);
+if(window.ArcadeSDK) ArcadeSDK.init({onRestart:restartRun,onExit:exitToTitle,onTutorial:()=>showTitle(true),onHint:onHint,cheats:CODE_LIST,onCheat:(code)=>{if(code==='PARTY'){party=true;codesBadge.hidden=false;needDraw=true;return {ok:true,message:CODE_LIST[0].effect};}if(code==='CHILL'){chill=true;codesBadge.hidden=false;applyIntervalScale();needDraw=true;return {ok:true,message:CODE_LIST[1].effect};}if(code==='BOOST'){codesBadge.hidden=false;return applyBoost();}},pauseButton:PAUSE_BUTTON});
+showTitle(false);
+})();
+</script>
+</body></html>

@@ -1,0 +1,40 @@
+{
+  "gameId": "sky-cut-rope",
+  "title": "Cut the Rope",
+  "howto": [
+    "Press Play to wake the first rope.",
+    "Slice only when the swinging ball lines up over the star platform.",
+    "Clear the rope setups one by one to finish the run."
+  ],
+  "tips": [
+    "Cut on alignment, not at the highest part of the swing.",
+    "If the ball falls short, wait one more beat before slicing.",
+    "Use Hint when a level keeps missing by a small amount."
+  ],
+  "controls": {
+    "keyboard": "Space starts the puzzle set and advances after clears.",
+    "touch": "Swipe across the rope to cut it."
+  },
+  "difficulty": "Easy and hard adjust the pace of the run while keeping the core objective the same.",
+  "cheats": [
+    {
+      "code": "PARTY",
+      "effect": "Applies a rainbow hue shift to the whole run."
+    },
+    {
+      "code": "CHILL",
+      "effect": "Slows the overall game pace."
+    },
+    {
+      "code": "BOOST",
+      "effect": "Gives you a small game-specific advantage."
+    }
+  ],
+  "features": {
+    "titleCard": "A title card explains the run before play starts.",
+    "results": "A result card reports your latest score and best score.",
+    "bestScore": "Best score is stored locally and cheated runs do not overwrite it.",
+    "tutorial": "Tutorial steps are available from the title card and the SDK tutorial hook."
+  },
+  "pauseButton": "br"
+}
