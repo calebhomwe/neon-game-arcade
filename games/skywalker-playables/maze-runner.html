@@ -1,49 +1,99 @@
-﻿<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Maze Runner</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,255,255,.3)}</style></head>
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Maze Runner</title><script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script><script src="sky-arcade.js"></script><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,255,255,.3)}</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H,COLS,ROWS,SZ,grid,player,exit,state,timer,mazesComplete,particles=[],scorePopups=[],shakeTime=0,pulseT=0;
-let bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,480);H=C.height=Math.min(window.innerHeight-20,720);COLS=9;ROWS=11;SZ=Math.floor(Math.min(W/COLS,(H-60)/ROWS));CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#0a1a2a');bgGrad.addColorStop(1,'#0a0a1a');needDraw=true}resize();window.addEventListener('resize',resize);
+// Ten hand-seeded mazes that grow level by level. Each level's stars depend on how directly you ran it.
+const SIZES=[[4,5],[5,6],[5,7],[6,7],[6,8],[7,9],[7,10],[8,10],[8,11],[9,12]],SEEDS=[11,23,37,41,59,67,73,89,97,101];
+const STORE='sky-maze-runner-stars';
+let W,H,COLS,ROWS,SZ,OX,OY,grid,player,exit,state,lvl=0,sel=0,stars=[],unlockAll=false,steps=0,undoStack=[],seen,visited,hintPath=[],hintT=0,usedHint=false,path=[],moveAnim=null,startT=0,endT=0,resultStars=0,particles=[],scorePopups=[],pulseT=0,cheat={path:false,ghost:false};
+let bgGrad,CRECT,needDraw=true;function resize(){W=Math.min(window.innerWidth-20,480);H=Math.min(window.innerHeight-20,720);SKY.fit(C,X,W,H);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#0a1a2a');bgGrad.addColorStop(1,'#0a0a1a');if(grid)layout();needDraw=true}
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
 function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
-function init(){mazesComplete=0;state='ready';particles=[];scorePopups=[];shakeTime=0;pulseT=0}
-function loadMaze(){grid=[];for(let r=0;r<ROWS;r++){grid[r]=[];for(let c=0;c<COLS;c++)grid[r][c]=1}
-// Simple maze generation - carve paths
-for(let r=1;r<ROWS-1;r+=2)for(let c=1;c<COLS-1;c+=2){grid[r][c]=0;if(r>1&&c>1){if(Math.random()<.5)grid[r-1][c]=0;else grid[r][c-1]=0}else if(r>1)grid[r-1][c]=0;else if(c>1)grid[r][c-1]=0}
-grid[1][1]=0;player={x:1,y:1};exit={x:COLS-2,y:ROWS-2};grid[exit.y][exit.x]=0;timer=30;state='play'}
-C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready')loadMaze()});
-document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win'){init();return}if(state==='ready')loadMaze()}
-if(state!=='play')return;let nx=player.x,ny=player.y;if(e.code==='ArrowUp'||e.code==='KeyW')ny--;if(e.code==='ArrowDown'||e.code==='KeyS')ny++;if(e.code==='ArrowLeft'||e.code==='KeyA')nx--;if(e.code==='ArrowRight'||e.code==='KeyD')nx++;
-if(nx>=0&&nx<COLS&&ny>=0&&ny<ROWS&&grid[ny][nx]===0){player.x=nx;player.y=ny;spawnStepParticles();if(player.x===exit.x&&player.y===exit.y){mazesComplete++;if(mazesComplete>=3){state='win';spawnWinParticles()}else{scorePopups.push({x:exit.x*SZ+SZ/2,y:exit.y*SZ,txt:'MAZE DONE!',life:40,vy:-1.5});loadMaze()}}}});
-let tx,ty;C.addEventListener('pointerdown',e=>{tx=e.clientX;ty=e.clientY});
-C.addEventListener('pointerup',e=>{if(state!=='play')return;let dx=e.clientX-tx,dy=e.clientY-ty;if(Math.abs(dx)+Math.abs(dy)<15)return;let nx=player.x,ny=player.y;if(Math.abs(dx)>Math.abs(dy)){nx+=dx>0?1:-1}else{ny+=dy>0?1:-1}
-if(nx>=0&&nx<COLS&&ny>=0&&ny<ROWS&&grid[ny][nx]===0){player.x=nx;player.y=ny;spawnStepParticles();if(player.x===exit.x&&player.y===exit.y){mazesComplete++;if(mazesComplete>=3){state='win';spawnWinParticles()}else{scorePopups.push({x:exit.x*SZ+SZ/2,y:exit.y*SZ,txt:'MAZE DONE!',life:40,vy:-1.5});loadMaze()}}}});
-function spawnStepParticles(){if(particles.length>200)return;for(let i=0;i<3;i++)particles.push({x:player.x*SZ+SZ/2,y:player.y*SZ+SZ/2,vx:(Math.random()-.5)*2,vy:-Math.random()*2,life:10,s:Math.random()*2+1,col:'#0cf'})}
-function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<80;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*10+2),vy:Math.sin(a)*(Math.random()*10+2)-3,life:60,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
-function update(){if(state!=='play')return;pulseT+=.03;timer-=1/60;if(timer<=0)state='over';if(shakeTime>0)shakeTime--;
+function loadStars(){try{stars=JSON.parse(localStorage.getItem(STORE))||[]}catch(e){stars=[]}}
+function saveStars(){if(SKY.cheated)return;try{localStorage.setItem(STORE,JSON.stringify(stars))}catch(e){}}
+function unlocked(i){return unlockAll||i===0||(stars[i-1]||0)>0}
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function layout(){SZ=Math.floor(Math.min((W-16)/COLS,(H-150)/ROWS));OX=Math.floor((W-COLS*SZ)/2);OY=64}
+function buildMaze(i){let [cw,ch]=SIZES[i],r=rng(SEEDS[i]);COLS=cw*2+1;ROWS=ch*2+1;grid=[];for(let y=0;y<ROWS;y++){grid[y]=[];for(let x=0;x<COLS;x++)grid[y][x]=1}
+let st=[[0,0]],vis=new Set(['0,0']);grid[1][1]=0;while(st.length){let [cx,cy]=st[st.length-1],n=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>{let nx=cx+dx,ny=cy+dy;return nx>=0&&ny>=0&&nx<cw&&ny<ch&&!vis.has(nx+','+ny)});
+if(!n.length){st.pop();continue}let [dx,dy]=n[Math.floor(r()*n.length)],nx=cx+dx,ny=cy+dy;vis.add(nx+','+ny);grid[cy*2+1+dy][cx*2+1+dx]=0;grid[ny*2+1][nx*2+1]=0;st.push([nx,ny])}
+player={x:1,y:1};exit={x:COLS-2,y:ROWS-2};layout()}
+function open(x,y){return x>=0&&y>=0&&x<COLS&&y<ROWS&&(grid[y][x]===0||(cheat.ghost&&x>0&&y>0&&x<COLS-1&&y<ROWS-1))}
+function bfs(from){let q=[[from.x,from.y]],prev={},k=from.x+','+from.y;prev[k]=null;while(q.length){let [x,y]=q.shift();if(x===exit.x&&y===exit.y)break;for(let [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){let nx=x+dx,ny=y+dy,nk=nx+','+ny;if(grid[ny]&&grid[ny][nx]===0&&!(nk in prev)){prev[nk]=x+','+y;q.push([nx,ny])}}}
+let out=[],c=exit.x+','+exit.y;if(!(c in prev))return [];while(c){out.unshift(c.split(',').map(Number));c=prev[c]}return out.slice(1)}
+let shortest=0;
+function start(i){lvl=i;sel=i;buildMaze(i);steps=0;undoStack=[];visited=new Set(['1,1']);seen=new Set();hintPath=[];hintT=0;usedHint=false;shortest=bfs(player).length;path=cheat.path?bfs(player):[];startT=performance.now();endT=0;particles=[];scorePopups=[];moveAnim=null;state='play';reveal()}
+function reveal(){if(SKY.diff!=='hard')return;for(let y=player.y-3;y<=player.y+3;y++)for(let x=player.x-3;x<=player.x+3;x++)seen.add(x+','+y)}
+function junction(x,y){let n=0;for(let [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])if(open(x+dx,y+dy))n++;return n!==2}
+// A step moves one cell; a run (swipe or tap) keeps going until the next junction.
+function go(dx,dy,run){if(state!=='play'||moveAnim)return;let x=player.x,y=player.y,n=0;
+while(open(x+dx,y+dy)){x+=dx;y+=dy;n++;visited.add(x+','+y);if(!run||junction(x,y)||(x===exit.x&&y===exit.y))break}
+if(!n){SKY.sfx('error',{volume:.25});return}
+undoStack.push({x:player.x,y:player.y});steps+=n;moveAnim={fx:player.x,fy:player.y,tx:x,ty:y,t:0,d:Math.min(.3,.05*n+.04)};player.x=x;player.y=y;reveal();SKY.sfx('tap',{volume:.35});
+if(cheat.path)path=bfs(player);
+if(x===exit.x&&y===exit.y)finish()}
+function undo(){if(state!=='play'||!undoStack.length)return;let p=undoStack.pop();player.x=p.x;player.y=p.y;moveAnim=null;reveal();SKY.sfx('swap',{volume:.4});if(cheat.path)path=bfs(player)}
+function hint(){if(state!=='play')return;hintPath=bfs(player).slice(0,8);hintT=3;usedHint=true;SKY.sfx('powerup',{volume:.4})}
+function finish(){endT=performance.now();let ratio=steps/Math.max(1,shortest);resultStars=ratio<=1.05?3:ratio<=1.6?2:1;if(usedHint)resultStars=Math.min(2,resultStars);
+if(!SKY.cheated&&resultStars>(stars[lvl]||0)){stars[lvl]=resultStars;saveStars()}state='done';SKY.sfx('win');
+if(particles.length<180)for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:OX+exit.x*SZ+SZ/2,y:OY+exit.y*SZ+SZ/2,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2)-2,life:50,s:Math.random()*4+2,col:`hsl(${Math.random()*360},100%,60%)`})}}
+function toTitle(){state='ready';sel=Math.min(9,firstOpen());grid=null}
+function firstOpen(){for(let i=0;i<10;i++)if(!(stars[i]>0))return unlocked(i)?i:Math.max(0,i-1);return 9}
+// ---- input ----
+function tileAt(px,py){for(let i=0;i<10;i++){let r=tileRect(i);if(px>=r.x&&px<=r.x+r.w&&py>=r.y&&py<=r.y+r.h)return i}return -1}
+function tileRect(i){let cols=5,tw=Math.min(64,(W-60)/cols),gap=(W-cols*tw)/(cols+1),row=Math.floor(i/cols),col=i%cols;return {x:gap+col*(tw+gap),y:H*.42+row*(tw+14),w:tw,h:tw}}
+function playRect(){return {x:W/2-110,y:H*.26,w:220,h:54}}
+let tx=null,ty=null;
+C.addEventListener('pointerdown',e=>{let px=e.clientX-CRECT.left,py=e.clientY-CRECT.top;
+if(state==='ready'){if(SKY.tut){start(sel);return}let t=tileAt(px,py);if(t>=0){if(unlocked(t)){sel=t;start(t)}else SKY.sfx('error',{volume:.3});return}let p=playRect();if(px>=p.x&&px<=p.x+p.w&&py>=p.y&&py<=p.y+p.h)start(sel);return}
+if(state==='done'){if(lvl<9&&unlocked(lvl+1))start(lvl+1);else toTitle();return}
+tx=e.clientX;ty=e.clientY});
+C.addEventListener('pointerup',e=>{if(state!=='play'||tx===null)return;let dx=e.clientX-tx,dy=e.clientY-ty;tx=null;
+if(Math.abs(dx)+Math.abs(dy)<15){let px=e.clientX-CRECT.left-(OX+player.x*SZ+SZ/2),py=e.clientY-CRECT.top-(OY+player.y*SZ+SZ/2);dx=px;dy=py}
+if(Math.abs(dx)>Math.abs(dy))go(Math.sign(dx),0,true);else go(0,Math.sign(dy),true)});
+document.addEventListener('keydown',e=>{let k=e.code;
+if(state==='ready'){if(k==='Space'||k==='Enter'){e.preventDefault();if(unlocked(sel))start(sel)}else if(k==='ArrowRight'){sel=Math.min(9,sel+1)}else if(k==='ArrowLeft'){sel=Math.max(0,sel-1)}return}
+if(state==='done'){if(k==='Space'||k==='Enter'){e.preventDefault();if(lvl<9&&unlocked(lvl+1))start(lvl+1);else toTitle()}return}
+let d={ArrowUp:[0,-1],KeyW:[0,-1],ArrowDown:[0,1],KeyS:[0,1],ArrowLeft:[-1,0],KeyA:[-1,0],ArrowRight:[1,0],KeyD:[1,0]}[k];
+if(d){e.preventDefault();go(d[0],d[1],e.shiftKey)}else if(k==='KeyZ'||k==='Backspace'){e.preventDefault();undo()}else if(k==='KeyH'){hint()}});
+function update(dt){pulseT+=.03*dt*60;if(moveAnim){moveAnim.t+=dt;if(moveAnim.t>=moveAnim.d)moveAnim=null}if(hintT>0)hintT-=dt;
 for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
 for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife)}
-function draw(){if(!grid){X.clearRect(0,0,W,H);X.fillStyle='#fff';X.font='bold 30px sans-serif';X.textAlign='center';X.fillText('MAZE RUNNER',W/2,H/2-10);X.font='16px sans-serif';X.fillStyle='rgba(255,255,255,.6)';X.fillText('Tap to start',W/2,H/2+24);return}X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
-X.clearRect(-15,-15,W+30,H+30);
-X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
-let offX=(W-COLS*SZ)/2,offY=50;
-// Walls with glow
-for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){if(grid[r][c]===1){glowAt('#0cf',offX+c*SZ+SZ/2,offY+r*SZ+SZ/2,SZ/2+4+Math.sin(pulseT+c*.5+r*.3)*2);X.fillStyle='#0cf';X.fillRect(offX+c*SZ,offY+r*SZ,SZ,SZ)}}
-// Exit
-glowAt('#0f0',offX+exit.x*SZ+SZ/2,offY+exit.y*SZ+SZ/2,SZ/2+15+Math.sin(pulseT*3)*5);X.fillStyle='#0f0';X.fillRect(offX+exit.x*SZ+2,offY+exit.y*SZ+2,SZ-4,SZ-4);
-// Player
-glowAt('#fff',offX+player.x*SZ+SZ/2,offY+player.y*SZ+SZ/2,SZ/3+12);X.fillStyle='#fff';X.beginPath();X.arc(offX+player.x*SZ+SZ/2,offY+player.y*SZ+SZ/2,SZ/3,0,Math.PI*2);X.fill();
-// Particles
-for(let p of particles){X.globalAlpha=p.life/15;X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/15),0,Math.PI*2);X.fill()}X.globalAlpha=1;
-// Score popups
-for(let sp of scorePopups){X.globalAlpha=sp.life/40;X.fillStyle='#0f0';X.font='bold 18px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
-// HUD
-X.fillStyle='#fff';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText('Mazes: '+mazesComplete+'/3',W/2,28);
-X.textAlign='right';X.fillStyle=timer<10?'#ff4757':'#fff';X.font='bold 18px "Segoe UI"';X.fillText(Math.ceil(timer)+'s',W-10,28);
-X.restore();
-if(state==='ready'){X.fillStyle='rgba(255,255,255,.85)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('MAZE RUNNER',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Swipe or arrow keys to navigate',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Reach the green exit in 3 mazes',W/2,H/2+35)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('TIME UP!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
-if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0cf',W/2,H/2-20,110);X.fillStyle='#0cf';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 MAZE MASTER! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+function starStr(n){return '★'.repeat(n)+'☆'.repeat(3-n)}
+function draw(){X.clearRect(0,0,W,H);X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
+if(state==='ready'){drawTitle();return}
+let fog=SKY.diff==='hard';
+for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){let k=c+','+r;if(fog&&!seen.has(k))continue;let x=OX+c*SZ,y=OY+r*SZ;
+if(grid[r][c]===1){X.fillStyle=fog&&Math.max(Math.abs(c-player.x),Math.abs(r-player.y))>3?'#0a6a80':'#0cf';X.fillRect(x,y,SZ,SZ);X.fillStyle='rgba(255,255,255,.18)';X.fillRect(x,y,SZ,2)}
+else if(SKY.diff==='easy'&&visited.has(k)){X.fillStyle='rgba(255,255,255,.07)';X.fillRect(x,y,SZ,SZ)}}
+const cell=(c,r)=>[OX+c*SZ+SZ/2,OY+r*SZ+SZ/2];
+if(path.length){X.fillStyle='rgba(255,215,0,.35)';for(let [c,r] of path){let [x,y]=cell(c,r);X.beginPath();X.arc(x,y,SZ*.15,0,Math.PI*2);X.fill()}}
+if(hintT>0&&hintPath.length){X.fillStyle='rgba(255,215,0,'+Math.min(1,hintT)*.8+')';for(let [c,r] of hintPath){let [x,y]=cell(c,r);X.beginPath();X.arc(x,y,SZ*.22,0,Math.PI*2);X.fill()}}
+let [exX,exY]=cell(exit.x,exit.y);glowAt('#0f0',exX,exY,SZ/2+10+Math.sin(pulseT*3)*4);X.fillStyle='#0f0';X.fillRect(OX+exit.x*SZ+2,OY+exit.y*SZ+2,SZ-4,SZ-4);
+let px=player.x,py=player.y;if(moveAnim){let k=Math.min(1,moveAnim.t/moveAnim.d);px=moveAnim.fx+(moveAnim.tx-moveAnim.fx)*k;py=moveAnim.fy+(moveAnim.ty-moveAnim.fy)*k}
+let [pX,pY]=cell(px,py);glowAt('#fff',pX,pY,SZ/3+10);X.fillStyle='#fff';X.beginPath();X.arc(pX,pY,SZ/3,0,Math.PI*2);X.fill();
+for(let p of particles){X.globalAlpha=Math.max(0,p.life/50);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/50),0,Math.PI*2);X.fill()}X.globalAlpha=1;
+let t=((endT||performance.now())-startT)/1000;
+X.fillStyle='#fff';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillText('Level '+(lvl+1)+' / 10',W/2,26);
+X.font='bold 14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.75)';X.fillText('Steps '+steps+'  ·  best route '+shortest+'  ·  '+t.toFixed(1)+'s',W/2,48);
+if(state==='done'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0cf',W/2,H/2-30,110);X.fillStyle='#0cf';X.font='bold 34px "Segoe UI"';X.fillText('✨ ESCAPED! ✨',W/2,H/2-40);
+X.fillStyle='#ffd700';X.font='bold 34px "Segoe UI"';X.fillText(starStr(resultStars),W/2,H/2+4);X.fillStyle='#fff';X.font='16px "Segoe UI"';X.fillText(steps+' steps (best route '+shortest+')'+(usedHint?' · hint used':''),W/2,H/2+34);
+X.fillStyle='rgba(255,255,255,.7)';X.fillText(lvl<9?'▶ Tap for level '+(lvl+2):'▶ Tap for the level list',W/2,H/2+66)}}
+function drawTitle(){X.textAlign='center';glowAt('#0cf',W/2,H*.12,110);X.fillStyle='#0cf';X.font='bold 30px "Segoe UI"';X.fillText('MAZE RUNNER',W/2,H*.13);
+X.fillStyle='rgba(255,255,255,.7)';X.font='15px "Segoe UI"';X.fillText('Reach the green exit. Fewer steps, more stars.',W/2,H*.13+28);
+let p=playRect();X.fillStyle='#0cf';X.beginPath();X.roundRect(p.x,p.y,p.w,p.h,27);X.fill();X.fillStyle='#0a1a2a';X.font='bold 20px "Segoe UI"';X.fillText('▶ PLAY LEVEL '+(sel+1),W/2,p.y+34);
+X.fillStyle='rgba(255,255,255,.6)';X.font='bold 14px "Segoe UI"';X.fillText('LEVELS',W/2,H*.42-14);
+for(let i=0;i<10;i++){let r=tileRect(i),u=unlocked(i);X.fillStyle=i===sel?'rgba(0,204,255,.35)':u?'rgba(255,255,255,.08)':'rgba(255,255,255,.03)';X.beginPath();X.roundRect(r.x,r.y,r.w,r.h,10);X.fill();
+if(i===sel){X.strokeStyle='#0cf';X.lineWidth=2;X.stroke()}X.fillStyle=u?'#fff':'rgba(255,255,255,.3)';X.font='bold 20px "Segoe UI"';X.fillText(u?(i+1):'🔒',r.x+r.w/2,r.y+r.h/2+2);
+X.fillStyle='#ffd700';X.font='12px "Segoe UI"';X.fillText(stars[i]?starStr(stars[i]):'',r.x+r.w/2,r.y+r.h-6)}
+if(SKY.tut)SKY.drawTut(X,W,H,{title:'MAZE RUNNER',color:'#0cf',gesture:'swipe4',steps:['Swipe, tap beside your white dot, or use the arrow keys to move.','A swipe or tap runs to the next junction; an arrow key moves one square (Shift+arrow runs).','Reach the green exit. Taking the shortest route earns 3 stars.','Stuck? Undo steps back; Hint lights the next few squares (and caps that level at 2 stars).'],go:'▶ Tap to play level 1'})}
+let pState='',last=performance.now();function loop(now){if(document.hidden){last=performance.now();return requestAnimationFrame(loop)}let dt=Math.min(.05,(now-last)/1000);last=now;update(dt);SKY.tick(state,stars.filter(Boolean).length);draw();requestAnimationFrame(loop)}
+SKY.setup({id:'maze-runner',color:'#0cf',pauseButton:'tr',bestKey:STORE,scenes:{ready:'title',play:'play',done:'over'},
+buttons:[{label:'↶ Undo',aria:'Undo last move',fn:undo},{label:'💡 Hint',aria:'Hint',fn:hint}],
+onRestart(){start(lvl)},onExit(){toTitle()},onDiff(){},
+onHint(){if(state!=='play')return 'Press Play (or Space) to start level '+(sel+1)+'.';let p=bfs(player);if(!p.length)return 'You are on the exit!';let [c,r]=p[0],d=c>player.x?'right':c<player.x?'left':r>player.y?'down':'up';
+let n=1;while(n<p.length&&p[n][0]-p[n-1][0]===c-player.x&&p[n][1]-p[n-1][1]===r-player.y)n++;return 'Go '+d+' '+n+' square'+(n>1?'s':'')+'. The exit is '+p.length+' squares away by the shortest route.'},
+cheats:{SHOWPATH:['The shortest route to the exit is dotted in gold',()=>{cheat.path=true;if(state==='play')path=bfs(player)}],GHOSTWALK:['Walk through the inner walls',()=>{cheat.ghost=true}],ALLLEVELS:['Every level unlocked (this session only)',()=>{unlockAll=true}]}});
+loadStars();resize();window.addEventListener('resize',resize);toTitle();requestAnimationFrame(loop);
 </script></body></html>
