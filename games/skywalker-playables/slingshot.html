@@ -91,7 +91,7 @@ const rawSetItem=window.localStorage&&localStorage.setItem?localStorage.setItem.
 if(rawSetItem){localStorage.setItem=function(key,val){if(String(key)===BEST_KEY&&window.ArcadeSDK&&ArcadeSDK.cheated)return;return rawSetItem(key,val);};}
 if(typeof saveBest==='function'){const keepSaveBest=saveBest;saveBest=function(){if(window.ArcadeSDK&&ArcadeSDK.cheated)return;return keepSaveBest();};}
 function difficultyScale(){const base=difficulty==='easy'?0.85:difficulty==='hard'?1.18:1;return chill?base*0.72:base;}
-function scoreValue(){try{return Math.max(0,Math.round(hits||0||0));}catch(e){return 0;}}
+function scoreValue(){try{return Math.max(0,Math.round(typeof hits==='number'?hits:0));}catch(e){return 0;}}
 function persistBest(force){const score=scoreValue();if((force||score>arcadeBest)&&!(window.ArcadeSDK&&ArcadeSDK.cheated)){arcadeBest=score;try{localStorage.setItem(BEST_KEY,String(arcadeBest));}catch(e){}}return arcadeBest;}
 function sceneName(){
   if(resultOpen) return 'over';

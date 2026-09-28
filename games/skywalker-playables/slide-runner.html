@@ -58,7 +58,7 @@ let pState='',lastT=performance.now();function loop(t){if(document.hidden){lastT
 </script><script>
 (()=>{
 const GAME_ID='sky-slide-runner',TITLE='Slide Runner',BEST_KEY=GAME_ID+'-best',SEEN_KEY=GAME_ID+'-seen',DIFF_KEY=GAME_ID+'-difficulty',PAUSE_BUTTON='br';
-const HOWTO=["Press Play to start Slide Runner.", "Use the game controls shown below once the run begins.", "Finish the objective, then replay to beat your best result."],TIPS=["Short, controlled moves beat panic inputs.", "Read the next obstacle before you commit.", "If a run falls apart, replay quickly while the pattern is fresh."],KEYBOARD="Space or Arrow Down slides.",TOUCH="Tap to slide under obstacles.";
+const HOWTO=["Press Play to start the lane run.", "Tap or press Left and Right to switch lanes.", "Dodge obstacles until the timer ends, then replay to beat your best."],TIPS=["Move early into the safest open lane.", "Do not chase every opening; hold a clear lane when traffic stacks.", "Use BOOST for a quick score bump if a pattern gets crowded."],KEYBOARD="Left and Right arrows switch lanes; Space starts.",TOUCH="Tap the left or right side to change lanes.";
 const CODE_LIST=[
   {code:'PARTY',effect:'Party lights: hue-shift the whole run.'},
   {code:'CHILL',effect:'Chill mode: slow the whole run down.'},

@@ -2,18 +2,18 @@
   "gameId": "sky-slide-runner",
   "title": "Slide Runner",
   "howto": [
-    "Press Play to start Slide Runner.",
-    "Use the game controls shown below once the run begins.",
-    "Finish the objective, then replay to beat your best result."
+    "Press Play to start the lane run.",
+    "Tap or press Left and Right to switch lanes.",
+    "Dodge obstacles until the timer ends, then replay to beat your best."
   ],
   "tips": [
-    "Short, controlled moves beat panic inputs.",
-    "Read the next obstacle before you commit.",
-    "If a run falls apart, replay quickly while the pattern is fresh."
+    "Move early into the safest open lane.",
+    "Do not chase every opening; hold a clear lane when traffic stacks.",
+    "Use BOOST for a quick score bump if a pattern gets crowded."
   ],
   "controls": {
-    "keyboard": "Space or Arrow Down slides.",
-    "touch": "Tap to slide under obstacles."
+    "keyboard": "Left and Right arrows switch lanes; Space starts.",
+    "touch": "Tap the left or right side to change lanes."
   },
   "difficulty": "Easy and hard adjust the pace of the run while keeping the core objective the same.",
   "cheats": [

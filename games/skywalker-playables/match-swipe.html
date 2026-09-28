@@ -39,7 +39,7 @@ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){if(!grid[r][c].alive)continue;let
 let x=offX+c*SZ+SZ/2,y=offY+r*SZ+SZ/2;let s=tile.animScale;
 if(selTile&&selTile.r===r&&selTile.c===c){X.fillStyle='rgba(255,255,255,.15)';X.fillRect(offX+c*SZ,offY+r*SZ,SZ,SZ)}
 if(tile.flash>0){X.globalAlpha=tile.flash/15*.5;X.fillStyle='#fff';X.beginPath();X.arc(x,y,SZ*.4*s,0,Math.PI*2);X.fill();X.globalAlpha=1}
-X.save();X.translate(x,y);X.scale(s,s);X.translate(-x,-y);try{drawShape(tile.type,x,y,Math.max(2,SZ-tile.flash*.3),GCOLORS[tile.type])}catch(err){}X.restore()}
+X.save();X.translate(x,y);X.scale(s,s);X.translate(-x,-y);try{drawShape(tile.type,x,y,Math.max(2,SZ-tile.flash*.3),GCOLORS[tile.type])}catch(err){console.error(err)}X.restore()}
 // Particles
 for(let p of particles){if(p.text){X.globalAlpha=p.life/30;X.fillStyle='#ffd700';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText(p.text,W/2,H/2);X.globalAlpha=1}else{let pr=p.s*(p.life/25);X.globalAlpha=p.life/25;glowAt(p.col,p.x,p.y,pr+6);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}}X.globalAlpha=1;
 // HUD
