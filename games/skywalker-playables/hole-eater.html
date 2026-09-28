@@ -1,83 +1,207 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Hole Eater</title><script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script><script src="sky-arcade.js"></script><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,200,255,.3)}</style></head>
-<body><canvas class="c"></canvas>
-<script>
-const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H,bgGrad,meterGrad,CRECT,needDraw=true;function resize(){W=Math.min(window.innerWidth-20,420);H=Math.min(window.innerHeight-20,720);SKY.fit(C,X,W,H);CRECT=C.getBoundingClientRect();bgGrad=X.createRadialGradient(W/2,H/2,0,W/2,H/2,W*.7);bgGrad.addColorStop(0,'#0a0a2a');bgGrad.addColorStop(.5,'#050520');bgGrad.addColorStop(1,'#020210');meterGrad=X.createLinearGradient(W/2-50,0,W/2+50,0);meterGrad.addColorStop(0,'#0cf');meterGrad.addColorStop(1,'#0984e3');needDraw=true}resize();window.addEventListener('resize',resize);
-const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
-function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
-let nebSpr=null;function nebulas(){if(!nebSpr){nebSpr=[];for(let i=0;i<3;i++){let c=document.createElement('canvas');c.width=c.height=160;let g=c.getContext('2d'),r=g.createRadialGradient(80,80,0,80,80,80);r.addColorStop(0,'hsla('+(260+i*40)+',80%,30%,.08)');r.addColorStop(1,'transparent');g.fillStyle=r;g.fillRect(0,0,160,160);nebSpr.push(c)}}return nebSpr}
-let best=0,runT=0,edge=1.3,grow=2.5,keys={},cheat={iron:false,magnet:false,big:false},hole,objects,eaten,state,size,trail=[],particles=[],scorePopups=[],shakeTime=0,mx=W/2,my=H/2,pulseT=0,suctionParticles=[];
-function init(){hole={x:W/2,y:H/2,r:cheat.big?27:18};mx=W/2;my=H/2;runT=0;best=SKY.best();edge=SKY.pick(1.5,1.3,1.15);grow=SKY.pick(3,2.5,2);objects=[];eaten=0;size=0;state='ready';trail=[];particles=[];scorePopups=[];suctionParticles=[];shakeTime=0;pulseT=0;spawnObjects()}
-function spawnObjects(){while(objects.filter(o=>o.alive).length<12){let sz=4+Math.random()*28;objects.push({x:30+Math.random()*(W-60),y:30+Math.random()*(H-60),sz,baseSz:sz,col:`hsl(${Math.random()*360},70%,60%)`,alive:true,orbitAngle:Math.random()*Math.PI*2,orbitSpeed:(Math.random()-.5)*.02,orbitDist:0,glow:Math.random()})}}
-C.addEventListener('pointermove',e=>{mx=e.clientX-CRECT.left;my=e.clientY-CRECT.top;needDraw=true});
-C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready')state='play'});
-document.addEventListener('keyup',e=>{keys[e.code]=false});
-document.addEventListener('keydown',e=>{if(e.code.startsWith('Arrow')){keys[e.code]=true;e.preventDefault();if(state==='ready')state='play'}if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='ready')state='play'}});
-function update(dt){if(state!=='play')return;let s=dt*60;pulseT+=.03*s;runT+=dt;let kv=5*s;if(keys.ArrowLeft)mx-=kv;if(keys.ArrowRight)mx+=kv;if(keys.ArrowUp)my-=kv;if(keys.ArrowDown)my+=kv;mx=Math.max(0,Math.min(W,mx));my=Math.max(0,Math.min(H,my));
-let ease=1-Math.pow(1-.08,s);hole.x+=(mx-hole.x)*ease;hole.y+=(my-hole.y)*ease;
-// Trail
-trail.push({x:hole.x,y:hole.y,life:10});for(let t of trail)t.life-=s;prune(trail,pLife);
-// Orbit objects
-for(let o of objects){if(!o.alive)continue;o.orbitAngle+=o.orbitSpeed*s;
-let dist=Math.hypot(hole.x-o.x,hole.y-o.y);if(dist<hole.r*(cheat.magnet?6:3)&&dist>hole.r){o.orbitDist=Math.max(0,o.orbitDist-.5*s);o.x=hole.x+Math.cos(o.orbitAngle)*(hole.r*2+o.orbitDist);o.y=hole.y+Math.sin(o.orbitAngle)*(hole.r*2+o.orbitDist)}
-else{o.orbitDist=Math.min(50,o.orbitDist+.3*s)}}
-// Eat
-for(let o of objects){if(!o.alive)continue;let dist=Math.hypot(hole.x-o.x,hole.y-o.y);
-if(dist<hole.r+o.sz*.4){if(o.sz<hole.r*edge){o.alive=false;eaten++;size++;hole.r+=grow;shakeTime=SKY.shake(4);SKY.sfx('collect',{volume:.6,rate:.8+size*.04});
-scorePopups.push({x:o.x,y:o.y,txt:'GROW!',life:30,vy:-1.5});
-if(particles.length<220)for(let i=0;i<8;i++)particles.push({x:o.x,y:o.y,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5,life:20,s:Math.random()*3+2,col:o.col});
-if(eaten>=12){state='win';spawnWinParticles();SKY.sfx('win');let t=Math.round(runT*10)/10;if(SKY.saveBest(t*10,true))best=t*10}}else if(cheat.iron){let a=Math.atan2(o.y-hole.y,o.x-hole.x);o.x=hole.x+Math.cos(a)*(hole.r+o.sz*.5+6);o.y=hole.y+Math.sin(a)*(hole.r+o.sz*.5+6);o.orbitDist=50}else{state='over';shakeTime=SKY.shake(12);SKY.sfx('lose');if(particles.length<220)for(let i=0;i<15;i++)particles.push({x:hole.x,y:hole.y,vx:(Math.random()-.5)*6,vy:(Math.random()-.5)*6,life:25,s:Math.random()*4+2,col:'#ff4757'});return}}}
-// Suction particles toward hole
-for(let o of objects){if(!o.alive)continue;let dist=Math.hypot(hole.x-o.x,hole.y-o.y);if(dist<hole.r*2&&o.sz>=hole.r*edge&&suctionParticles.length<100){suctionParticles.push({x:o.x+(Math.random()-.5)*10,y:o.y+(Math.random()-.5)*10,vx:(hole.x-o.x)*.01,vy:(hole.y-o.y)*.01,life:10,s:1.5,col:o.col+'88'})}}
-for(let p of particles){p.x+=p.vx*s;p.y+=p.vy*s;p.vy+=.03*s;p.life-=s}prune(particles,pLife);
-for(let sp of scorePopups){sp.y+=sp.vy*s;sp.life-=s}prune(scorePopups,pLife);
-for(let sp2 of suctionParticles){sp2.x+=sp2.vx*s;sp2.y+=sp2.vy*s;sp2.vx*=Math.pow(.95,s);sp2.vy*=Math.pow(.95,s);sp2.life-=s}prune(suctionParticles,pLife);
-if(shakeTime>0)shakeTime-=s}
-function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<80;i++){let a=Math.random()*Math.PI*2;particles.push({x:hole.x,y:hole.y,vx:Math.cos(a)*(Math.random()*10+2),vy:Math.sin(a)*(Math.random()*10+2)-3,life:60,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
-function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
-X.clearRect(-15,-15,W+30,H+30);
-// Deep space background
-X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
-// Nebula clouds
-let nbs=nebulas();for(let i=0;i<3;i++){let nx=W*.3+i*W*.25+Math.sin(pulseT+i)*20,ny=H*.4+Math.cos(pulseT*.7+i)*30;X.drawImage(nbs[i],nx-80,ny-80)}
-// Stars
-for(let i=0;i<40;i++){let sx=(i*97+pulseT*10)%W,sy=(i*53+pulseT*5)%H;X.globalAlpha=.2+Math.sin(pulseT*2+i)*.15;X.fillStyle='#fff';X.beginPath();X.arc(sx,sy,1,0,Math.PI*2);X.fill()}X.globalAlpha=1;
-// Trail
-for(let t of trail){X.globalAlpha=t.life/10*.15;X.fillStyle='#0cf';X.beginPath();X.arc(t.x,t.y,hole.r*(t.life/10),0,Math.PI*2);X.fill()}X.globalAlpha=1;
-// Objects
-for(let o of objects){if(!o.alive)continue;let danger=o.sz>=hole.r*edge;
-glowAt(danger?'#ff4757':o.col,o.x,o.y,o.sz*.5+(danger?12:6));X.fillStyle=danger?'rgba(255,71,87,.6)':o.col;
-X.beginPath();X.arc(o.x,o.y,o.sz*.5,0,Math.PI*2);X.fill();
-// Shine
-X.fillStyle='rgba(255,255,255,.3)';X.beginPath();X.arc(o.x-o.sz*.15,o.y-o.sz*.15,o.sz*.15,0,Math.PI*2);X.fill();
-// Danger indicator
-if(danger){X.strokeStyle='rgba(255,71,87,.3)';X.lineWidth=1;X.beginPath();X.arc(o.x,o.y,o.sz*.5+4+Math.sin(pulseT*3)*2,0,Math.PI*2);X.stroke()}}
-// Suction particles
-for(let s of suctionParticles){X.globalAlpha=s.life/10*.4;X.fillStyle=s.col;X.beginPath();X.arc(s.x,s.y,s.s,0,Math.PI*2);X.fill()}X.globalAlpha=1;
-// Hole - outer glow
-X.fillStyle='rgba(0,200,255,.08)';X.beginPath();X.arc(hole.x,hole.y,hole.r+15+Math.sin(pulseT)*5,0,Math.PI*2);X.fill();
-// Hole rim spiral
-X.strokeStyle='rgba(0,200,255,.6)';X.lineWidth=2;X.beginPath();for(let a=0;a<Math.PI*4;a+=.1){let sr=hole.r*.3+a*hole.r*.12;X.lineTo(hole.x+Math.cos(a+pulseT*2)*sr,hole.y+Math.sin(a+pulseT*2)*sr)}X.stroke();
-// Hole center
-X.fillStyle='rgba(0,0,0,.9)';X.beginPath();X.arc(hole.x,hole.y,hole.r*.5,0,Math.PI*2);X.fill();
-// Size meter
-let meterW=100,meterH=8,meterX=W/2-meterW/2,meterY=H-30;X.fillStyle='rgba(255,255,255,.1)';X.fillRect(meterX,meterY,meterW,meterH);
-let fill=Math.min(1,size/12);X.fillStyle=meterGrad;X.fillRect(meterX,meterY,meterW*fill,meterH);
-X.fillStyle='#fff';X.font='bold 12px "Segoe UI"';X.textAlign='center';X.fillText(size+'/12',W/2,meterY-5);X.font='bold 14px "Segoe UI"';X.textAlign='left';X.fillStyle='rgba(255,255,255,.8)';X.fillText(runT.toFixed(1)+'s',12,26);X.fillStyle='rgba(255,255,255,.6)';X.fillText('BEST '+(best?(best/10).toFixed(1)+'s':'--'),12,46);
-// Particles
-for(let p of particles){let pr=p.s*(p.life/60);X.globalAlpha=p.life/60;glowAt(p.col,p.x,p.y,pr+8);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}X.globalAlpha=1;
-// Score popups
-for(let sp of scorePopups){X.globalAlpha=sp.life/30;X.fillStyle='#0cf';X.font='bold 18px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
-X.restore();
-if(state==='ready'&&SKY.tut)SKY.drawTut(X,W,H,{title:'HOLE EATER',color:'#0cf',gesture:'drag',steps:['Slide your finger or mouse (or hold the arrow keys): the black hole follows.','Swallow objects smaller than you. Each one makes the hole bigger.','Red-ringed objects are too big for now: touching one chokes the hole.','Eat all 12 small ones as fast as you can.']});
-else if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#0cf',W/2,H/2-30,110);X.fillStyle='#0cf';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('HOLE EATER',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Eat small objects, avoid big ones',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('CHOKED!',W/2,H/2-20);X.fillStyle='#fff';X.font='20px "Segoe UI"';X.fillText('Eaten '+eaten+' / 12',W/2,H/2+12);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
-if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0cf',W/2,H/2-20,110);X.fillStyle='#0cf';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 COSMIC HOLE! \u2728',W/2,H/2-20);X.fillStyle='#fff';X.font='20px "Segoe UI"';X.fillText('Cleared in '+runT.toFixed(1)+'s   Best: '+(best/10).toFixed(1)+'s',W/2,H/2+12);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-let pState='',lastT=performance.now();function loop(){if(document.hidden){lastT=performance.now();return requestAnimationFrame(loop)}let now=performance.now(),dt=Math.min(.05,(now-lastT)/1000);lastT=now;update(dt);if(state!==pState){pState=state;needDraw=true}if(state==='play'||state==='ready')needDraw=true;SKY.tick(state,eaten);if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}SKY.setup({id:'hole-eater',color:'#0cf',pauseButton:'tr',
-onRestart(){init();state='play'},onExit(){init()},onDiff(){init()},
-onHint(){if(state!=='play')return 'Tap to start, then drag the hole onto the smallest objects first.';let ok=objects.filter(o=>o.alive&&o.sz<hole.r*edge).sort((a,b)=>Math.hypot(a.x-hole.x,a.y-hole.y)-Math.hypot(b.x-hole.x,b.y-hole.y))[0];
-if(!ok)return 'Everything left is too big for now. Circle the red ones carefully while the rest drift in.';let dx=ok.x-hole.x,dy=ok.y-hole.y;return 'Nearest safe snack: '+Math.round(Math.hypot(dx,dy))+' px '+(Math.abs(dy)>Math.abs(dx)?(dy<0?'up':'down'):(dx<0?'left':'right'))+'. Steer round anything with a red ring.'},
-cheats:{BIGHOLE:['The hole starts 50% bigger',()=>{cheat.big=true;hole.r*=1.5}],IRONGUT:['Too-big objects bounce off instead of choking you',()=>{cheat.iron=true}],MAGNET:['Objects get pulled in from twice as far',()=>{cheat.magnet=true}]}});
-init();loop()
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Hole Eater</title><script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script><script src="sky-arcade.js"></script>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.min.js","three/addons/":"../vendor/three/jsm/"}}</script>
+<link rel="modulepreload" href="../vendor/three/three.module.min.js">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:#8fcaff;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+#gl,#ov{position:fixed;left:0;top:0;width:100vw;height:100vh;height:100dvh;display:block}
+#ov{z-index:2}
+#gfx{position:fixed;z-index:6;display:none;transform:translateX(-50%);min-width:150px;min-height:40px;padding:0 16px;border-radius:20px;
+  border:2px solid rgba(255,255,255,.55);background:rgba(20,40,80,.55);color:#fff;font:700 14px 'Segoe UI',sans-serif;cursor:pointer;backdrop-filter:blur(4px)}
+#gfx:focus-visible{outline:3px solid #fff;outline-offset:2px}
+#load{position:fixed;inset:0;z-index:7;display:grid;place-items:center;background:linear-gradient(#6fb6ff,#dff1ff);color:#0b2a55;font:800 20px 'Segoe UI',sans-serif;letter-spacing:2px}
+#load[hidden]{display:none}
+</style></head>
+<body><canvas id="gl" aria-hidden="true"></canvas><canvas id="ov" class="c" aria-label="Hole Eater: steer the hole and swallow the city"></canvas>
+<button id="gfx" type="button">Graphics: High</button>
+<div id="load">LOADING CITY…</div>
+<script type="module">
+/* Hole Eater: the same rules as before (12 objects, swallow the ones smaller than you, a red-ringed one
+ * chokes you), now drawn in 3D with the shared hole stage (../kit3d/hole3d.js, three.js r180).
+ * The simulation still runs in its original board units (px); M turns them into metres. */
+import * as THREE from 'three';
+import { HoleWorld, REDUCED } from '../kit3d/hole3d.js';
+
+const GL=document.getElementById('gl'), C=document.getElementById('ov'), X=C.getContext('2d');
+const AW=420, AH=680, M=0.1;                  // the board (px) and metres per px
+const wx=px=>(px-AW/2)*M, wz=py=>(py-AH/2)*M;
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){}return null}
+let GFX=ls('sky-hole-eater-gfx')||'auto';
+const W3=new HoleWorld(GL,{quality:GFX==='auto'?'auto':GFX,skyTop:'#4f9dff',skyLow:'#e3f3ff'});
+W3.sun.intensity=2.6; W3.hemi.intensity=1.35;
+let VW=0,VH=0;
+function resize(){VW=innerWidth;VH=innerHeight;SKY.fit(C,X,VW,VH);W3.resize();placeGfx()}
+
+/* ---------- rules (unchanged from the 2D game) ---------- */
+let best=0,runT=0,edge=1.3,grow=2.5,keys={},cheat={iron:false,magnet:false,big:false},hole,objects,eaten,state,size,
+  mx=AW/2,my=AH/2,pulseT=0,pops=[],sinking=[],shakeT=0,pulse=0,squash=0,ptr=null,camD=40,camX=0,camZ=0,winT=0;
+function init(){hole={x:AW/2,y:AH/2,r:cheat.big?27:18};mx=AW/2;my=AH/2;runT=0;best=SKY.best();edge=SKY.pick(1.5,1.3,1.15);grow=SKY.pick(3,2.5,2);
+  objects=[];eaten=0;size=0;state='ready';pops=[];sinking=[];shakeT=0;pulse=0;squash=0;winT=0;spawnObjects();camX=wx(hole.x);camZ=wz(hole.y)}
+function spawnObjects(){while(objects.filter(o=>o.alive).length<12){let sz=4+Math.random()*28,x,y,t=0;
+  // keep them off the starting spot so a run never opens with a choke
+  do{x=30+Math.random()*(AW-60);y=30+Math.random()*(AH-60);t++}while(t<30&&Math.hypot(x-AW/2,y-AH/2)<70);
+  const o={x,y,sz,alive:true,orbitAngle:Math.random()*Math.PI*2,orbitSpeed:(Math.random()-.5)*.02,orbitDist:0,inZone:false,yaw:Math.random()*Math.PI*2,vx:x,vy:y,wob:Math.random()*6};
+  o.mod=modelFor(sz*M/2);objects.push(o)}}
+addEventListener('keyup',e=>{keys[e.code]=false});
+addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='BUTTON')return;if(e.code.startsWith('Arrow')){keys[e.code]=true;ptr=null;e.preventDefault();if(state==='ready')start()}if(e.code==='Space'){e.preventDefault();if(state==='over'||state==='win')again();else if(state==='ready')start()}});
+C.addEventListener('pointermove',e=>{if(e.pointerType==='mouse'||e.buttons)ptr={x:e.clientX,y:e.clientY}});
+// a finger steers while it is down; lifting it stops the hole where it is
+const lift=e=>{if(e.pointerType!=='mouse'){ptr=null;mx=hole.x;my=hole.y}};C.addEventListener('pointerup',lift);C.addEventListener('pointercancel',lift);
+C.addEventListener('pointerdown',e=>{ptr={x:e.clientX,y:e.clientY};if(state==='over'||state==='win'){if(performance.now()-winT>600)again();return}if(state==='ready')start()});
+function start(){state='play';SKY.sfx('whoosh',{volume:.5})}
+function again(){init();state='play'}
+function update(dt){pulseT+=dt*1.8;pulse=Math.max(0,pulse-dt*2.5);squash=Math.max(0,squash-dt*3.5);shakeT=Math.max(0,shakeT-dt*14);
+  stepSinking(dt);if(state!=='play')return;let s=dt*60;runT+=dt;
+  if(ptr){const g=W3.pick(ptr.x,ptr.y);if(g){mx=g.x/M+AW/2;my=g.z/M+AH/2}}
+  let kv=5*s;if(keys.ArrowLeft)mx-=kv;if(keys.ArrowRight)mx+=kv;if(keys.ArrowUp)my-=kv;if(keys.ArrowDown)my+=kv;mx=Math.max(0,Math.min(AW,mx));my=Math.max(0,Math.min(AH,my));
+  let ease=1-Math.pow(1-.08,s);hole.x+=(mx-hole.x)*ease;hole.y+=(my-hole.y)*ease;
+  // objects close to the hole are pulled into orbit (they start from where they stand)
+  for(let o of objects){if(!o.alive)continue;let dist=Math.hypot(hole.x-o.x,hole.y-o.y);
+    if(dist<hole.r*(cheat.magnet?6:3)&&dist>hole.r){if(!o.inZone){o.inZone=true;o.orbitAngle=Math.atan2(o.y-hole.y,o.x-hole.x);o.orbitDist=Math.max(0,Math.min(50,dist-hole.r*2))}
+      o.orbitAngle+=o.orbitSpeed*s;o.orbitDist=Math.max(0,o.orbitDist-.5*s);o.x=hole.x+Math.cos(o.orbitAngle)*(hole.r*2+o.orbitDist);o.y=hole.y+Math.sin(o.orbitAngle)*(hole.r*2+o.orbitDist)}
+    else{o.inZone=false;o.orbitDist=Math.min(50,o.orbitDist+.3*s)}}
+  for(let o of objects){if(!o.alive)continue;let dist=Math.hypot(hole.x-o.x,hole.y-o.y);
+    if(dist<hole.r+o.sz*.4){if(o.sz<hole.r*edge){o.alive=false;eaten++;size++;hole.r+=grow;swallow(o);
+        if(eaten>=12){state='win';winT=performance.now();SKY.sfx('win');let t=Math.round(runT*10)/10;if(SKY.saveBest(t*10,true))best=t*10;celebrate()}}
+      else if(cheat.iron){let a=Math.atan2(o.y-hole.y,o.x-hole.x);o.x=hole.x+Math.cos(a)*(hole.r+o.sz*.5+6);o.y=hole.y+Math.sin(a)*(hole.r+o.sz*.5+6);o.orbitDist=50;o.inZone=false;SKY.sfx('hit',{volume:.5});W3.burst(wx(o.x),1,wz(o.y),'#ffd166',6,5,.3)}
+      else{state='over';winT=performance.now();shakeT=SKY.shake(1.6);SKY.sfx('lose');W3.burst(wx(hole.x),.5,wz(hole.y),'#ff4757',REDUCED?8:26,7,.4);return}}}
+  // visual positions ease after the logical ones, so a pull into orbit glides instead of jumping
+  const k=1-Math.exp(-dt*12);for(const o of objects){o.vx+=(o.x-o.vx)*k;o.vy+=(o.y-o.vy)*k}}
+function swallow(o){pulse=1;squash=Math.min(1,.4+o.sz/30);shakeT=SKY.shake(.35);SKY.sfx('collect',{volume:.6,rate:.8+size*.04});
+  sinking.push({mod:o.mod,x:o.vx,y:o.vy,sz:o.sz,yaw:o.yaw,t:0});
+  W3.burst(wx(o.vx),.6,wz(o.vy),'#ffffff',REDUCED?4:12,5,.22);
+  pops.push({txt:size>=12?'CLEARED!':'+1  GROW!',x:wx(hole.x),z:wz(hole.y),t:0,big:size>=12})}
+function stepSinking(dt){for(let i=sinking.length-1;i>=0;i--){const p=sinking[i];p.t+=dt;p.x+=(hole.x-p.x)*Math.min(1,dt*4);p.y+=(hole.y-p.y)*Math.min(1,dt*4);if(p.t>.9)sinking.splice(i,1)}
+  for(let i=pops.length-1;i>=0;i--){pops[i].t+=dt;if(pops[i].t>1)pops.splice(i,1)}}
+function celebrate(){if(REDUCED){W3.burst(wx(hole.x),1,wz(hole.y),'#ffd166',10,6,.35);return}
+  const cols=['#ffd166','#ef476f','#06d6a0','#118ab2','#ffffff'];for(let i=0;i<5;i++)W3.burst(wx(hole.x),1,wz(hole.y),cols[i],18,9,.4)}
+
+/* ---------- the city: which Kenney model stands for an object of a given size ---------- */
+const CLASSES=[[0.35,['cone','cone2','coin']],[0.6,['barrier','bench','planter']],[0.9,['treeS','treeDef','pineR','treeOak']],
+  [1.25,['sedan','taxi','hatch','police','suv']],[9,['van','delivery','ambulance','truck','garbage','firetruck','houseA','houseC','houseF']]];
+function modelFor(r){const c=CLASSES.find(c=>r<c[0])||CLASSES[CLASSES.length-1];const ids=c[1].filter(id=>!W3.kinds.size||W3.has(id));return ids[Math.floor(Math.random()*ids.length)]||'cone'}
+const RED=new THREE.Color('#ff5a5a'),HOLEC=new THREE.Color('#7fd0ff');
+let ring=null;
+function makeRings(){const g=new THREE.RingGeometry(1,1.14,40).rotateX(-Math.PI/2);
+  ring=new THREE.InstancedMesh(g,new THREE.MeshBasicMaterial({color:'#ff3b4e',transparent:true,opacity:.85,depthWrite:false,fog:false}),16);
+  ring.frustumCulled=false;ring.renderOrder=2;ring.count=0;W3.scene.add(ring)}
+const _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_p=new THREE.Vector3();
+function paintPlaza(g,P){// a 16 m park tile: mown lawn with a paved path cross
+  g.fillStyle='#63b548';g.fillRect(0,0,P,P);
+  for(let i=0;i<8;i++){g.fillStyle=i%2?'rgba(255,255,255,.045)':'rgba(0,40,0,.04)';g.fillRect(0,i*P/8,P,P/8)}
+  for(let i=0;i<P*P/120;i++){g.fillStyle=Math.random()<.5?'rgba(20,70,10,.10)':'rgba(190,255,150,.08)';g.fillRect(Math.random()*P,Math.random()*P,2,3)}
+  const w=P*.19,c=P/2;g.fillStyle='#d8c9a8';g.fillRect(c-w/2,0,w,P);g.fillRect(0,c-w/2,P,w);
+  const q=w/3;g.strokeStyle='rgba(110,90,60,.35)';g.lineWidth=Math.max(1.5,P/400);
+  for(let y=0;y<P;y+=q){g.beginPath();g.moveTo(c-w/2,y);g.lineTo(c+w/2,y);g.stroke()}for(let x=0;x<P;x+=q){g.beginPath();g.moveTo(x,c-w/2);g.lineTo(x,c+w/2);g.stroke()}
+  g.beginPath();g.moveTo(c,0);g.lineTo(c,c-w/2);g.moveTo(c,c+w/2);g.lineTo(c,P);g.moveTo(0,c);g.lineTo(c-w/2,c);g.moveTo(c+w/2,c);g.lineTo(P,c);g.stroke();
+  g.strokeStyle='rgba(40,70,20,.45)';g.lineWidth=Math.max(2,P/220);g.strokeRect(c-w/2,-2,w,P+4);g.strokeRect(-2,c-w/2,P+4,w);
+  g.fillStyle='#8a7a5c';g.beginPath();g.arc(c,c,w*.62,0,Math.PI*2);g.fill();g.fillStyle='#d8c9a8';g.beginPath();g.arc(c,c,w*.52,0,Math.PI*2);g.fill()}
+function strip(x,z,w,d,paint,rep){const cv=document.createElement('canvas');cv.width=cv.height=W3.quality==='high'?512:256;paint(cv.getContext('2d'),cv.width);
+  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rep[0],rep[1]);t.anisotropy=4;
+  const m=new THREE.MeshLambertMaterial({map:t});m.stencilWrite=true;m.stencilRef=1;m.stencilFunc=THREE.NotEqualStencilFunc;
+  const me=new THREE.Mesh(new THREE.PlaneGeometry(w,d).rotateX(-Math.PI/2),m);me.position.set(x,0.01,z);me.receiveShadow=true;me.renderOrder=-1;W3.scene.add(me)}
+function paintRoad(vertical){return(g,P)=>{g.fillStyle='#5b6170';g.fillRect(0,0,P,P);for(let i=0;i<P*P/80;i++){g.fillStyle=Math.random()<.5?'rgba(0,0,0,.06)':'rgba(255,255,255,.05)';g.fillRect(Math.random()*P,Math.random()*P,2,2)}
+  g.fillStyle='#f4d35e';const lw=P/40;if(vertical){g.fillRect(P/2-lw/2,P*.1,lw,P*.45)}else{g.fillRect(P*.1,P/2-lw/2,P*.45,lw)}
+  g.fillStyle='#c9c3b6';const k=P*.14;if(vertical){g.fillRect(0,0,k,P);g.fillRect(P-k,0,k,P)}else{g.fillRect(0,0,P,k);g.fillRect(0,P-k,P,k)}
+  g.fillStyle='rgba(0,0,0,.25)';if(vertical){g.fillRect(k,0,P/80,P);g.fillRect(P-k-P/80,0,P/80,P)}else{g.fillRect(0,k,P,P/80);g.fillRect(0,P-k-P/80,P,P/80)}}}
+function dress(){
+  const A=AW*M,B=AH*M,R=8;
+  W3.setGround(-A/2-R-60,-B/2-R-60,Math.max(A,B)+2*R+120,13,paintPlaza,0);
+  strip(-A/2-R/2,0,R,B+2*R,paintRoad(true),[1,(B+2*R)/R]);strip(A/2+R/2,0,R,B+2*R,paintRoad(true),[1,(B+2*R)/R]);
+  strip(0,-B/2-R/2,A,R,paintRoad(false),[A/R,1]);strip(0,B/2+R/2,A,R,paintRoad(false),[A/R,1]);
+  const rnd=(a,b)=>a+Math.random()*(b-a),pick=a=>a[Math.floor(Math.random()*a.length)];
+  // barriers mark the edge of the plaza; lamps and trees line the kerb
+  const bar=[],bs=W3.scaleFor('barrier',.55);for(let x=-A/2;x<=A/2;x+=1.7){bar.push({x,z:-B/2-1,s:bs,yaw:0},{x,z:B/2+1,s:bs,yaw:0})}
+  for(let z=-B/2;z<=B/2;z+=1.7){bar.push({x:-A/2-1,z,s:bs,yaw:Math.PI/2},{x:A/2+1,z,s:bs,yaw:Math.PI/2})}W3.addStatic('barrier',bar,false);
+  const lamps=[],lsc=W3.scaleFor('lamp',.35);for(let z=-B/2+6;z<B/2;z+=18){lamps.push({x:-A/2-3,z,s:lsc,yaw:Math.PI/2},{x:A/2+3,z,s:lsc,yaw:-Math.PI/2})}W3.addStatic('lamp',lamps,true);
+  // the skyline beyond the roads frames the plaza (out of reach)
+  const ring2={},ids=['skyA','skyB','skyC','skyE','towerA','towerC','towerE','towerG'],hs=['houseA','houseB','houseC','houseD','houseF','houseH','houseK','houseM'];
+  const side=(x,z,yaw,row)=>{const id=row?pick(ids):pick(hs),sc=W3.scaleFor(id,row?rnd(6,7.5):rnd(4.2,5.2));(ring2[id]=ring2[id]||[]).push({x,z,s:sc,yaw})};
+  for(let row=0;row<2;row++){const off=R+8+row*16;
+    for(let s=-B/2-off;s<=B/2+off;s+=12){side(-A/2-off,s+rnd(-2,2),Math.PI/2,row);side(A/2+off,s+rnd(-2,2),-Math.PI/2,row)}
+    for(let s=-A/2-off+15;s<=A/2+off-15;s+=12){side(s+rnd(-2,2),-B/2-off,0,row);side(s+rnd(-2,2),B/2+off,Math.PI,row)}}
+  for(const id in ring2)W3.addStatic(id,ring2[id],true);
+  const trees={},tl=['treeL','treeOak','treeDef','pineR'];for(let i=0;i<46;i++){const id=pick(tl),a=Math.random()<.5;const x=a?(Math.random()<.5?-1:1)*(A/2+R+rnd(3,7)):rnd(-A/2,A/2),z=a?rnd(-B/2,B/2):(Math.random()<.5?-1:1)*(B/2+R+rnd(3,7));
+    (trees[id]=trees[id]||[]).push({x,z,s:W3.scaleFor(id,rnd(1.2,1.8)),yaw:rnd(0,6)})}
+  for(const id in trees)W3.addStatic(id,trees[id],true)}
+
+/* ---------- drawing ---------- */
+function draw3D(dt,now){
+  // the camera follows the hole and pulls back as it grows; on the title it drifts round the plaza
+  const hx=wx(hole.x),hz=wz(hole.y),want=(24+hole.r*M*8)*(VW<VH?1.35:1);
+  camD+=(want-camD)*Math.min(1,dt*2.5);camX+=(hx-camX)*Math.min(1,dt*5);camZ+=(hz-camZ)*Math.min(1,dt*5);
+  const yaw=state==='ready'&&!REDUCED?Math.sin(now/5200)*.35:0;
+  W3.view(camX,camZ+2,camD,state==='ready'?.92:1.02,yaw,shakeT);
+  W3.begin();let rc=0;
+  for(const o of objects){if(!o.alive)continue;const x=wx(o.vx),z=wz(o.vy),r=o.sz*M/2,s=W3.scaleFor(o.mod,r);
+    let ang=0,tx=0,tz=0;if(o.inZone&&state==='play'){tx=hx-x;tz=hz-z;ang=Math.min(.45,.12+(1-o.orbitDist/50)*.3)+Math.sin(now/90+o.wob)*.03}
+    W3.put(o.mod,x,0,z,o.yaw+(o.inZone?now/900:0),s,1,tx,tz,ang,null);
+    if(o.sz>=hole.r*edge&&rc<16){const rr=r*1.25+.3+(REDUCED?0:Math.sin(now/180)*.12);_q.identity();_s.set(rr,1,rr);_p.set(x,.05,z);_m.compose(_p,_q,_s);ring.setMatrixAt(rc++,_m)}}
+  for(const p of sinking){const x=wx(p.x),z=wz(p.y),r=p.sz*M/2,s=W3.scaleFor(p.mod,r),k=Math.min(1,p.t/.9);
+    W3.put(p.mod,x,-Math.pow(k,1.5)*(W3.heightOf(p.mod,s)+r*1.4),z,p.yaw+k*2,s,1,hx-x,hz-z,Math.min(1.35,k*2),null)}
+  W3.end();ring.count=rc;ring.instanceMatrix.needsUpdate=true;
+  W3.setHoleCount(1);HOLEC.set(state==='over'?'#ff5a5a':'#7fd0ff');W3.setHole(0,hx,hz,hole.r*M,HOLEC,pulse,squash);
+  W3.render(dt)}
+function rr(x,y,w,h,r){X.beginPath();X.moveTo(x+r,y);X.arcTo(x+w,y,x+w,y+h,r);X.arcTo(x+w,y+h,x,y+h,r);X.arcTo(x,y+h,x,y,r);X.arcTo(x,y,x+w,y,r);X.closePath()}
+function pill(x,y,w,h){rr(x,y,w,h,h/2);X.fillStyle='rgba(12,28,58,.62)';X.fill();X.lineWidth=2;X.strokeStyle='rgba(255,255,255,.35)';X.stroke()}
+function txt(t,x,y,size,col,al,wt){X.font=(wt||800)+' '+size+'px "Segoe UI",system-ui,sans-serif';X.textAlign=al||'center';X.textBaseline='middle';X.lineWidth=Math.max(3,size/5);X.strokeStyle='rgba(8,20,48,.55)';X.strokeText(t,x,y);X.fillStyle=col||'#fff';X.fillText(t,x,y)}
+function card(title,col,lines,foot){const w=Math.min(VW-32,380),h=62+lines.length*34+56,x=(VW-w)/2,y=VH*.46-h/2;
+  X.fillStyle='rgba(6,16,40,.35)';X.fillRect(0,0,VW,VH);
+  rr(x,y,w,h,26);const g=X.createLinearGradient(0,y,0,y+h);g.addColorStop(0,'rgba(255,255,255,.97)');g.addColorStop(1,'rgba(226,238,255,.97)');X.fillStyle=g;X.fill();
+  X.lineWidth=4;X.strokeStyle=col;X.stroke();
+  X.font='900 32px "Segoe UI",system-ui,sans-serif';X.textAlign='center';X.textBaseline='middle';X.fillStyle=col;X.fillText(title,VW/2,y+40);
+  lines.forEach((l,i)=>{const ly=y+84+i*34;X.font='600 16px "Segoe UI",sans-serif';X.fillStyle='#4a5a78';X.textAlign='left';X.fillText(l[0],x+26,ly);X.font='800 19px "Segoe UI",sans-serif';X.fillStyle='#0b2350';X.textAlign='right';X.fillText(l[1],x+w-26,ly)});
+  const by=y+h-38,bw=w-52;rr(x+26,by-20,bw,42,21);const bg=X.createLinearGradient(0,by-20,0,by+22);bg.addColorStop(0,'#ffcf4a');bg.addColorStop(1,'#ff9f1c');X.fillStyle=bg;X.fill();
+  X.font='900 17px "Segoe UI",sans-serif';X.textAlign='center';X.fillStyle='#4a2500';X.fillText(foot,VW/2,by+1)}
+function drawHUD(now){X.setTransform(SKY.dpr(),0,0,SKY.dpr(),0,0);X.clearRect(0,0,VW,VH);
+  const big=Math.min(1,VW/420);
+  // floating pop-ups
+  for(const p of pops){const s=W3.project(p.x,2+p.t*4,p.z);if(!s)continue;X.globalAlpha=1-Math.pow(p.t,2);txt(p.txt,s.x,s.y,p.big?30:22,p.big?'#ffe066':'#ffffff');X.globalAlpha=1}
+  if(state==='play'||state==='over'||state==='win'){
+    // timer and best, top left
+    pill(12,12,150,52);txt(runT.toFixed(1)+'s',30,31,20,'#fff','left',900);txt('BEST '+(best?(best/10).toFixed(1)+'s':'--'),30,52,12,'#bfe3ff','left',700);
+    // eaten meter, bottom centre: 12 pips that fill as you swallow
+    const mw=Math.min(VW-40,340),mx0=(VW-mw)/2,my0=VH-66;pill(mx0,my0,mw,44);
+    txt('EATEN',mx0+18,my0+22,13,'#bfe3ff','left',800);
+    const pw=(mw-96)/12;for(let i=0;i<12;i++){const px=mx0+78+i*pw;rr(px,my0+13,pw-4,18,6);
+      if(i<size){const g=X.createLinearGradient(0,my0+13,0,my0+31);g.addColorStop(0,'#8ff0ff');g.addColorStop(1,'#1c9bff');X.fillStyle=g}else X.fillStyle='rgba(255,255,255,.18)';X.fill()}
+    // hole size tag over the hole
+    const s=W3.project(wx(hole.x),0,wz(hole.y)+hole.r*M+1.2);if(s&&state==='play')txt('YOU · '+Math.round(hole.r*M*2)+' m',s.x,s.y,13,'#dff4ff')}
+  if(state==='ready'&&SKY.tut){X.save();X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,VW,VH);const pw=Math.min(VW,440);X.translate((VW-pw)/2,0);X.beginPath();X.rect(0,0,pw,VH);X.clip();
+    SKY.drawTut(X,pw,VH,{title:'HOLE EATER',color:'#29b6ff',gesture:'drag',steps:['Slide your finger or mouse (or hold the arrow keys): the hole follows.','Swallow objects smaller than you. Each one makes the hole bigger.','Red-ringed objects are too big for now: touching one chokes the hole.','Eat all 12 small ones as fast as you can.']});X.restore()}
+  else if(state==='ready'){const t=REDUCED?0:now/1000;X.fillStyle='rgba(6,20,50,.18)';X.fillRect(0,0,VW,VH);
+    const ty=VH*.2;X.font='900 '+Math.round(54*big)+'px "Segoe UI",system-ui,sans-serif';X.textAlign='center';X.textBaseline='middle';X.lineJoin='round';
+    X.lineWidth=12*big;X.strokeStyle='#0b2350';X.strokeText('HOLE EATER',VW/2,ty);const g=X.createLinearGradient(0,ty-30,0,ty+30);g.addColorStop(0,'#bff3ff');g.addColorStop(1,'#29b6ff');X.fillStyle=g;X.fillText('HOLE EATER',VW/2,ty);
+    const sub='Swallow the park. Dodge anything with a red ring.';let fs=16;X.font='700 16px "Segoe UI",sans-serif';while(fs>12&&X.measureText(sub).width>VW-32){fs--;X.font='700 '+fs+'px "Segoe UI",sans-serif'}
+    if(X.measureText(sub).width>VW-32){txt('Swallow the park.',VW/2,ty+44*big,fs,'#fff','center',700);txt('Dodge anything with a red ring.',VW/2,ty+44*big+fs+6,fs,'#fff','center',700)}else txt(sub,VW/2,ty+48*big,fs,'#fff','center',700);
+    X.globalAlpha=.75+.25*Math.sin(t*4);const bw=220,bx=(VW-bw)/2,by=VH*.62;rr(bx,by,bw,52,26);const bg=X.createLinearGradient(0,by,0,by+52);bg.addColorStop(0,'#ffcf4a');bg.addColorStop(1,'#ff9f1c');X.fillStyle=bg;X.fill();X.lineWidth=3;X.strokeStyle='#fff';X.stroke();
+    X.font='900 20px "Segoe UI",sans-serif';X.fillStyle='#4a2500';X.fillText('▶  TAP TO PLAY',VW/2,by+27);X.globalAlpha=1;
+    if(best)txt('BEST CLEAR  '+(best/10).toFixed(1)+'s',VW/2,by+80,15,'#fff','center',800)}
+  if(state==='over')card('CHOKED!','#ff4757',[['Eaten',eaten+' / 12'],['Hole size',Math.round(hole.r*M*2)+' m'],['Best clear',best?(best/10).toFixed(1)+'s':'--']],'TAP TO RETRY');
+  if(state==='win')card('COSMIC HOLE!','#1c9bff',[['Cleared in',runT.toFixed(1)+'s'],['Best',(best/10).toFixed(1)+'s'],['Hole size',Math.round(hole.r*M*2)+' m']],'TAP TO PLAY AGAIN')}
+
+/* ---------- graphics setting (High / Low), on the title next to the difficulty chips ---------- */
+const gfxBtn=document.getElementById('gfx');
+function paintGfx(){gfxBtn.textContent='Graphics: '+(W3.quality==='high'?'High':'Low')}
+function placeGfx(){gfxBtn.style.left=(VW/2)+'px';gfxBtn.style.top=(VH-124)+'px'}
+gfxBtn.addEventListener('pointerdown',e=>e.stopPropagation());
+gfxBtn.addEventListener('click',e=>{e.stopPropagation();const q=W3.quality==='high'?'low':'high';GFX=q;ls('sky-hole-eater-gfx',q);W3.setQuality(q);paintGfx();SKY.sfx('tap');gfxBtn.blur()});
+
+let lastT=performance.now(),pState='';
+function loop(){let now=performance.now(),dt=Math.min(.05,(now-lastT)/1000);lastT=now;
+  if(!document.hidden){update(dt);if(state!==pState){pState=state;gfxBtn.style.display=state==='ready'&&!SKY.tut?'block':'none'}SKY.tick(state,eaten);draw3D(dt,now);drawHUD(now)}
+  requestAnimationFrame(loop)}
+SKY.setup({id:'hole-eater',color:'#29b6ff',pauseButton:'tr',
+  onRestart(){init();state='play'},onExit(){init()},onDiff(){init()},
+  onHint(){if(state!=='play')return 'Tap to start, then steer the hole onto the smallest objects first.';let ok=objects.filter(o=>o.alive&&o.sz<hole.r*edge).sort((a,b)=>Math.hypot(a.x-hole.x,a.y-hole.y)-Math.hypot(b.x-hole.x,b.y-hole.y))[0];
+    if(!ok)return 'Everything left is too big for now. Circle the red-ringed ones carefully while the rest drift in.';let dx=ok.x-hole.x,dy=ok.y-hole.y;return 'Nearest safe snack: '+Math.round(Math.hypot(dx,dy)*M)+' m '+(Math.abs(dy)>Math.abs(dx)?(dy<0?'up':'down'):(dx<0?'left':'right'))+'. Steer round anything with a red ring.'},
+  cheats:{BIGHOLE:['The hole starts 50% bigger',()=>{cheat.big=true;hole.r*=1.5}],IRONGUT:['Too-big objects bounce off instead of choking you',()=>{cheat.iron=true}],MAGNET:['Objects get pulled in from twice as far',()=>{cheat.magnet=true}]}});
+addEventListener('resize',resize);
+// #dev in the URL exposes the run to the console (used for the capture script)
+if(location.hash==='#dev')window.HE={get objects(){return objects},get hole(){return hole},get state(){return state},get edge(){return edge},get size(){return size}};
+init();resize();paintGfx();makeRings();
+W3.load('../kit3d/city.glb').then(()=>{objects.forEach(o=>o.mod=modelFor(o.sz*M/2));dress();document.getElementById('load').hidden=true;loop()})
+  .catch(e=>{document.getElementById('load').textContent='Could not load the city';console.warn(e)});
 </script></body></html>

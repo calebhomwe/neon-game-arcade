@@ -4,7 +4,9 @@
     <meta charset="UTF-8" />
     <script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🎮 Bridge Race</title>
+    <title>Bridge Race</title>
+    <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/jsm/"}}</script>
+    <link rel="modulepreload" href="vendor/three/three.module.min.js">
     <style>
         /* ─── RESET & BASE ─── */
         * {
@@ -195,11 +197,38 @@
                 font-size: 12px;
             }
         }
+
+        /* ─── 3D course: bigger canvas, HUD over the view ─── */
+        #gameCanvas { width: min(1100px, 94vw, calc((100vh - 150px) * 1.6)); aspect-ratio: 16 / 10; background: #9fd3ff; touch-action: manipulation; }
+        .br-hud { position: absolute; left: 0; right: 0; top: 0; z-index: 12; display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; pointer-events: none; }
+        .br-badge { display: flex; align-items: center; gap: 6px; background: linear-gradient(#fff7e8, #ffe2b3); color: #5a2d0a; border: 3px solid #fff; border-radius: 18px;
+            padding: 4px 12px 4px 8px; font: 900 22px 'Segoe UI', sans-serif; box-shadow: 0 4px 0 rgba(90,45,10,.35), 0 8px 18px rgba(0,0,0,.25); min-width: 86px; }
+        .br-track { position: relative; flex: 1; max-width: 420px; margin: 10px auto 0; height: 16px; border-radius: 10px; background: rgba(255,255,255,.55); border: 3px solid #fff; box-shadow: 0 3px 10px rgba(0,0,0,.2); overflow: visible; }
+        .br-track .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 7px; background: linear-gradient(#6ee07b, #1f9d3a); }
+        .br-track .gm { position: absolute; top: 2px; bottom: 2px; background: #2d6fb8; border-radius: 3px; opacity: .8; }
+        .br-track .gm.done { background: #b0773e; }
+        .br-flag { position: absolute; right: -10px; top: -14px; }
+        .br-build { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); display: none; align-items: center; gap: 8px; background: rgba(40,25,10,.72);
+            color: #ffe0a8; font: 900 13px 'Segoe UI', sans-serif; letter-spacing: .12em; padding: 6px 12px; border-radius: 14px; }
+        .br-build.on { display: flex; }
+        .br-build .bb { width: 110px; height: 10px; border-radius: 6px; background: rgba(255,255,255,.2); overflow: hidden; }
+        .br-build .bb div { height: 100%; width: 0; background: linear-gradient(90deg, #ffcf6b, #ff9f1a); }
+        #brCodes { top: 64px; }
+        #bridgeSection.active { width: fit-content; max-width: 100%; margin: 0 auto; }
+        @media (max-width: 600px) {
+            body { align-items: flex-start; }
+            .game-wrapper { margin: 0; width: 100vw; border-radius: 0; padding: 8px 8px 10px; min-height: 100dvh; }
+            .game-tabs { margin: 0 44px 8px; }
+            .game-tab { padding: 8px 12px; font-size: 14px; }
+            #gameCanvas { width: 100%; aspect-ratio: 10 / 16; max-height: calc(100dvh - 150px); }
+            .br-badge { font-size: 19px; min-width: 74px; }
+            .br-track { margin-top: 8px; }
+        }
         /* ─── ARCADE: title card, tutorial card, results, 40px targets ─── */
         .btn, .game-tab { min-height: 44px; }
         #bridgeSection { position: relative; }
         .br-card { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 14px;
-            background: rgba(6, 16, 30, 0.72); border-radius: 24px; }
+            background: rgba(8, 24, 50, 0.38); border-radius: 24px; }
         .br-card[hidden] { display: none; }
         .br-panel { width: min(420px, 100%); max-height: 100%; overflow: auto; text-align: center; color: #fff;
             background: linear-gradient(145deg, #1a2f44, #0f1f30); border: 1px solid rgba(100, 200, 255, 0.25);
@@ -233,21 +262,24 @@
 
         <!-- ━━━━ BRIDGE RACE ━━━━ -->
         <div class="game-section active" id="bridgeSection">
-            <canvas id="gameCanvas" width="800" height="500"></canvas>
+            <canvas id="gameCanvas" width="800" height="500" aria-label="Bridge Race course: tap to jump"></canvas>
+            <div class="br-hud" id="brHud" aria-hidden="false">
+                <div class="br-badge"><svg viewBox="0 0 40 28" width="34" height="24" aria-hidden="true"><rect x="2" y="16" width="36" height="8" rx="2" fill="#c98a4b" stroke="#6b3f17" stroke-width="2"/><rect x="5" y="9" width="32" height="8" rx="2" fill="#e0a25e" stroke="#6b3f17" stroke-width="2"/><rect x="3" y="2" width="30" height="8" rx="2" fill="#f0b877" stroke="#6b3f17" stroke-width="2"/></svg><strong id="plankCount">0</strong></div>
+                <div class="br-track" id="brTrack" title="Distance to the finish; dark marks are gaps"><div class="fill" id="brDist"></div><svg class="br-flag" viewBox="0 0 20 24" width="20" height="24" aria-hidden="true"><path d="M3 2v21" stroke="#333" stroke-width="2.5"/><path d="M4 3h13l-3 4 3 4H4z" fill="#ff4d5a" stroke="#7a1020" stroke-width="1.5"/></svg></div>
+                <div class="br-build" id="brBuild">BUILDING<div class="bb"><div id="brBuildFill"></div></div></div>
+            </div>
             <div class="hud">
                 <div class="hud-left">
-                    <span><span class="icon">🪵</span> Planks: <strong id="plankCount">0</strong></span>
-                    <span><span class="icon">🏗️</span> Bridge: <strong id="bridgeProgress">0%</strong></span>
-                    <span><span class="icon">📏</span> Distance: <strong id="distanceCount">0</strong>m</span>
+                    <span>Bridge <strong id="bridgeProgress">0%</strong></span>
+                    <span><strong id="distanceCount">0</strong>&nbsp;m</span>
                 </div>
                 <div class="hud-right">
-                    <button class="btn btn-primary" id="restartBtn">🔄 Restart</button>
+                    <button class="btn btn-primary" id="restartBtn">Restart</button>
                 </div>
             </div>
             <div id="brCodes" hidden>Codes on</div>
         <div class="br-card" id="brTitle" role="dialog" aria-modal="true" aria-labelledby="brTitleH">
             <div class="br-panel">
-                <div style="font-size:40px" aria-hidden="true">🏃🪵🌉</div>
                 <h2 id="brTitleH">Bridge Race</h2>
                 <p>Run to the finish flag. Pick up planks on the way: every gap needs planks to bridge.</p>
                 <div class="br-seg" role="group" aria-label="Difficulty">
@@ -319,7 +351,8 @@
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
         const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        /* the course is drawn in 3D by bridge-race-classic/bridge3d.js (R3, set once it has loaded) */
+        let R3 = null;
         const W = 800,
             H = 500;
 
@@ -349,7 +382,8 @@
             hard: { speed: 3.8, max: 9, planks: 38, gaps: 8 } };
         let diff = 'normal';
         // Graphics: High draws at the screen's pixel ratio, Low at 1x for slower phones.
-        let gfxLow = false; try { gfxLow = localStorage.getItem('brc_gfx') === 'low'; } catch (e) {}
+        let gfxPref = null; try { gfxPref = localStorage.getItem('brc_gfx'); } catch (e) {}
+        let gfxLow = gfxPref === 'low';   // with no saved choice, a CPU-rendered WebGL device starts on Low (set when the 3D loads)
         try { diff = localStorage.getItem('brc_diff') || 'normal'; if (!DIFFS[diff]) diff = 'normal'; } catch (e) {}
         const CODES = { MEGAPLANKS: '+50 planks right now', QUICKBUILD: 'Bridges build four times faster', SLOWMO: 'Run at 60% speed' };
         const cheat = { MEGAPLANKS: false, QUICKBUILD: false, SLOWMO: false };
@@ -445,6 +479,7 @@
             generateLevel();
             generateClouds();
             generateTrees();
+            if (R3) R3.setLevel(G);
 
             updateHUD();
         }
@@ -529,22 +564,9 @@
 
         // ─── PARTICLES ───
         function spawnParticles(x, y, count, color, speed, life) {
+            // x, y are on the side-on board relative to the camera; the 3D course places them on the track
             if (calm()) count = Math.min(count, 6);
-            for (let i = 0; i < count; i++) {
-                const angle = rand(0, Math.PI * 2);
-                const spd = rand(0.5, speed);
-                G.particles.push({
-                    x,
-                    y,
-                    vx: Math.cos(angle) * spd,
-                    vy: Math.sin(angle) * spd - 0.5,
-                    life: rand(life * 0.5, life),
-                    maxLife: life,
-                    size: rand(2, 6),
-                    color: color,
-                    gravity: 0.05,
-                });
-            }
+            if (R3) R3.burst(x + G.camX, y, color, Math.ceil(count / 4));
         }
 
         function spawnBridgeParticles(x, y) {
@@ -591,7 +613,7 @@
                     const dx = pWorldX - plank.x;
                     const dy = (p.y + p.h / 2) - plank.y;
                     if (Math.abs(dx) < 32 && Math.abs(dy) < 30) {
-                        plank.collected = true;
+                        plank.collected = true; if (R3) R3.pickup(G.planksOnGround.indexOf(plank));
                         G.planks++; sfx('collect');
                         spawnParticles(plank.x - G.camX, plank.y, 10, '#d4a373', 3, 20);
                         updateHUD();
@@ -705,9 +727,9 @@
             if (G.distance > G.levelLength) {
                 G.won = true;
                 G.running = false;
-                spawnParticles(W / 2, H / 2, 80, '#ffd700', 8, 60);
-                spawnParticles(W / 2, H / 2, 60, '#ff6b6b', 6, 50);
-                spawnParticles(W / 2, H / 2, 60, '#4ecdc4', 6, 50);
+                spawnParticles(p.x, p.y, 80, '#ffd700', 8, 60);
+                spawnParticles(p.x, p.y, 60, '#ff6b6b', 6, 50);
+                spawnParticles(p.x, p.y, 60, '#4ecdc4', 6, 50);
                 setTimeout(() => {
                     gameOver('🏆 YOU WIN! 🎉', true);
                 }, 300);
@@ -757,341 +779,35 @@
             sdkState('over', d);
         }
 
-        // ─── DRAW ───
-        function draw() {
-            fitCanvas(canvas, ctx, W, H);
-            ctx.clearRect(0, 0, W, H);
-
-            // ── sky gradient ──
-            const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
-            skyGrad.addColorStop(0, '#4a90d9');
-            skyGrad.addColorStop(0.55, '#87CEEB');
-            skyGrad.addColorStop(0.85, '#b8d4e8');
-            skyGrad.addColorStop(1, '#d4e8f0');
-            ctx.fillStyle = skyGrad;
-            ctx.fillRect(0, 0, W, H);
-
-            // ── sun ──
-            ctx.save();
-            const sunX = 700,
-                sunY = 70;
-            const grad = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 90);
-            grad.addColorStop(0, 'rgba(255,255,220,1)');
-            grad.addColorStop(0.3, 'rgba(255,235,150,0.9)');
-            grad.addColorStop(1, 'rgba(255,200,100,0)');
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(sunX, sunY, 90, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#fffbe6';
-            ctx.beginPath();
-            ctx.arc(sunX, sunY, 38, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#fff9d0';
-            ctx.beginPath();
-            ctx.arc(sunX - 8, sunY - 8, 28, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-
-            // ── clouds ──
-            for (const cloud of G.clouds) {
-                const cx = cloud.x - G.camX * 0.08;
-                const cy = cloud.y;
-                ctx.globalAlpha = cloud.opacity;
-                ctx.fillStyle = '#ffffff';
-                const w = cloud.w;
-                const h = w * 0.3;
-                ctx.beginPath();
-                ctx.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.ellipse(cx - w * 0.25, cy + 6, w * 0.28, h * 0.4, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.ellipse(cx + w * 0.25, cy + 4, w * 0.3, h * 0.38, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 1;
-            }
-
-            // ── ground ──
-            const groundY = 420;
-            ctx.fillStyle = '#6d8a5e';
-            ctx.fillRect(0, groundY, W, H - groundY);
-            // grass top
-            ctx.fillStyle = '#7ba36b';
-            ctx.fillRect(0, groundY - 4, W, 8);
-
-            // ── draw gaps ──
-            for (const gap of G.gaps) {
-                if (gap.crossed) continue;
-                const gx = gap.start - G.camX;
-                const gw = gap.end - gap.start;
-                if (gx + gw > -20 && gx < W + 20) {
-                    // dark void
-                    const grad2 = ctx.createLinearGradient(0, groundY, 0, H);
-                    grad2.addColorStop(0, '#3d2b1f');
-                    grad2.addColorStop(0.5, '#1a0f0a');
-                    grad2.addColorStop(1, '#0a0505');
-                    ctx.fillStyle = grad2;
-                    ctx.fillRect(gx, groundY + 2, gw, H - groundY - 2);
-
-                    // glow at edges
-                    ctx.fillStyle = 'rgba(255,200,100,0.08)';
-                    ctx.fillRect(gx, groundY, 8, 20);
-                    ctx.fillRect(gx + gw - 8, groundY, 8, 20);
-
-                    // bridge progress shown in gap
-                    if (G.bridgeBuilt > 0 && G.building && !gap.crossed) {
-                        const bw = (G.bridgeBuilt / 100) * gw;
-                        ctx.fillStyle = 'rgba(180,130,80,0.6)';
-                        ctx.fillRect(gx, groundY - 6, bw, 12);
-                        ctx.fillStyle = 'rgba(220,180,120,0.4)';
-                        ctx.fillRect(gx, groundY - 3, bw, 6);
-                        // planks
-                        for (let i = 0; i < Math.floor(G.bridgeBuilt / 15); i++) {
-                            const px = gx + (i / (100 / 15)) * gw;
-                            ctx.fillStyle = '#b8956a';
-                            ctx.fillRect(px, groundY - 8, 6, 14);
-                            ctx.fillStyle = '#d4a373';
-                            ctx.fillRect(px + 1, groundY - 6, 4, 10);
-                        }
-                    }
-                }
-            }
-
-            // ── draw trees ──
-            for (const tree of G.trees) {
-                const tx = tree.x - G.camX;
-                if (tx > -40 && tx < W + 40) {
-                    const s = tree.size;
-                    // trunk
-                    ctx.fillStyle = `rgba(90,70,50,${0.6 + tree.shade * 0.4})`;
-                    ctx.fillRect(tx - s * 0.08, groundY - s * 0.7, s * 0.16, s * 0.7);
-                    // canopy
-                    ctx.fillStyle = `rgba(50,130,50,${0.5 + tree.shade * 0.5})`;
-                    ctx.beginPath();
-                    ctx.arc(tx, groundY - s * 0.8, s * 0.5, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = `rgba(60,150,60,${0.3 + tree.shade * 0.3})`;
-                    ctx.beginPath();
-                    ctx.arc(tx - s * 0.25, groundY - s * 0.65, s * 0.35, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.arc(tx + s * 0.3, groundY - s * 0.7, s * 0.32, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-
-            // ── draw planks on ground ──
-            for (const plank of G.planksOnGround) {
-                if (plank.collected) continue;
-                const px = plank.x - G.camX;
-                if (px > -20 && px < W + 20) {
-                    const bobOffset = Math.sin(plank.bob + G.frame * 0.04) * 2;
-                    ctx.save();
-                    ctx.translate(px, plank.y + bobOffset);
-                    ctx.fillStyle = '#b8956a';
-                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
-                    ctx.shadowBlur = 8;
-                    ctx.fillRect(-plank.size / 2, -3, plank.size, 6);
-                    ctx.fillStyle = '#d4a373';
-                    ctx.shadowBlur = 4;
-                    ctx.fillRect(-plank.size / 2 + 2, -1.5, plank.size - 4, 3);
-                    // shine
-                    ctx.fillStyle = 'rgba(255,255,200,0.15)';
-                    ctx.fillRect(-plank.size / 2 + 2, -2, plank.size * 0.3, 1.5);
-                    ctx.restore();
-                    // glow
-                    ctx.shadowColor = 'rgba(255,200,100,0.15)';
-                    ctx.shadowBlur = 20;
-                    ctx.fillStyle = 'rgba(255,200,100,0.05)';
-                    ctx.beginPath();
-                    ctx.arc(px, plank.y + bobOffset, 14, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                }
-            }
-
-            // ── draw player ──
-            const p = G.player;
-            const px = p.x;
-            const py = p.y + Math.sin(p.bob) * 1.5;
-
-            ctx.save();
-            ctx.translate(px + p.w / 2, py + p.h / 2);
-
-            // shadow
-            ctx.shadowColor = 'rgba(0,0,0,0.2)';
-            ctx.shadowBlur = 20;
-            ctx.fillStyle = 'rgba(0,0,0,0.15)';
-            ctx.beginPath();
-            ctx.ellipse(0, p.h / 2 + 4, 18, 6, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-
-            // body
-            const bodyGrad = ctx.createLinearGradient(-12, -18, 12, 18);
-            bodyGrad.addColorStop(0, '#5b9bd5');
-            bodyGrad.addColorStop(0.5, '#4a8bc2');
-            bodyGrad.addColorStop(1, '#2d6f9e');
-            ctx.fillStyle = bodyGrad;
-            ctx.shadowColor = 'rgba(0,0,0,0.2)';
-            ctx.shadowBlur = 12;
-            ctx.beginPath();
-            ctx.roundRect(-12, -18, 24, 32, 6);
-            ctx.fill();
-
-            // head
-            ctx.shadowBlur = 8;
-            ctx.fillStyle = '#ffddb0';
-            ctx.beginPath();
-            ctx.arc(0, -22, 14, 0, Math.PI * 2);
-            ctx.fill();
-
-            // hair
-            ctx.fillStyle = '#8b5a2b';
-            ctx.beginPath();
-            ctx.arc(0, -28, 15, Math.PI, Math.PI * 2);
-            ctx.fill();
-            ctx.fillRect(-14, -32, 28, 10);
-
-            // eyes
-            ctx.fillStyle = '#2d1b0e';
-            ctx.beginPath();
-            ctx.arc(-5, -24, 3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(5, -24, 3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = 'white';
-            ctx.beginPath();
-            ctx.arc(-4, -26, 1.2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(6, -26, 1.2, 0, Math.PI * 2);
-            ctx.fill();
-
-            // mouth - smile
-            ctx.strokeStyle = '#c0392b';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.arc(0, -18, 6, 0.1, Math.PI - 0.1);
-            ctx.stroke();
-
-            // hat (hard hat)
-            ctx.fillStyle = '#f7b731';
-            ctx.shadowBlur = 6;
-            ctx.beginPath();
-            ctx.ellipse(0, -32, 18, 6, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillRect(-14, -38, 28, 8);
-            ctx.fillStyle = '#ffd966';
-            ctx.fillRect(-10, -38, 20, 3);
-
-            // legs
-            ctx.shadowBlur = 4;
-            const legSwing = Math.sin(p.legSwing) * 3;
-            ctx.fillStyle = '#2d4a6e';
-            ctx.fillRect(-8, 14 + legSwing * 0.5, 5, 10);
-            ctx.fillRect(3, 14 - legSwing * 0.5, 5, 10);
-            // boots
-            ctx.fillStyle = '#5a3a2a';
-            ctx.fillRect(-9, 22 + legSwing * 0.5, 7, 4);
-            ctx.fillRect(2, 22 - legSwing * 0.5, 7, 4);
-
-            // tool belt
-            ctx.fillStyle = '#8b6b4b';
-            ctx.fillRect(-10, 4, 20, 4);
-            ctx.fillStyle = '#d4a373';
-            ctx.fillRect(-6, 4, 3, 6);
-            ctx.fillRect(3, 4, 3, 6);
-
-            ctx.shadowBlur = 0;
-            ctx.restore();
-
-            // ── particles ──
-            for (const pt of G.particles) {
-                const alpha = pt.life / pt.maxLife;
-                ctx.globalAlpha = alpha;
-                ctx.fillStyle = pt.color;
-                ctx.shadowColor = pt.color;
-                ctx.shadowBlur = 10;
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, pt.size * alpha, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.globalAlpha = 1;
-            ctx.shadowBlur = 0;
-
-            // ── building indicator ──
-            if (G.building && G.bridgeBuilt < 100) {
-                ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                ctx.fillRect(10, 10, 200, 28);
-                ctx.fillStyle = 'rgba(255,255,255,0.1)';
-                ctx.fillRect(12, 12, 196, 24);
-                ctx.fillStyle = '#f7b731';
-                ctx.fillRect(14, 14, (G.bridgeBuilt / 100) * 192, 20);
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 11px sans-serif';
-                ctx.fillText('🏗️ BUILDING BRIDGE...', 20, 29);
-            }
-
-            // ── win / game over overlay ──
-            if (G.over) {
-                ctx.fillStyle = 'rgba(0,0,0,0.55)';
-                ctx.fillRect(0, 0, W, H);
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                const msg = G.won ? '🏆 YOU WIN!' : '💀 GAME OVER';
-                ctx.font = 'bold 58px sans-serif';
-                ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                ctx.shadowBlur = 30;
-                ctx.fillStyle = G.won ? '#ffd700' : '#ff6b6b';
-                ctx.fillText(msg, W / 2, H / 2 - 20);
-                ctx.font = '22px sans-serif';
-                ctx.fillStyle = '#fff';
-                ctx.shadowBlur = 10;
-                ctx.fillText('Tap "Run again" to try again', W / 2, H / 2 + 52);
-                ctx.shadowBlur = 0;
-            }
-
-            // ── distance marker ──
-            if (!G.over) {
-                ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                ctx.fillRect(W - 160, 12, 145, 26);
-                ctx.fillStyle = '#fff';
-                ctx.font = '14px sans-serif';
-                ctx.textAlign = 'right';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(`🏁 ${Math.floor(G.distance)} / ${Math.floor(G.levelLength)}m`, W - 22, 26);
-            }
-
-            // ── controls hint ──
-            if (G.running && G.distance < 200) {
-                ctx.fillStyle = 'rgba(255,255,255,0.5)';
-                ctx.font = '15px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'bottom';
-                ctx.fillText('⬆️ Collect planks  •  Build bridges  •  Reach the finish!', W / 2, H - 14);
-            }
+        // ─── DRAW (3D) ───
+        let shakeAmt = 0, lastGapCount = 0;
+        function draw(dts) {
+            if (!R3 || currentGame !== 'bridge') return;
+            const p = G.player, px = p.x + G.camX;
+            const gap = G.gaps.find(g => !g.crossed && px + p.w > g.start && px < g.end);
+            const sinking = !!(gap && G.bridgeBuilt < 40 && G.planks < 2) && G.running;
+            let st = 'title';
+            if (G.running) st = sinking ? 'fall' : 'run';
+            else if (G.won) st = 'win';
+            else if (G.over) st = 'over';
+            if (G.gapCount > lastGapCount) { shakeAmt = calm() ? 0 : 0.25; }
+            lastGapCount = G.gapCount; shakeAmt = Math.max(0, shakeAmt - dts * 0.02);
+            R3.frame(dts / 60, performance.now(), { x: px + p.w / 2, y: p.y + p.h, planks: G.planks, state: st, air: !p.grounded && !sinking, sinking, speed: G.speed, shake: shakeAmt });
+            drawHUD3(px);
         }
-
-        // ─── ROUND RECT POLYFILL ───
-        if (!CanvasRenderingContext2D.prototype.roundRect) {
-            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
-                if (r > w / 2) r = w / 2;
-                if (r > h / 2) r = h / 2;
-                this.moveTo(x + r, y);
-                this.lineTo(x + w - r, y);
-                this.quadraticCurveTo(x + w, y, x + w, y + r);
-                this.lineTo(x + w, y + h - r);
-                this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-                this.lineTo(x + r, y + h);
-                this.quadraticCurveTo(x, y + h, x, y + h - r);
-                this.lineTo(x, y + r);
-                this.quadraticCurveTo(x, y, x + r, y);
-                return this;
-            };
+        const hudFill = document.getElementById('brDist'), hudBuild = document.getElementById('brBuild'), hudBuildFill = document.getElementById('brBuildFill');
+        let markersFor = null;
+        function drawHUD3(px) {
+            const L = Math.max(1, G.levelLength);
+            hudFill.style.width = Math.min(100, px / L * 100) + '%';
+            if (markersFor !== G.gaps) {
+                markersFor = G.gaps; const bar = document.getElementById('brTrack'); bar.querySelectorAll('.gm').forEach(e => e.remove());
+                G.gaps.forEach(g => { const m = document.createElement('i'); m.className = 'gm'; m.style.left = (g.start / L * 100) + '%'; m.style.width = Math.max(1.2, (g.end - g.start) / L * 100) + '%'; bar.appendChild(m); });
+            }
+            G.gaps.forEach((g, i) => { const m = document.getElementById('brTrack').querySelectorAll('.gm')[i]; if (m) m.classList.toggle('done', g.crossed); });
+            const building = G.running && G.building;
+            hudBuild.classList.toggle('on', building);
+            hudBuildFill.style.width = Math.min(100, G.bridgeBuilt) + '%';
         }
 
         // ─── GAME LOOP ───
@@ -1104,7 +820,7 @@
             if (dtMs > 50) dtMs = 50; // clamp so a stall/tab-switch never causes a huge catch-up jump
             const dts = (dtMs / 1000) * 60; // convert to "frames at 60fps" units for the tuned constants above
             update(dts);
-            draw();
+            draw(dts);
             requestAnimationFrame(gameLoop);
         }
 
@@ -1136,7 +852,7 @@
         });
         document.getElementById('brTutGo').addEventListener('click', () => { try { localStorage.setItem('brc_tut', '1'); } catch (e) {} startRun(); });
         function syncGfx() { document.getElementById('brGfx').textContent = 'Graphics: ' + (gfxLow ? 'Low' : 'High'); }
-        document.getElementById('brGfx').addEventListener('click', () => { gfxLow = !gfxLow; try { localStorage.setItem('brc_gfx', gfxLow ? 'low' : 'high'); } catch (e) {} syncGfx(); sfx('tap'); });
+        document.getElementById('brGfx').addEventListener('click', () => { gfxLow = !gfxLow; try { localStorage.setItem('brc_gfx', gfxLow ? 'low' : 'high'); } catch (e) {} if (R3) R3.setQuality(gfxLow ? 'low' : 'high'); syncGfx(); sfx('tap'); });
         syncGfx();
         document.getElementById('brAgain').addEventListener('click', startRun);
         document.getElementById('brMenu').addEventListener('click', showTitle);
@@ -1193,6 +909,15 @@
             onRestart: startRun, onExit: showTitle, onTutorial: showTutorial,
             onHint: hintNow, onCheat: applyCode
         }); } catch (e) {} }
+    </script>
+
+    <script type="module">
+        import { createBridge } from './bridge-race-classic/bridge3d.js';
+        createBridge(canvas, { quality: gfxPref === 'low' || gfxPref === 'high' ? gfxPref : 'auto', onLay: () => sfx('place') }).then((B) => {
+            R3 = B; gfxLow = B.quality === 'low'; syncGfx(); B.setLevel(G);
+            const fit = () => { if (canvas.clientWidth) B.resize(); };
+            addEventListener('resize', fit); if (window.ResizeObserver) new ResizeObserver(fit).observe(canvas);
+        }).catch((e) => console.warn('3D course failed to load', e));
     </script>
 
     <script>
