@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
+    <script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>🎮 Game Arcade — Bridge Race & Fashion Princess</title>
     <style>
@@ -230,7 +231,7 @@
             text-align: center;
         }
         .cat-label {
-            font-size: 11px;
+            font-size: 12px;
             color: #ffd6e8;
             margin-bottom: 4px;
             letter-spacing: 0.5px;
@@ -257,7 +258,7 @@
         .arrow:active { transform: scale(0.9); }
         .item-name {
             flex: 1;
-            font-size: 11px;
+            font-size: 12px;
             color: #fff;
             font-weight: 700;
             white-space: nowrap;
@@ -358,8 +359,8 @@
         .tetris-side .stat { font-size: 13px; color: #fce; margin: 6px 0; }
         .tetris-side .stat strong { color: #fff; font-size: 18px; }
         #nextCanvas { background: #0a0a12; border-radius: 8px; display: block; margin-top: 6px; }
-        .tetris-keys { font-size: 11px; color: #b8d4e8; line-height: 1.7; margin-top: 10px; }
-        .tetris-keys kbd { background: #1a2f44; padding: 1px 5px; border-radius: 3px; font-size: 10px; }
+        .tetris-keys { font-size: 12px; color: #b8d4e8; line-height: 1.7; margin-top: 10px; }
+        .tetris-keys kbd { background: #1a2f44; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
         #tetrisCanvas { border-radius: 10px; box-shadow: 0 0 40px rgba(255,45,117,0.3); }
         #snakeScreen .game-wrapper {
     background: linear-gradient(150deg, #0b1a2e 0%, #081224 55%, #050810 100%);
@@ -467,6 +468,29 @@
         aspect-ratio: 480 / 600;
     }
 }
+        /* ─── ARCADE: tutorial cards, best-score table, codes label, reduced motion ─── */
+        .ga-card { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(4, 10, 22, 0.78); }
+        .ga-card[hidden] { display: none; }
+        .ga-panel { width: min(420px, 100%); max-height: calc(100vh - 32px); overflow: auto; text-align: center; color: #fff;
+            background: linear-gradient(145deg, #1a2f44, #0f1f30); border: 1px solid rgba(100, 200, 255, 0.25); border-radius: 24px;
+            padding: 20px 18px 14px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6); font-family: 'Segoe UI', Tahoma, sans-serif; }
+        .ga-panel h2 { font-size: 26px; margin-bottom: 8px; }
+        .ga-panel ol { text-align: left; padding-left: 22px; line-height: 1.55; color: #d6e6f5; font-size: 15px; margin: 0 0 12px; }
+        .ga-panel button { width: 100%; min-height: 46px; border-radius: 30px; border: 0; font: 800 16px 'Segoe UI', sans-serif;
+            background: #f7b731; color: #1a2f44; cursor: pointer; }
+        .ga-best { margin: 22px auto 0; max-width: 520px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 18px; padding: 12px 16px; color: #d6e6f5; font-family: 'Segoe UI', sans-serif; }
+        .ga-best h3 { font-size: 16px; margin-bottom: 6px; color: #fff; }
+        .ga-best table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .ga-best td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: left; }
+        .ga-best td:last-child { text-align: right; font-weight: 800; color: #f7b731; }
+        #gaCodes { position: fixed; left: 10px; bottom: 10px; z-index: 55; background: #f7b731; color: #1a2f44; border-radius: 20px;
+            padding: 4px 10px; font: 800 12px 'Segoe UI', sans-serif; letter-spacing: .1em; text-transform: uppercase; pointer-events: none; }
+        .touch-btn, .btn, .card-btn { min-height: 40px; min-width: 40px; }
+        .search-bar { min-height: 44px; }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+        }
         /* NEW-CSS-HERE */
     </style>
 </head>
@@ -484,7 +508,7 @@
             <div class="game-cards">
                 <div class="game-card" onclick="showScreen('bridge'); trackPlay('bridge')" data-genre="action">
                     <span class="card-icon">🏃‍♂️</span>
-                    <div class="card-title">Bridge Race <sup style="color:#ff6b6b;font-size:11px;" id="play-bridge">0</sup></div>
+                    <div class="card-title">Bridge Race <sup style="color:#ff6b6b;font-size: 12px;" id="play-bridge">0</sup></div>
                     <div class="card-desc">
                         Run, jump, and build bridges out of wooden planks.
                         Cross every gap before the finish line — don't fall!
@@ -493,7 +517,7 @@
                 </div>
                 <div class="game-card" onclick="showScreen('princess'); trackPlay('princess')" data-genre="creative">
                     <span class="card-icon">👗</span>
-                    <div class="card-title">Fashion Princess <sup style="color:#ff6b9d;font-size:11px;" id="play-princess">0</sup></div>
+                    <div class="card-title">Fashion Princess <sup style="color:#ff6b9d;font-size: 12px;" id="play-princess">0</sup></div>
                     <div class="card-desc">
                         Dress up a princess with gorgeous outfits, hairstyles,
                         crowns, shoes and accessories. Mix & match!
@@ -502,7 +526,7 @@
                 </div>
                 <div class="game-card" onclick="showScreen('chess'); trackPlay('chess')" data-genre="strategy">
                     <span class="card-icon">♟️</span>
-                    <div class="card-title">Hyper Chess <sup style="color:#00f0ff;font-size:11px;" id="play-chess">0</sup></div>
+                    <div class="card-title">Hyper Chess <sup style="color:#00f0ff;font-size: 12px;" id="play-chess">0</sup></div>
                     <div class="card-desc">
                         Neon chess on a glowing 8×8 board. Click a piece,
                         see legal moves light up, crush the AI. Hyper-fast.
@@ -511,7 +535,7 @@
                 </div>
                 <div class="game-card" onclick="showScreen('tetris'); trackPlay('tetris')" data-genre="puzzle">
                     <span class="card-icon">🧱</span>
-                    <div class="card-title">Neon Tetris <sup style="color:#ef476f;font-size:11px;" id="play-tetris">0</sup></div>
+                    <div class="card-title">Neon Tetris <sup style="color:#ef476f;font-size: 12px;" id="play-tetris">0</sup></div>
                     <div class="card-desc">
                         Classic falling-block action with a neon glow.
                         Clear lines, chase high scores, speed escalates.
@@ -520,7 +544,7 @@
                 </div>
                 <div class="game-card" onclick="showScreen('snake'); trackPlay('snake')" data-genre="classic">
     <span class="card-icon">🐍</span>
-    <div class="card-title">Neon Snake <sup style="color:#06d6a0;font-size:11px;" id="play-snake">0</sup></div>
+    <div class="card-title">Neon Snake <sup style="color:#06d6a0;font-size: 12px;" id="play-snake">0</sup></div>
     <div class="card-desc">
         Chase the glowing pellet through a grid of pure neon.
         Arrow keys or WASD — every bite grows you longer and
@@ -530,7 +554,7 @@
 </div>
                 <div class="game-card" onclick="showScreen('breakout'); trackPlay('breakout')" data-genre="arcade">
     <span class="card-icon">🧱</span>
-    <div class="card-title">Neon Breakout <sup style="color:#ffd700;font-size:11px;" id="play-breakout">0</sup></div>
+    <div class="card-title">Neon Breakout <sup style="color:#ffd700;font-size: 12px;" id="play-breakout">0</sup></div>
     <div class="card-desc">
         Classic brick-smashing with a neon glow. Angle your shots off the
         paddle, clear the grid row by row, and chase the high score!
@@ -539,7 +563,7 @@
 </div>
                 <div class="game-card" onclick="showScreen('flappy'); trackPlay('flappy')" data-genre="casual">
     <span class="card-icon">🐤</span>
-    <div class="card-title">Neon Flappy <sup style="color:#3a86ff;font-size:11px;" id="play-flappy">0</sup></div>
+    <div class="card-title">Neon Flappy <sup style="color:#3a86ff;font-size: 12px;" id="play-flappy">0</sup></div>
     <div class="card-desc">
         Glide a glowing neon bird through a synthwave skyline.
         Tap, click, or press Space to flap — dodge the pipes,
@@ -549,7 +573,7 @@
 </div>
                 <div class="game-card" onclick="showScreen('shooter'); trackPlay('shooter')" data-genre="shooter">
     <span class="card-icon">🚀</span>
-    <div class="card-title">Neon Space Shooter <sup style="color:#c77dff;font-size:11px;" id="play-shooter">0</sup></div>
+    <div class="card-title">Neon Space Shooter <sup style="color:#c77dff;font-size: 12px;" id="play-shooter">0</sup></div>
     <div class="card-desc">
         Pilot a neon fighter through an alien swarm. Dodge enemy
         fire, blast waves of drones, and chase the high score!
@@ -558,6 +582,7 @@
 </div>
                 <!-- NEW-GAMES-HERE -->
             </div>
+            <div class="ga-best" id="gaBest"><h3>🏆 Best scores</h3><table id="gaBestTable"></table></div>
         </div>
     </div>
 
@@ -799,6 +824,14 @@
 </div>
 </div>
     <!-- NEW-SCREENS-HERE -->
+    <div id="gaCodes" hidden>Codes on</div>
+    <div class="ga-card" id="gaTut" hidden role="dialog" aria-modal="true" aria-labelledby="gaTutH">
+        <div class="ga-panel">
+            <h2 id="gaTutH">How to play</h2>
+            <ol id="gaTutSteps"></ol>
+            <button id="gaTutGo">Let's play</button>
+        </div>
+    </div>
     <script>
     /* ════════════════════════════════════════════════════════════════
        AUDIO ENGINE — Web Audio API synth (zero assets)
@@ -836,6 +869,69 @@
     document.addEventListener('keydown', ()=>ensureAudio(), { once:true });
 
     /* ════════════════════════════════════════════════════════════════
+       CALEB'S ARCADE SDK GLUE — scenes, real pause, tutorials, codes, bests
+       (every call is guarded, so the page still works without the SDK)
+       ════════════════════════════════════════════════════════════════ */
+    const SDK = window.ArcadeSDK || null;
+    const RMQ = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+    const calm = () => !!(RMQ && RMQ.matches);   // reduced motion: no screen shake
+    function sdkState(scene, score) { try { SDK && SDK.state(score == null ? { scene } : { scene, score }); } catch (e) {} }
+    const GA_CODES = { MEGAPLANKS: 'Bridge Race: +50 planks', EXTRALIVES: 'Breakout and Space Shooter: +3 lives', LINEBOMB: 'Neon Tetris: the bottom four rows vanish' };
+    const gaCheat = {};
+    function arcadeCheated() { return !!((SDK && SDK.cheated) || Object.keys(gaCheat).length); }
+    const GA_NAMES = { bridge: 'Bridge Race', princess: 'Fashion Princess', chess: 'Hyper Chess', tetris: 'Neon Tetris', snake: 'Neon Snake',
+        breakout: 'Neon Breakout', flappy: 'Neon Flappy', shooter: 'Neon Space Shooter' };
+    // One best per game (arcade7_best), kept only for runs without codes; it feeds the menu's Best scores table.
+    function gaBests() { try { return JSON.parse(localStorage.getItem('arcade7_best')) || {}; } catch (e) { return {}; } }
+    function arcadeOver(game, score) {
+        score = Math.max(0, Math.floor(+score || 0));
+        if (!arcadeCheated()) {
+            const b = gaBests();
+            if (score > (b[game] || 0)) { b[game] = score; try { localStorage.setItem('arcade7_best', JSON.stringify(b)); } catch (e) {} }
+        }
+        renderBests();
+        sdkState('over', score);
+    }
+    function renderBests() {
+        const t = document.getElementById('gaBestTable'); if (!t) return;
+        const b = gaBests(), rows = [['bridge', 'm'], ['tetris', 'pts'], ['snake', 'pts'], ['breakout', 'pts'], ['flappy', 'pipes'], ['shooter', 'pts']];
+        t.innerHTML = '';
+        rows.forEach(([g, u]) => { const tr = document.createElement('tr'); tr.innerHTML = '<td></td><td></td>';
+            tr.firstChild.textContent = GA_NAMES[g]; tr.lastChild.textContent = b[g] ? b[g] + ' ' + u : '—'; t.appendChild(tr); });
+    }
+    const GA_TUT = {
+        bridge: ['You run on your own: grab the planks on the ground.', 'At a gap your planks build the bridge; too few and you fall.', 'Tap, click, Space or Up jumps. Reach the flag to win.'],
+        princess: ['Pick a category (hair, dress, shoes, crown, necklace).', 'Click the arrows or the styles to change the look.', 'Surprise Me picks a random outfit; Reset starts over.'],
+        chess: ['You are White. Click a piece: its legal moves light up.', 'Click a lit square to move. The AI answers as Black.', 'Checkmate the black king to win; watch your clock.'],
+        tetris: ['Left / Right move the piece, Up rotates, Down drops faster.', 'Fill a whole row to clear it; more rows at once score more.', 'Every 10 lines is a new level, and the blocks fall faster.'],
+        snake: ['Arrow keys or WASD steer (or the touch arrows).', 'Eat the glowing pellet to grow and score.', 'Do not hit the walls or your own tail.'],
+        breakout: ['Move the paddle with the mouse, a finger or Left / Right.', 'Bounce the ball into the bricks; clear them all to win.', 'Miss the ball and you lose one of three lives.'],
+        flappy: ['Tap, click or press Space to flap.', 'Fly through the gaps between the pipes.', 'Each pipe you pass is a point; touching one ends the run.'],
+        shooter: ['Move with the mouse, a finger or Left / Right; hold to fire.', 'Blast the alien drones before they reach you.', 'You have three lives: dodge the enemy fire.']
+    };
+    let gaPending = null;
+    function gaShowTut(game) {
+        const steps = GA_TUT[game]; if (!steps) return false;
+        document.getElementById('gaTutH').textContent = 'How to play ' + GA_NAMES[game];
+        const ol = document.getElementById('gaTutSteps'); ol.innerHTML = '';
+        steps.forEach(s => { const li = document.createElement('li'); li.textContent = s; ol.appendChild(li); });
+        gaPending = game; document.getElementById('gaTut').hidden = false;
+        try { document.getElementById('gaTutGo').focus({ preventScroll: true }); } catch (e) {}
+        return true;
+    }
+    function gaApplyCode(code) {
+        code = String(code || '').trim().toUpperCase();
+        if (!GA_CODES[code]) return { ok: false };
+        gaCheat[code] = true; document.getElementById('gaCodes').hidden = false;
+        try {
+            if (code === 'MEGAPLANKS') { G.planks += 50; updateBridgeHUD(); }
+            if (code === 'EXTRALIVES') { bo.lives += 3; boUpdateHUD(); ss.lives += 3; ssUpdateHUD(); }
+            if (code === 'LINEBOMB' && tetris && tetris.grid) { tetris.grid.splice(TROWS - 4, 4); for (let i = 0; i < 4; i++) tetris.grid.unshift(new Array(TCOLS).fill(null)); }
+        } catch (e) {}
+        return { ok: true, message: GA_CODES[code] };
+    }
+
+    /* ════════════════════════════════════════════════════════════════
        AMBIENT PARTICLES — floating background stars/dust
        ════════════════════════════════════════════════════════════════ */
     const _ambientCount = 30;
@@ -864,6 +960,7 @@
         particles: [],
         
         shakeScreen(intensity = 8, duration = 12) {
+            if (calm()) return;
             this.shake.intensity = Math.max(this.shake.intensity, intensity);
             this.shake.duration = Math.max(this.shake.duration, duration);
         },
@@ -957,7 +1054,17 @@
     let shooterRAF = null;
     // NEW-RAF-HERE
 
-    function showScreen(name) {
+    function showScreen(name, skipTut) {
+        let seenTut = true; try { seenTut = localStorage.getItem('arcade7_tut_' + name) === '1'; } catch (e) {}
+        if (!skipTut && name !== 'menu' && !seenTut && GA_TUT[name]) {
+            // first visit: the tutorial card comes before the game starts
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(name + 'Screen').classList.add('active');
+            currentScreen = name; gaShowTut(name); return;
+        }
+        document.getElementById('gaTut').hidden = true;
+        sdkState(name === 'menu' ? 'title' : 'play', name === 'menu' ? null : 0);
+        if (name === 'menu') renderBests();
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(name + 'Screen').classList.add('active');
         currentScreen = name;
@@ -1213,7 +1320,9 @@
     }
 
     function gameOver(won, msg) {
+        if (G.over) return;
         G.running = false; G.over = true; G.won = won;
+        arcadeOver('bridge', G.distance);
         if (!won) {
             SFX.hit();
             ScreenFX.shakeScreen(12, 20);
@@ -2506,10 +2615,10 @@
         if (!chess || chess.over) return;
         if (chess.turn === 'w') {
             chess.whiteTime = Math.max(0, chess.whiteTime - 1);
-            if (chess.whiteTime === 0) { chess.over = true; chess.winner = 'b'; chess.status = '\u23F1\uFE0F Time up \u2014 Black wins'; }
+            if (chess.whiteTime === 0) { chess.over = true; arcadeOver('chess', 0); chess.winner = 'b'; chess.status = '\u23F1\uFE0F Time up \u2014 Black wins'; }
         } else {
             chess.blackTime = Math.max(0, chess.blackTime - 1);
-            if (chess.blackTime === 0) { chess.over = true; chess.winner = 'w'; chess.status = '\u23F1\uFE0F Time up \u2014 White wins'; }
+            if (chess.blackTime === 0) { chess.over = true; arcadeOver('chess', 0); chess.winner = 'w'; chess.status = '\u23F1\uFE0F Time up \u2014 White wins'; }
         }
     }
 
@@ -2625,8 +2734,8 @@
         if (!chess || chess.over) return;
         const moves = allLegalMoves(chess.board, 'b');
         if (moves.length === 0) {
-            if (inCheck(chess.board, 'b')) { chess.over = true; chess.winner = 'w'; chess.status = '\u265A Checkmate \u2014 White wins!'; SFX.win(); }
-            else { chess.over = true; chess.winner = 'draw'; chess.status = '\u{1F91D} Stalemate \u2014 Draw'; SFX.hit(); }
+            if (inCheck(chess.board, 'b')) { chess.over = true; arcadeOver('chess', 0); chess.winner = 'w'; chess.status = '\u265A Checkmate \u2014 White wins!'; SFX.win(); }
+            else { chess.over = true; arcadeOver('chess', 0); chess.winner = 'draw'; chess.status = '\u{1F91D} Stalemate \u2014 Draw'; SFX.hit(); }
             return;
         }
         const VAL = { p:1, n:3, b:3, r:5, q:9, k:0 };
@@ -2646,7 +2755,7 @@
         chess.turn = 'w';
         if (inCheck(chess.board, 'w')) {
             const wm = allLegalMoves(chess.board, 'w');
-            if (wm.length === 0) { chess.over = true; chess.winner = 'b'; chess.status = '\u265A Checkmate \u2014 Black wins!'; SFX.lose(); }
+            if (wm.length === 0) { chess.over = true; arcadeOver('chess', 0); chess.winner = 'b'; chess.status = '\u265A Checkmate \u2014 Black wins!'; SFX.lose(); }
             else { chess.status = '\u26A0\uFE0F Check!'; SFX.tick(); }
         } else chess.status = 'Your move';
     }
@@ -2678,7 +2787,7 @@
                 chess.turn = 'b';
                 if (inCheck(chess.board, 'b')) {
                     const bm = allLegalMoves(chess.board, 'b');
-                    if (bm.length === 0) { chess.over = true; chess.winner = 'w'; chess.status = '\u265A Checkmate \u2014 White wins!'; SFX.win(); }
+                    if (bm.length === 0) { chess.over = true; arcadeOver('chess', 0); chess.winner = 'w'; chess.status = '\u265A Checkmate \u2014 White wins!'; SFX.win(); }
                     else chess.status = '\u26A0\uFE0F Check!';
                 } else chess.status = 'Thinking\u2026';
                 setTimeout(aiMove, 500);
@@ -2831,7 +2940,7 @@
         tetris.type = tetris.next;
         tetris.next = PTYPES[Math.floor(Math.random()*7)];
         tetris.x = 3; tetris.y = 0; tetris.rot = 0;
-        if (collide(tetris.type, tetris.rot, tetris.x, tetris.y)) { tetris.over = true; SFX.lose(); }
+        if (collide(tetris.type, tetris.rot, tetris.x, tetris.y)) { tetris.over = true; SFX.lose(); arcadeOver('tetris', tetris.score); }
     }
 
     function moveDown() {
@@ -3070,7 +3179,8 @@
 
     function die() {
         state = STATE_DEAD;
-        newBest = score > best;
+        newBest = !arcadeCheated() && score > best;
+        arcadeOver('snake', score);
         if (newBest) {
             best = score;
             try { localStorage.setItem(KEY_BEST, String(best)); } catch (e) {}
@@ -3548,7 +3658,7 @@ function boCollideBricks() {
         }
     }
     if (bo.bricksLeft <= 0 && !bo.over) {
-        bo.over = true; bo.won = true;
+        bo.over = true; bo.won = true; arcadeOver('breakout', bo.score);
         boSpawnParticles(boW / 2, boH / 2, 60, '#ffd700', 6, 60);
         boSpawnParticles(boW / 2, boH / 2, 40, '#00f0ff', 5, 50);
         boSpawnParticles(boW / 2, boH / 2, 40, '#ff2d75', 5, 50);
@@ -3599,7 +3709,7 @@ function boUpdate() {
             boUpdateHUD();
             SFX.hit();
             if (bo.lives <= 0) {
-                bo.over = true; bo.won = false;
+                bo.over = true; bo.won = false; arcadeOver('breakout', bo.score);
                 SFX.lose();
             } else {
                 boResetBall(true);
@@ -3927,7 +4037,8 @@ document.getElementById('boRestart').addEventListener('click', breakoutInit);
         state = STATE_DEAD;
         deathTime = time;
         dieDelay = 0.5;
-        newBest = score > best;
+        newBest = !arcadeCheated() && score > best;
+        arcadeOver('flappy', score);
         if (newBest) { best = score; try { localStorage.setItem(KEY, String(best)); } catch (e) {} }
         if (bestEl) bestEl.textContent = best;
         SFX.hit();
@@ -4560,7 +4671,7 @@ function ssHitPlayer(enemyIdx, x, y) {
     ssUpdateHUD();
     ssSpawnParticles(x, y, 22, '#ff2d75', 5, 34);
     ssSpawnParticles(x, y, 12, '#ffffff', 3, 22);
-    ss.shake = 14;
+    ss.shake = calm() ? 0 : 14;
     ss.invuln = 100;
     SFX.hit();
     if (enemyIdx >= 0) {
@@ -4572,7 +4683,8 @@ function ssHitPlayer(enemyIdx, x, y) {
     if (ss.lives <= 0) {
         ss.over = true;
         SFX.lose();
-        if (ss.score > ssBest) {
+        arcadeOver('shooter', ss.score);
+        if (!arcadeCheated() && ss.score > ssBest) {
             ssBest = ss.score;
             try { window.localStorage.setItem('shooterBest', String(ssBest)); } catch (e) {}
         }
@@ -5088,6 +5200,7 @@ document.getElementById('ssRestart').addEventListener('click', shooterInit);
        ════════════════════════════════════════════════════════════════ */
     let _pausedScreen = null;
     document.addEventListener('keydown', (e) => {
+        if (SDK) return;
         if ((e.key === 'p' || e.key === 'P') && currentScreen !== 'menu') {
             const screenEl = document.getElementById(currentScreen + 'Screen');
             if (!screenEl) return;
@@ -5154,6 +5267,25 @@ document.getElementById('ssRestart').addEventListener('click', shooterInit);
             SFX.ui();
         });
     });
+    document.getElementById('gaTutGo').addEventListener('click', () => {
+        const g = gaPending; gaPending = null; document.getElementById('gaTut').hidden = true;
+        if (!g) return;
+        try { localStorage.setItem('arcade7_tut_' + g, '1'); } catch (e) {}
+        showScreen(g, true);
+    });
+    renderBests();
+    sdkState('title');
+    if (SDK) { try { window.ArcadeSDK.init({
+        pauseKeys: 'p+esc', pauseButton: 'tr',
+        onRestart() { if (currentScreen !== 'menu') showScreen(currentScreen, true); },
+        onExit() { showScreen('menu'); },
+        onTutorial() { gaShowTut(currentScreen === 'menu' ? 'bridge' : currentScreen); },
+        onHint() {
+            if (currentScreen === 'menu') return 'Pick any card and press PLAY. Your best scores are listed under the games.';
+            const t = GA_TUT[currentScreen]; return t ? t[t.length - 1] : '';
+        },
+        onCheat: gaApplyCode
+    }); } catch (e) {} }
     // NEW-JS-HERE
     </script>
 </body>

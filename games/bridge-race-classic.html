@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
+    <script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>🎮 Bridge Race</title>
     <style>
@@ -194,6 +195,32 @@
                 font-size: 12px;
             }
         }
+        /* ─── ARCADE: title card, tutorial card, results, 40px targets ─── */
+        .btn, .game-tab { min-height: 44px; }
+        #bridgeSection { position: relative; }
+        .br-card { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 14px;
+            background: rgba(6, 16, 30, 0.72); border-radius: 24px; }
+        .br-card[hidden] { display: none; }
+        .br-panel { width: min(420px, 100%); max-height: 100%; overflow: auto; text-align: center; color: #fff;
+            background: linear-gradient(145deg, #1a2f44, #0f1f30); border: 1px solid rgba(100, 200, 255, 0.25);
+            border-radius: 26px; padding: 18px 18px 14px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6); }
+        .br-panel h2 { font-size: 30px; margin-bottom: 4px; }
+        .br-panel p { color: #cfe3f5; font-size: 15px; line-height: 1.45; margin: 6px 0 10px; }
+        .br-panel .btn { width: 100%; margin: 5px 0; font-size: 16px; }
+        .br-seg { display: flex; gap: 6px; margin: 6px 0; }
+        .br-seg .btn { flex: 1; margin: 0; padding: 8px 6px; }
+        .br-seg .btn.on { background: #f7b731; border-color: #f7b731; color: #1a2f44; }
+        .br-rows { text-align: left; margin: 8px 0; }
+        .br-rows div { display: flex; justify-content: space-between; padding: 5px 4px; border-bottom: 1px solid rgba(255,255,255,.12); font-size: 15px; }
+        .br-tap { font-size: 46px; animation: brTap 1s ease-in-out infinite; }
+        @keyframes brTap { 50% { transform: translateY(-14px); } }
+        #brCodes { position: absolute; left: 12px; top: 48px; z-index: 15; background: #f7b731; color: #1a2f44;
+            font: 800 12px 'Segoe UI', sans-serif; letter-spacing: .1em; text-transform: uppercase; border-radius: 20px; padding: 4px 10px; }
+        @media (prefers-reduced-motion: reduce) {
+            .btn, .game-tab { transition: none; }
+            .btn:hover, .btn:active { transform: none; }
+            .br-tap { animation: none; }
+        }
     </style>
 </head>
 <body>
@@ -217,6 +244,38 @@
                     <button class="btn btn-primary" id="restartBtn">🔄 Restart</button>
                 </div>
             </div>
+            <div id="brCodes" hidden>Codes on</div>
+        <div class="br-card" id="brTitle" role="dialog" aria-modal="true" aria-labelledby="brTitleH">
+            <div class="br-panel">
+                <div style="font-size:40px" aria-hidden="true">🏃🪵🌉</div>
+                <h2 id="brTitleH">Bridge Race</h2>
+                <p>Run to the finish flag. Pick up planks on the way: every gap needs planks to bridge.</p>
+                <div class="br-seg" role="group" aria-label="Difficulty">
+                    <button class="btn" data-diff="easy">Easy</button>
+                    <button class="btn" data-diff="normal">Normal</button>
+                    <button class="btn" data-diff="hard">Hard</button>
+                </div>
+                <button class="btn btn-primary" id="brPlay">▶ Play</button>
+                <button class="btn" id="brGfx">Graphics: High</button>
+                <p id="brBest" style="font-size:14px;margin-bottom:0"></p>
+            </div>
+        </div>
+        <div class="br-card" id="brTut" hidden role="dialog" aria-modal="true" aria-labelledby="brTutH">
+            <div class="br-panel">
+                <div class="br-tap" aria-hidden="true">👆</div>
+                <h2 id="brTutH" style="font-size:24px">Tap to jump</h2>
+                <p>You run on your own and grab every plank you touch. At a gap your planks build the bridge automatically, so collect plenty. Tap, click or press Space to jump.</p>
+                <button class="btn btn-primary" id="brTutGo">Let's go!</button>
+            </div>
+        </div>
+        <div class="br-card" id="brOver" hidden role="dialog" aria-modal="true" aria-labelledby="brOverH">
+            <div class="br-panel">
+                <h2 id="brOverH">Game over</h2>
+                <div class="br-rows" id="brRows"></div>
+                <button class="btn btn-primary" id="brAgain">🔄 Run again</button>
+                <button class="btn" id="brMenu">Menu</button>
+            </div>
+        </div>
         </div>
 
         <!-- ━━━━ FASHION PRINCESS ━━━━ -->
@@ -267,7 +326,7 @@
         // ─── DPR-aware canvas fit: backing store matches CSS size * devicePixelRatio,
         // context transform keeps all drawing code in the original 800x500 logical space ───
         function fitCanvas(cv, c, logicalW, logicalH) {
-            const dpr = window.devicePixelRatio || 1;
+            const dpr = gfxLow ? 1 : (window.devicePixelRatio || 1);
             const rect = cv.getBoundingClientRect();
             if (rect.width < 1 || rect.height < 1) return;
             const pxW = Math.max(1, Math.round(rect.width * dpr));
@@ -279,6 +338,23 @@
             const scale = (rect.width / logicalW) * dpr;
             c.setTransform(scale, 0, 0, scale, 0, 0);
         }
+
+        // ─── Caleb's Arcade SDK glue (guarded: the game still runs without it) ───
+        const SDK = window.ArcadeSDK || null;
+        const sdkState = (scene, score) => { try { SDK && SDK.state(score == null ? { scene } : { scene, score }); } catch (e) {} };
+        const sfx = (n) => { try { SDK && SDK.sfx(n); } catch (e) {} };
+        const RMQ = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+        const calm = () => !!(RMQ && RMQ.matches);   // reduced motion: small bursts instead of confetti storms
+        const DIFFS = { easy: { speed: 2.6, max: 6, planks: 64, gaps: 5 }, normal: { speed: 3.2, max: 7.5, planks: 50, gaps: 6 },
+            hard: { speed: 3.8, max: 9, planks: 38, gaps: 8 } };
+        let diff = 'normal';
+        // Graphics: High draws at the screen's pixel ratio, Low at 1x for slower phones.
+        let gfxLow = false; try { gfxLow = localStorage.getItem('brc_gfx') === 'low'; } catch (e) {}
+        try { diff = localStorage.getItem('brc_diff') || 'normal'; if (!DIFFS[diff]) diff = 'normal'; } catch (e) {}
+        const CODES = { MEGAPLANKS: '+50 planks right now', QUICKBUILD: 'Bridges build four times faster', SLOWMO: 'Run at 60% speed' };
+        const cheat = { MEGAPLANKS: false, QUICKBUILD: false, SLOWMO: false };
+        const codesOn = () => !!((SDK && SDK.cheated) || cheat.MEGAPLANKS || cheat.QUICKBUILD || cheat.SLOWMO);
+        function readBest() { try { return JSON.parse(localStorage.getItem('brc_best')) || { dist: 0, wins: 0 }; } catch (e) { return { dist: 0, wins: 0 }; } }
 
         // ─── DOM refs ───
         const plankSpan = document.getElementById('plankCount');
@@ -338,13 +414,15 @@
 
         // ─── INIT ───
         function initGame() {
+            const D = DIFFS[diff];
+            G.totalGaps = D.gaps; G.maxSpeed = D.max;
             G.running = true;
             G.over = false;
             G.won = false;
             G.planks = 0;
             G.distance = 0;
             G.bridgeBuilt = 0;
-            G.speed = 3.2;
+            G.speed = D.speed;
             G.gapCount = 0;
             G.spawnTimer = 0;
             G.particles = [];
@@ -387,7 +465,7 @@
 
             // planks on ground
             G.planksOnGround = [];
-            for (let i = 0; i < 50; i++) {
+            for (let i = 0; i < DIFFS[diff].planks; i++) {
                 let x = 60 + Math.random() * (G.levelLength - 120);
                 // avoid placing inside gaps
                 let insideGap = false;
@@ -451,6 +529,7 @@
 
         // ─── PARTICLES ───
         function spawnParticles(x, y, count, color, speed, life) {
+            if (calm()) count = Math.min(count, 6);
             for (let i = 0; i < count; i++) {
                 const angle = rand(0, Math.PI * 2);
                 const spd = rand(0.5, speed);
@@ -485,6 +564,7 @@
         // instead of with however many frames actually rendered (clamped in gameLoop).
         function update(dts) {
             if (!G.running || G.over) return;
+            if (cheat.SLOWMO) dts *= 0.6;
             G.frame += dts;
 
             const p = G.player;
@@ -512,7 +592,7 @@
                     const dy = (p.y + p.h / 2) - plank.y;
                     if (Math.abs(dx) < 32 && Math.abs(dy) < 30) {
                         plank.collected = true;
-                        G.planks++;
+                        G.planks++; sfx('collect');
                         spawnParticles(plank.x - G.camX, plank.y, 10, '#d4a373', 3, 20);
                         updateHUD();
                     }
@@ -547,7 +627,7 @@
                     G.buildTimer = 0;
                 }
                 G.buildTimer += dts;
-                const buildSpeed = 0.8 + G.planks * 0.04;
+                const buildSpeed = (0.8 + G.planks * 0.04) * (cheat.QUICKBUILD ? 4 : 1);
                 G.bridgeBuilt = Math.min(100, G.bridgeBuilt + buildSpeed * dts);
 
                 // consume planks as we build (every ~3 frames-equivalent, time-based)
@@ -573,7 +653,7 @@
                     spawnParticles(p.x + p.w / 2, p.y, 20, '#ff6b6b', 5, 30);
                     spawnParticles(p.x + p.w / 2, p.y, 20, '#4ecdc4', 5, 30);
                     // bonus
-                    G.planks += 5;
+                    G.planks += 5; sfx('cheer');
                     updateHUD();
                 }
             } else {
@@ -658,10 +738,23 @@
 
         // ─── GAME OVER ───
         function gameOver(msg, won = false) {
+            if (G.over) return;
             G.running = false;
             G.over = true;
             G.won = won;
-            // show message on canvas via draw
+            // results card; a run with codes on never replaces the best
+            const d = Math.floor(Math.min(G.distance, G.levelLength)), best = readBest(), cheated = codesOn();
+            const nb = !cheated && d > best.dist;
+            if (!cheated) { best.dist = Math.max(best.dist, d); if (won) best.wins += 1; try { localStorage.setItem('brc_best', JSON.stringify(best)); } catch (e) {} }
+            sfx(won ? 'win' : 'lose');
+            document.getElementById('brOverH').textContent = won ? '🏆 You win!' : '💀 You fell!';
+            const rows = [['Distance', d + ' / ' + Math.floor(G.levelLength) + ' m'], ['Gaps bridged', G.gapCount + ' / ' + G.totalGaps],
+                ['Planks left', G.planks], ['Difficulty', diff[0].toUpperCase() + diff.slice(1)], ['Best distance', best.dist + ' m' + (nb ? '  ★ new' : '')]];
+            if (cheated) rows.push(['Codes on', 'Best not saved']);
+            const box = document.getElementById('brRows'); box.innerHTML = '';
+            rows.forEach(([a, b]) => { const r = document.createElement('div'); r.innerHTML = '<span></span><b></b>'; r.firstChild.textContent = a; r.lastChild.textContent = b; box.appendChild(r); });
+            setTimeout(() => { if (G.over) { document.getElementById('brOver').hidden = false; document.getElementById('brAgain').focus(); } }, 700);
+            sdkState('over', d);
         }
 
         // ─── DRAW ───
@@ -958,7 +1051,7 @@
                 ctx.font = '22px sans-serif';
                 ctx.fillStyle = '#fff';
                 ctx.shadowBlur = 10;
-                ctx.fillText('Tap "Restart" to try again', W / 2, H / 2 + 52);
+                ctx.fillText('Tap "Run again" to try again', W / 2, H / 2 + 52);
                 ctx.shadowBlur = 0;
             }
 
@@ -1016,40 +1109,90 @@
         }
 
         // ─── RESTART ───
-        document.getElementById('restartBtn').addEventListener('click', () => {
-            initGame();
+        function startRun() {
+            ['brTitle', 'brTut', 'brOver'].forEach(id => document.getElementById(id).hidden = true);
+            initGame(); sfx('go'); sdkState('play', 0);
+        }
+        function showTitle() {
+            ['brTut', 'brOver'].forEach(id => document.getElementById(id).hidden = true);
+            G.running = false; G.over = false;
+            document.querySelectorAll('[data-diff]').forEach(b => b.classList.toggle('on', b.dataset.diff === diff));
+            const best = readBest();
+            document.getElementById('brBest').textContent = best.dist ? 'Best: ' + best.dist + ' m · ' + best.wins + ' win' + (best.wins === 1 ? '' : 's') : '';
+            document.getElementById('brTitle').hidden = false;
+            sdkState('title');
+        }
+        function showTutorial() {
+            ['brTitle', 'brOver'].forEach(id => document.getElementById(id).hidden = true);
+            G.running = false; document.getElementById('brTut').hidden = false; document.getElementById('brTutGo').focus();
+        }
+        document.querySelectorAll('[data-diff]').forEach(b => b.addEventListener('click', () => {
+            diff = b.dataset.diff; try { localStorage.setItem('brc_diff', diff); } catch (e) {}
+            document.querySelectorAll('[data-diff]').forEach(x => x.classList.toggle('on', x === b)); sfx('tap');
+        }));
+        document.getElementById('brPlay').addEventListener('click', () => {
+            let seen = false; try { seen = localStorage.getItem('brc_tut') === '1'; } catch (e) {}
+            if (seen) startRun(); else showTutorial();
         });
+        document.getElementById('brTutGo').addEventListener('click', () => { try { localStorage.setItem('brc_tut', '1'); } catch (e) {} startRun(); });
+        function syncGfx() { document.getElementById('brGfx').textContent = 'Graphics: ' + (gfxLow ? 'Low' : 'High'); }
+        document.getElementById('brGfx').addEventListener('click', () => { gfxLow = !gfxLow; try { localStorage.setItem('brc_gfx', gfxLow ? 'low' : 'high'); } catch (e) {} syncGfx(); sfx('tap'); });
+        syncGfx();
+        document.getElementById('brAgain').addEventListener('click', startRun);
+        document.getElementById('brMenu').addEventListener('click', showTitle);
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            startRun();
+        });
+        function jump() {
+            if (G.running && G.player.grounded) {
+                G.player.vy = -8.5;
+                G.player.grounded = false;
+                sfx('jump');
+            }
+        }
+        function hintNow() {
+            if (!G.running) return 'Press Play. Planks you run over are collected; gaps are bridged with them automatically.';
+            const px = G.player.x + G.camX, gap = G.gaps.find(g => !g.crossed && g.end > px);
+            if (gap && gap.start - px < 500 && G.planks < 5) return 'Gap ahead and only ' + G.planks + ' planks: stay on the ground to scoop up every plank before it.';
+            if (gap && gap.start - px < 500) return 'Gap ahead: keep running, your ' + G.planks + ' planks build the bridge as you cross.';
+            return 'Do not jump over planks: stay low to collect them. Each finished bridge gives 5 bonus planks.';
+        }
+        function applyCode(code) {
+            code = String(code || '').trim().toUpperCase();
+            if (!CODES[code]) return { ok: false };
+            cheat[code] = true; document.getElementById('brCodes').hidden = false;
+            if (code === 'MEGAPLANKS') { G.planks += 50; updateHUD(); }
+            return { ok: true, message: CODES[code] };
+        }
 
         // ─── KEYBOARD (jump) ───
         document.addEventListener('keydown', (e) => {
             if (e.key === ' ' || e.key === 'ArrowUp') {
+                if (e.target && e.target.tagName === 'BUTTON') return;
                 e.preventDefault();
-                if (G.running && G.player.grounded) {
-                    G.player.vy = -8.5;
-                    G.player.grounded = false;
-                }
+                jump();
             }
         });
 
         // ─── TAP / CLICK (jump) ───
         canvas.addEventListener('click', (e) => {
-            if (G.running && G.player.grounded) {
-                G.player.vy = -8.5;
-                G.player.grounded = false;
-            }
+            jump();
         });
 
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            if (G.running && G.player.grounded) {
-                G.player.vy = -8.5;
-                G.player.grounded = false;
-            }
+            jump();
         }, { passive: false });
 
         // ─── START ───
         initGame();
         requestAnimationFrame(gameLoop);
+        showTitle();
+        if (SDK) { try { window.ArcadeSDK.init({
+            pauseKeys: 'p+esc', pauseButton: 'tl',
+            onRestart: startRun, onExit: showTitle, onTutorial: showTutorial,
+            onHint: hintNow, onCheat: applyCode
+        }); } catch (e) {} }
     </script>
 
     <script>

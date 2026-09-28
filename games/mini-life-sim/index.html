@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Mini Life Sim</title>
   <style>
@@ -287,6 +288,41 @@
       #objectActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .notification { font-size: 12px; }
     }
+    /* ── arcade additions: title card, coach, goals, inventory, day summary ── */
+    button { min-height: 40px; min-width: 40px; }
+    .overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px;
+      background: rgba(2, 6, 23, 0.82); }
+    .overlay[hidden] { display: none; }
+    .card { width: min(440px, 100%); max-height: calc(100dvh - 32px); overflow: auto; background: var(--panel);
+      border: 1px solid #334155; border-radius: 16px; padding: 20px; text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }
+    .card h1 { margin: 0 0 4px; font-size: 30px; }
+    .card p { color: var(--muted); margin: 6px 0 12px; line-height: 1.45; font-size: 15px; }
+    .card .big { font-size: 44px; line-height: 1; margin: 6px 0; }
+    .card button { width: 100%; margin: 6px 0; min-height: 44px; font-size: 16px; }
+    .card button.primary { background: var(--accent); border-color: var(--accent); font-weight: bold; }
+    .seg { display: flex; gap: 6px; margin: 4px 0 8px; }
+    .seg button { flex: 1; margin: 0; }
+    .row { display: flex; justify-content: space-between; padding: 6px 2px; border-bottom: 1px solid #334155; font-size: 15px; }
+    #coach { position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+      z-index: 40; width: min(460px, calc(100vw - 20px)); background: #0b1224; border: 2px solid var(--accent);
+      border-radius: 14px; padding: 12px 14px; display: flex; gap: 10px; align-items: center; box-shadow: 0 12px 34px rgba(0,0,0,.6); }
+    #coach[hidden] { display: none; }
+    #coach .ct { flex: 1; font-size: 15px; line-height: 1.4; }
+    #coach .ct b { color: #93c5fd; }
+    #coach .step { font-size: 12px; color: var(--muted); display: block; margin-bottom: 2px; }
+    .goal { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; padding: 4px 0; color: #e5e7eb; }
+    .goal.done { color: var(--good); }
+    .goal .box { flex: 0 0 auto; }
+    .inv { display: flex; flex-wrap: wrap; gap: 6px; }
+    .inv span { background: var(--panel-2); border-radius: 8px; padding: 6px 8px; font-size: 14px; }
+    #codesOn { position: fixed; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 45;
+      background: var(--warn); color: #111827; font: bold 12px Arial, sans-serif; letter-spacing: .1em;
+      text-transform: uppercase; border-radius: 8px; padding: 5px 9px; pointer-events: none; }
+    #autonomy[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
+    @media (prefers-reduced-motion: reduce) {
+      .bar-fill { transition: none; }
+    }
   </style>
 </head>
 <body>
@@ -302,10 +338,7 @@
       <button class="speed active" data-speed="5">5x</button>
       <button class="speed" data-speed="15">15x</button>
       <button class="speed" data-speed="60">60x</button>
-      <label>
-        <input type="checkbox" id="autonomy" checked />
-        Autonomy
-      </label>
+      <button id="autonomy" aria-pressed="true" title="Let your Sim look after itself">Autonomy: on</button>
       <button id="saveBtn">Save</button>
       <button id="loadBtn">Load</button>
       <button id="resetBtn">Reset</button>
@@ -327,15 +360,72 @@
       </div>
 
       <div>
+        <h2 id="goalsTitle">Today's goals</h2>
+        <div id="goalList"></div>
+      </div>
+      <div>
+        <h2>Inventory</h2>
+        <div class="inv" id="invList"></div>
+      </div>
+      <div>
         <h2>Log</h2>
         <div id="notificationList"></div>
       </div>
     </aside>
   </main>
+  <div id="codesOn" hidden>Codes on</div>
+  <div id="coach" hidden role="status" aria-live="polite">
+    <div class="ct"><span class="step" id="coachStep"></span><span id="coachTxt"></span></div>
+    <button id="coachNext">Next</button>
+    <button id="coachSkip">Skip</button>
+  </div>
+  <div class="overlay" id="titleCard" role="dialog" aria-modal="true" aria-labelledby="titleH">
+    <div class="card">
+      <div class="big" aria-hidden="true">🏠🙂</div>
+      <h1 id="titleH">Mini Life Sim</h1>
+      <p>Look after your Sim: keep six needs healthy, earn money at the computer and finish each day's goals.</p>
+      <div class="seg" role="group" aria-label="Difficulty">
+        <button class="diff" data-diff="relaxed">Relaxed</button>
+        <button class="diff" data-diff="normal">Normal</button>
+        <button class="diff" data-diff="hard">Hard</button>
+      </div>
+      <p id="diffNote" style="margin-top:0;font-size:13px"></p>
+      <button class="primary" id="continueBtn" hidden>Continue</button>
+      <button class="primary" id="newBtn">New life</button>
+      <button id="gfxBtn">Graphics: High</button>
+      <p id="bestLine" style="font-size:13px"></p>
+    </div>
+  </div>
+  <div class="overlay" id="dayCard" hidden role="dialog" aria-modal="true" aria-labelledby="dayH">
+    <div class="card">
+      <h1 id="dayH">Day 1 done</h1>
+      <div class="big" id="dayMood"></div>
+      <div id="dayRows"></div>
+      <button class="primary" id="dayNext">Start the next day</button>
+    </div>
+  </div>
 
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
+    /* The house is laid out on a 960x600 board; the backing store follows the screen's pixel ratio. */
+    const LW = 960, LH = 600;
+    let RES = 1;
+    /* Graphics: High draws at the screen's pixel ratio (up to 2x), Low at 1x for slower devices. */
+    let gfxLow = false; try { gfxLow = localStorage.getItem("mls_gfx") === "low"; } catch (e) {}
+    function fitCanvas() {
+      RES = gfxLow ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(LW * RES); canvas.height = Math.round(LH * RES);
+    }
+    fitCanvas();
+    window.addEventListener("resize", () => { if ((gfxLow ? 1 : Math.min(window.devicePixelRatio || 1, 2)) !== RES) fitCanvas(); });
+    /* Caleb's Arcade SDK (guarded: the game still runs without it) */
+    const SDK = window.ArcadeSDK || null;
+    const sdkState = (scene, score) => { try { SDK && SDK.state(score == null ? { scene } : { scene, score }); } catch (e) {} };
+    const sfx = (n) => { try { SDK && SDK.sfx(n); } catch (e) {} };
+    const DIFF = { relaxed: { decay: 0.6, note: "Needs drop 40% slower and groceries are cheaper." }, normal: { decay: 1, note: "The standard pace." },
+      hard: { decay: 1.4, note: "Needs drop 40% faster and groceries cost more." } };
+    const GROCERY_PRICE = { relaxed: 15, normal: 18, hard: 24 };
 
     const NEEDS = [
       { id: "hunger", label: "Hunger" },
@@ -366,7 +456,7 @@
         label: "Grab Snack",
         objectIds: ["fridge"],
         duration: 10,
-        cost: 3,
+        uses: { groceries: 1 },
         effects: { hunger: 25, hygiene: -1, fun: 1 },
         notify: "Ate a snack."
       },
@@ -374,7 +464,7 @@
         label: "Cook Meal",
         objectIds: ["stove"],
         duration: 35,
-        cost: 8,
+        uses: { groceries: 2 },
         effects: { hunger: 65, fun: 4, energy: -4, hygiene: -2 },
         notify: "Cooked and ate a meal."
       },
@@ -449,6 +539,15 @@
         effects: { social: 65, fun: 12, energy: -3 },
         notify: "Called a friend."
       },
+      groceries: {
+        label: "Order Groceries",
+        objectIds: ["phone"],
+        duration: 10,
+        cost: 18,
+        gives: { groceries: 6 },
+        effects: { fun: 2 },
+        notify: "Groceries delivered: +6 in the fridge."
+      },
       clean: {
         label: "Clean Up",
         objectIds: ["trash"],
@@ -492,7 +591,13 @@
         selectedObject: null,
         notifications: [],
         warnings: {},
-        autonomyCooldown: 0
+        autonomyCooldown: 0,
+        diff: "normal",
+        inventory: { groceries: 6, trophies: 0 },
+        stats: { earned: 0, meals: 0, showers: 0, calls: 0, actions: 0 },
+        goals: [],
+        lastHour: 8,
+        daysDone: 0
       };
     }
 
@@ -513,6 +618,89 @@
       state.notifications = state.notifications.slice(0, 10);
       renderNotifications();
     }
+
+    /* ── daily goals, inventory, autosave ── */
+    const GOAL_POOL = [
+      { id: "earn", text: (n) => `Earn $${n} at the computer`, n: [140, 280], check: (s, n) => s.stats.earned >= n },
+      { id: "cook", text: () => "Cook a meal", n: [1, 1], check: (s) => s.stats.meals >= 1 },
+      { id: "shower", text: () => "Take a shower", n: [1, 1], check: (s) => s.stats.showers >= 1 },
+      { id: "call", text: () => "Call a friend", n: [1, 1], check: (s) => s.stats.calls >= 1 },
+      { id: "happy", text: () => "Get your mood to 😄", n: [1, 1], check: () => moodEmoji() === "😄" },
+      { id: "busy", text: (n) => `Finish ${n} activities`, n: [8, 12], check: (s, n) => s.stats.actions >= n }
+    ];
+    function newGoals() {
+      const pool = GOAL_POOL.slice(); const out = [];
+      while (out.length < 3 && pool.length) {
+        const g = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+        const n = g.n[0] + Math.floor(Math.random() * (g.n[1] - g.n[0] + 1));
+        out.push({ id: g.id, n, text: g.text(n), done: false });
+      }
+      state.goals = out;
+      state.stats = { earned: 0, meals: 0, showers: 0, calls: 0, actions: 0 };
+      renderGoals();
+    }
+    function checkGoals() {
+      let changed = false;
+      state.goals.forEach((g) => {
+        const def = GOAL_POOL.find((d) => d.id === g.id);
+        if (!g.done && def && def.check(state, g.n)) {
+          g.done = true; changed = true; state.money += 25;
+          notify(`Goal done: ${g.text} (+$25)`); sfx("levelup");
+        }
+      });
+      if (changed) renderGoals();
+    }
+    function renderGoals() {
+      const el = document.getElementById("goalList"); if (!el) return;
+      document.getElementById("goalsTitle").textContent = `Day ${state.day} goals`;
+      el.innerHTML = "";
+      state.goals.forEach((g) => {
+        const d = document.createElement("div");
+        d.className = "goal" + (g.done ? " done" : "");
+        d.innerHTML = `<span class="box">${g.done ? "✅" : "⬜"}</span><span></span>`;
+        d.lastChild.textContent = g.text + (g.done ? "" : "  (+$25)");
+        el.appendChild(d);
+      });
+    }
+    function renderInventory() {
+      const el = document.getElementById("invList"); if (!el) return;
+      const inv = state.inventory;
+      el.innerHTML = "";
+      [["🥫 Groceries", inv.groceries], ["🏆 Trophies", inv.trophies]].forEach(([k, v]) => {
+        const s = document.createElement("span"); s.textContent = `${k}: ${v}`; el.appendChild(s);
+      });
+    }
+    function cheatedNow() { return !!((SDK && SDK.cheated) || Object.keys(cheat).some((k) => cheat[k])); }
+    function autosave() {
+      try { localStorage.setItem("miniLifeSimSave", JSON.stringify(state)); } catch (e) {}
+    }
+    function readBest() { try { return JSON.parse(localStorage.getItem("mls_best")) || { days: 0, trophies: 0 }; } catch (e) { return { days: 0, trophies: 0 }; } }
+    function endOfDay() {
+      /* end-of-day summary: goals, money, mood; a trophy for a clean sweep */
+      const done = state.goals.filter((g) => g.done).length;
+      if (done === state.goals.length && done) { state.inventory.trophies += 1; }
+      state.daysDone += 1;
+      const best = readBest();
+      if (!cheatedNow()) {
+        best.days = Math.max(best.days, state.daysDone); best.trophies = Math.max(best.trophies, state.inventory.trophies);
+        try { localStorage.setItem("mls_best", JSON.stringify(best)); } catch (e) {}
+      }
+      document.getElementById("dayH").textContent = `Day ${state.day - 1} done`;
+      document.getElementById("dayMood").textContent = moodEmoji();
+      const rows = [["Goals", `${done} of ${state.goals.length}` + (done === state.goals.length ? " 🏆" : "")],
+        ["Money earned", `$${Math.round(state.stats.earned)}`], ["Money now", `$${Math.round(state.money)}`],
+        ["Groceries left", state.inventory.groceries], ["Days lived", state.daysDone], ["Best", `${best.days} days`]];
+      if (cheatedNow()) rows.push(["Codes on", "Best not saved"]);
+      const box = document.getElementById("dayRows"); box.innerHTML = "";
+      rows.forEach(([a, b]) => { const r = document.createElement("div"); r.className = "row";
+        r.innerHTML = "<span></span><b></b>"; r.firstChild.textContent = a; r.lastChild.textContent = b; box.appendChild(r); });
+      document.getElementById("dayCard").hidden = false;
+      state.paused = true; dayPause = true;
+      sfx(done === state.goals.length ? "win" : "reward");
+      sdkState("over", state.daysDone);
+      newGoals(); autosave(); updateHUD();
+    }
+    let dayPause = false;
 
     function renderNotifications() {
       const el = document.getElementById("notificationList");
@@ -562,8 +750,9 @@
       document.getElementById("clock").textContent = formatClock();
       document.getElementById("money").textContent = `$${Math.round(state.money)}`;
       document.getElementById("mood").textContent = moodEmoji();
-      document.getElementById("pauseBtn").textContent = state.paused ? "Resume" : "Pause";
-      document.getElementById("autonomy").checked = state.autonomy;
+      const ab = document.getElementById("autonomy");
+      ab.setAttribute("aria-pressed", String(!!state.autonomy)); ab.textContent = "Autonomy: " + (state.autonomy ? "on" : "off");
+      renderInventory();
 
       NEEDS.forEach((need) => {
         const value = Math.round(state.needs[need.id]);
@@ -678,8 +867,13 @@
       const action = ACTIONS[id];
       if (!action) return;
 
-      if (action.cost && state.money < action.cost) {
-        notify(`Not enough money for ${action.label}.`);
+      const price = actionCost(action);
+      if (price && state.money < price) {
+        notify(`Not enough money for ${action.label}.`); sfx("error");
+        return;
+      }
+      if (action.uses && Object.entries(action.uses).some(([k, n]) => (state.inventory[k] || 0) < n)) {
+        notify(`No groceries left: order some on the phone.`); sfx("error");
         return;
       }
 
@@ -698,8 +892,10 @@
         id,
         label: action.label,
         duration: action.duration,
-        cost: action.cost || 0,
+        cost: price || 0,
         money: action.money || 0,
+        uses: action.uses || null,
+        gives: action.gives || null,
         effects: action.effects || {},
         notify: action.notify || `${action.label} finished.`,
         phase: "move",
@@ -721,16 +917,23 @@
       }
 
       if (action.money) {
-        state.money += action.money;
-      }
-
+        state.money += action.money; state.stats.earned += action.money; sfx("coin");
+      } else sfx("collect");
+      if (action.uses) for (const [k, n] of Object.entries(action.uses)) state.inventory[k] = Math.max(0, (state.inventory[k] || 0) - n);
+      if (action.gives) for (const [k, n] of Object.entries(action.gives)) state.inventory[k] = (state.inventory[k] || 0) + n;
+      state.stats.actions += 1;
+      if (action.id === "cook") state.stats.meals += 1;
+      if (action.id === "shower") state.stats.showers += 1;
+      if (action.id === "call") state.stats.calls += 1;
       applyEffects(action.effects);
       notify(action.notify);
-
       state.currentAction = null;
       state.autonomyCooldown = 3;
-
-      renderPanel();
+      renderPanel(); checkGoals(); autosave();
+    }
+    function actionCost(action) {
+      if (!action || !action.cost) return 0;
+      return action === ACTIONS.groceries ? GROCERY_PRICE[state.diff] || action.cost : action.cost;
     }
 
     function moveTowards(target, dt) {
@@ -752,8 +955,10 @@
     }
 
     function decayNeeds(gameMinutes) {
+      if (cheat.SERENITY) return;
+      const k = (DIFF[state.diff] || DIFF.normal).decay;
       for (const [key, rate] of Object.entries(DECAY)) {
-        state.needs[key] = clamp(state.needs[key] + rate * gameMinutes, 0, 100);
+        state.needs[key] = clamp(state.needs[key] + rate * k * gameMinutes, 0, 100);
       }
     }
 
@@ -782,10 +987,10 @@
       }
 
       if (n.hunger < 70) {
-        const wantsCook = n.hunger < 35 && state.money >= (ACTIONS.cook.cost || 0);
-
+        const g = state.inventory.groceries;
+        const wantsCook = n.hunger < 35 && g >= 2;
         candidates.push({
-          id: wantsCook ? "cook" : "snack",
+          id: g < 1 ? "groceries" : wantsCook ? "cook" : "snack",
           score: 105 - n.hunger + (n.hunger < 30 ? 25 : 0)
         });
       }
@@ -835,7 +1040,8 @@
 
       let affordable = candidates.filter((candidate) => {
         const action = ACTIONS[candidate.id];
-        return !action.cost || state.money >= action.cost;
+        return state.money >= actionCost(action) &&
+          !(action.uses && Object.entries(action.uses).some(([k, q]) => (state.inventory[k] || 0) < q));
       });
 
       if (!affordable.length) {
@@ -863,7 +1069,12 @@
         state.time -= 1440;
         state.day += 1;
         notify("A new day begins.");
+        endOfDay();
+        return;
       }
+      const hour = Math.floor(state.time / 60);
+      if (hour !== state.lastHour) { state.lastHour = hour; autosave(); }   /* autosave every game hour */
+      checkGoals();
 
       decayNeeds(gameMinutes);
 
@@ -908,8 +1119,9 @@
     }
 
     function drawRooms() {
+      ctx.setTransform(RES, 0, 0, RES, 0, 0);
       ctx.fillStyle = "#0f172a";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, LW, LH);
 
       ctx.fillStyle = "#e2e8f0";
       ctx.fillRect(20, 20, 920, 560);
@@ -1024,12 +1236,12 @@
     }
 
     function selectObject(obj) {
-      state.selectedObject = obj.id;
+      state.selectedObject = obj.id; sfx("tap");
       renderPanel();
     }
 
     function saveGame() {
-      localStorage.setItem("miniLifeSimSave", JSON.stringify(state));
+      autosave();
       notify("Game saved.");
     }
 
@@ -1053,11 +1265,14 @@
           warnings: { ...base.warnings, ...(data.warnings || {}) }
         };
 
+        state.inventory = { ...base.inventory, ...(data.inventory || {}) };
+        state.stats = { ...base.stats, ...(data.stats || {}) };
+        if (!Array.isArray(state.goals) || !state.goals.length) newGoals();
         state.currentAction = null;
         state.moveTarget = null;
-
+        state.paused = false;
         renderPanel();
-        renderNotifications();
+        renderNotifications(); renderGoals();
         notify("Game loaded.");
       } catch (err) {
         notify("Save could not be loaded.");
@@ -1065,18 +1280,23 @@
     }
 
     function resetGame() {
+      const diff = state.diff;
       localStorage.removeItem("miniLifeSimSave");
       state = createInitialState();
+      state.diff = diff;
+      if (cheat.MONEYBAGS) state.money += 1000;
+      newGoals();
       renderPanel();
       renderNotifications();
       notify("New game started.");
+      autosave();
     }
 
     canvas.addEventListener("click", (e) => {
       const rect = canvas.getBoundingClientRect();
 
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
+      const scaleX = LW / rect.width;
+      const scaleY = LH / rect.height;
 
       const x = (e.clientX - rect.left) * scaleX;
       const y = (e.clientY - rect.top) * scaleY;
@@ -1092,21 +1312,23 @@
       }
     });
 
-    document.getElementById("pauseBtn").onclick = () => {
-      state.paused = !state.paused;
-      updateHUD();
-    };
+    /* one pause: the header button opens the arcade pause menu (or pauses the house without it) */
+    function togglePause() {
+      if (SDK) { if (SDK.paused) SDK.resume(); else SDK.showMenu(); return; }
+      state.paused = !state.paused; updateHUD();
+    }
+    document.getElementById("pauseBtn").onclick = togglePause;
 
     document.querySelectorAll(".speed").forEach((btn) => {
       btn.onclick = () => {
         state.speed = Number(btn.dataset.speed);
-        state.paused = false;
+        if (!dayPause && document.getElementById("titleCard").hidden) state.paused = false;
         updateHUD();
       };
     });
 
-    document.getElementById("autonomy").onchange = (e) => {
-      state.autonomy = e.target.checked;
+    document.getElementById("autonomy").onclick = () => {
+      state.autonomy = !state.autonomy; updateHUD();
       notify(`Autonomy ${state.autonomy ? "enabled" : "disabled"}.`);
     };
 
@@ -1115,41 +1337,139 @@
     document.getElementById("resetBtn").onclick = resetGame;
 
     window.addEventListener("keydown", (e) => {
+      if (e.target && /INPUT|BUTTON/.test(e.target.tagName)) return;
+      if (!document.getElementById("titleCard").hidden || !document.getElementById("dayCard").hidden) return;
       if (e.code === "Space") {
         e.preventDefault();
-        state.paused = !state.paused;
-        updateHUD();
+        togglePause();
       }
 
       if (e.key === "1") {
         state.speed = 1;
-        state.paused = false;
+        if (!dayPause) state.paused = false;
         updateHUD();
       }
 
       if (e.key === "2") {
         state.speed = 5;
-        state.paused = false;
+        if (!dayPause) state.paused = false;
         updateHUD();
       }
 
       if (e.key === "3") {
         state.speed = 15;
-        state.paused = false;
+        if (!dayPause) state.paused = false;
         updateHUD();
       }
 
       if (e.key === "4") {
         state.speed = 60;
-        state.paused = false;
+        if (!dayPause) state.paused = false;
         updateHUD();
       }
     });
 
+    /* ── title card, first-run coach, codes, hints ── */
+    const CODES = { MONEYBAGS: "+$1000 (and every new life starts with it)", SERENITY: "Needs stop dropping",
+      PANTRY: "+20 groceries in the fridge" };
+    const cheat = { MONEYBAGS: false, SERENITY: false, PANTRY: false };
+    function applyCode(code) {
+      code = String(code || "").trim().toUpperCase();
+      if (!CODES[code]) return { ok: false };
+      cheat[code] = true; document.getElementById("codesOn").hidden = false;
+      if (code === "MONEYBAGS") state.money += 1000;
+      if (code === "PANTRY") state.inventory.groceries += 20;
+      updateHUD(); sfx("unlock");
+      return { ok: true, message: CODES[code] };
+    }
+    const COACH = [
+      { txt: "Click the <b>🧊 Fridge</b> in the kitchen.", done: () => state.selectedObject === "fridge" },
+      { txt: "Now choose <b>Grab Snack</b>. Your Sim walks over and eats (it uses 1 grocery).", done: () => !!state.currentAction || state.stats.actions > 0 },
+      { txt: "The <b>Needs</b> bars drop all day. Green is fine; red means act now.", next: true },
+      { txt: "Work at the <b>💻 Computer</b> for $140, and order groceries on the <b>📱 Phone</b>. Tick off today's goals!", next: true }
+    ];
+    let coachIx = -1;
+    function coachShow(i) {
+      coachIx = i;
+      const c = COACH[i];
+      if (!c) { coachEnd(); return; }
+      document.getElementById("coachStep").textContent = `Tutorial ${i + 1} of ${COACH.length}`;
+      document.getElementById("coachTxt").innerHTML = c.txt;
+      document.getElementById("coachNext").hidden = !c.next;
+      document.getElementById("coach").hidden = false;
+    }
+    function coachEnd() { coachIx = -1; document.getElementById("coach").hidden = true; try { localStorage.setItem("mls_tut", "1"); } catch (e) {} }
+    function coachTick() { if (coachIx >= 0 && COACH[coachIx].done && COACH[coachIx].done()) { sfx("correct"); coachShow(coachIx + 1); } }
+    document.getElementById("coachNext").onclick = () => coachShow(coachIx + 1);
+    document.getElementById("coachSkip").onclick = coachEnd;
+    function hasSave() { try { return !!localStorage.getItem("miniLifeSimSave"); } catch (e) { return false; } }
+    function setDiff(d) {
+      state.diff = d;
+      document.querySelectorAll(".diff").forEach((b) => b.classList.toggle("active", b.dataset.diff === d));
+      document.getElementById("diffNote").textContent = DIFF[d].note;
+    }
+    document.querySelectorAll(".diff").forEach((b) => (b.onclick = () => { setDiff(b.dataset.diff); sfx("tap"); }));
+    let pickedDiff = "normal";
+    function showTitle() {
+      coachIx = -1; document.getElementById("coach").hidden = true;
+      document.getElementById("dayCard").hidden = true; dayPause = false;
+      state.paused = true;
+      document.getElementById("continueBtn").hidden = !hasSave();
+      const best = readBest();
+      document.getElementById("bestLine").textContent = best.days ? `Best: ${best.days} days lived, ${best.trophies} trophies` : "";
+      setDiff(state.diff || "normal");
+      updateHUD();
+      document.getElementById("titleCard").hidden = false;
+      try { document.getElementById("newBtn").focus({ preventScroll: true }); } catch (e) {}
+      sdkState("title");
+    }
+    function beginPlay(fresh) {
+      const d = state.diff;
+      document.getElementById("titleCard").hidden = true;
+      if (fresh || !hasSave()) { state.diff = d; resetGame(); } else loadGame();
+      state.paused = false; updateHUD(); sfx("go");
+      sdkState("play", 0);
+      let seen = false; try { seen = localStorage.getItem("mls_tut") === "1"; } catch (e) {}
+      if (!seen) coachShow(0);
+    }
+    function syncGfx() { document.getElementById("gfxBtn").textContent = "Graphics: " + (gfxLow ? "Low" : "High"); }
+    document.getElementById("gfxBtn").onclick = () => { gfxLow = !gfxLow; try { localStorage.setItem("mls_gfx", gfxLow ? "low" : "high"); } catch (e) {} fitCanvas(); syncGfx(); sfx("tap"); };
+    syncGfx();
+    document.getElementById("newBtn").onclick = () => beginPlay(true);
+    document.getElementById("continueBtn").onclick = () => beginPlay(false);
+    document.getElementById("dayNext").onclick = () => {
+      document.getElementById("dayCard").hidden = true; dayPause = false; state.paused = false; updateHUD(); sdkState("play", 0);
+    };
+    function hintNow() {
+      if (!document.getElementById("titleCard").hidden) return "Pick a difficulty and press New life.";
+      const low = NEEDS.slice().sort((a, b) => state.needs[a.id] - state.needs[b.id])[0];
+      const fix = { hunger: state.inventory.groceries ? "the Fridge (snack) or Stove (meal)" : "the Phone to order groceries, then the Fridge",
+        bladder: "the Toilet", energy: "the Bed (nap or sleep)", hygiene: "the Shower", fun: "the TV", social: "the Phone (call a friend)" }[low.id];
+      if (state.needs[low.id] < 45) return `${low.label} is lowest (${Math.round(state.needs[low.id])}): use ${fix}.`;
+      if (state.money < 30) return "Money is low: work at the Computer for $140.";
+      const g = state.goals.find((x) => !x.done);
+      if (g) return `Next goal: ${g.text}. Each goal pays $25.`;
+      return "All goals done today: keep everyone happy until midnight for a trophy.";
+    }
+    /* With the arcade SDK its round pause button (bottom right) is the one pause button; Space still pauses. */
+    if (SDK) document.getElementById("pauseBtn").hidden = true;
+    if (SDK) { try { window.ArcadeSDK.init({
+      pauseKeys: "p+esc", pauseButton: "br",
+      onPause() { state.paused = true; updateHUD(); },
+      onResume() { if (document.getElementById("titleCard").hidden && !dayPause) state.paused = false; updateHUD(); },
+      onRestart() { beginPlay(true); },
+      onExit() { autosave(); showTitle(); },
+      onTutorial() { document.getElementById("titleCard").hidden = true; if (!dayPause) state.paused = false; coachShow(0); },
+      onHint: hintNow,
+      onCheat: applyCode
+    }); } catch (e) {} }
+
     buildNeedsUI();
+    newGoals();
     renderPanel();
     renderNotifications();
     notify("Welcome! Click objects to interact.");
+    showTitle();
 
     let last = performance.now();
 
@@ -1160,6 +1480,7 @@
       if (!state.paused) {
         update(dt);
       }
+      coachTick();
 
       draw();
       requestAnimationFrame(loop);
