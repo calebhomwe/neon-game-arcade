@@ -9,7 +9,7 @@ function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++
 function vignette(){if(!vigSpr){vigSpr=document.createElement('canvas');vigSpr.width=vigSpr.height=300;let g=vigSpr.getContext('2d'),r=g.createRadialGradient(150,150,20,150,150,150);r.addColorStop(0,'transparent');r.addColorStop(1,'rgba(0,0,0,.6)');g.fillStyle=r;g.fillRect(0,0,300,300)}return vigSpr}
 let target,hitTimer,shotTimer,hits,shots,state,scopeAlpha,muzzleFlash,stars=[],particles=[],scorePopups=[],shakeTime=0,pulseT=0,crosshairSize=20;
 for(let i=0;i<60;i++)stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.3,t:Math.random()*Math.PI*2});
-function init(){hits=0;shots=0;shotTimer=0;state='ready';target={x:W/2,y:H*.5,r:22,visible:false,appearTime:0,duration:50};muzzleFlash=0;hitTimer=0;particles=[];scorePopups=[];shakeTime=0;pulseT=0;crosshairSize=20}
+function init(){hits=0;shots=0;shotTimer=0;state='ready';target={x:W/2,y:H*.5,r:22,visible:false,appearTime:0,duration:50/60};muzzleFlash=0;hitTimer=0;particles=[];scorePopups=[];shakeTime=0;pulseT=0;crosshairSize=20}
 C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}if(state==='play'&&target.visible)fire()});
 document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='ready')state='play';else if(state==='play'&&target.visible)fire()}});
 function fire(){shots++;muzzleFlash=8;shakeTime=4;
@@ -21,10 +21,10 @@ scorePopups.push({x:target.x,y:target.y-30,txt:dist<target.r*.5?'HEADSHOT!':'HIT
 if(hits>=3){state='win';spawnWinParticles()}else{setTimeout(()=>{if(state==='play')spawnTarget()},600)}}
 else{scorePopups.push({x:cx,y:cy-20,txt:'MISS',life:25,vy:-1});if(shots>=5&&hits<3){state='over'}}}
 let mouseX=W/2,mouseY=H/2;C.addEventListener('pointermove',e=>{let r=C.getBoundingClientRect();mouseX=e.clientX-r.left;mouseY=e.clientY-r.top});
-function spawnTarget(){target.x=40+Math.random()*(W-80);target.y=H*.25+Math.random()*H*.35;target.visible=true;target.duration=45+Math.random()*30;target.r=18+Math.random()*12;target.moveX=(Math.random()-.5)*.5;target.baseX=target.x}
+function spawnTarget(){target.x=40+Math.random()*(W-80);target.y=H*.25+Math.random()*H*.35;target.visible=true;target.duration=(45+Math.random()*30)/60;target.durationTotal=target.duration;target.r=18+Math.random()*12;target.moveX=(Math.random()-.5)*.5;target.baseX=target.x}
 function spawnWinParticles(){if(particles.length>300)return;for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
-function update(){if(state!=='play')return;pulseT+=.03;shotTimer++;if(!target.visible&&shotTimer%80===0)spawnTarget();
-if(target.visible){target.duration--;target.baseX+=(Math.random()-.5)*.1;if(target.duration<15)target.r*=.97;if(target.duration<=0)target.visible=false}
+function update(dt){if(state!=='play')return;pulseT+=.03;shotTimer++;if(!target.visible&&shotTimer%80===0)spawnTarget();
+if(target.visible){target.duration-=dt;target.baseX+=(Math.random()-.5)*.1;if(target.duration<15/60)target.r*=Math.pow(.97,dt*60);if(target.duration<=0)target.visible=false}
 if(muzzleFlash>0)muzzleFlash--;if(hitTimer>0)hitTimer--;
 if(shakeTime>0)shakeTime--;
 for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
@@ -57,7 +57,7 @@ for(let sp of scorePopups){X.globalAlpha=sp.life/35;X.fillStyle=sp.txt.includes(
 X.fillStyle='#fff';X.font='bold 18px "Segoe UI"';X.textAlign='center';X.fillText(hits+'/3 hits needed',W/2,25);
 X.restore();
 if(state==='ready'){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('SNIPER SHOT',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Aim with mouse, tap to shoot',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Hit 3 targets to win',W/2,H/2+35)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('ALL MISSED!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText(hits>0?hits+'/3 HITS':'ALL MISSED!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 TARGETS ELIMINATED! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+let pState='',lastT=performance.now();function loop(){if(document.hidden){lastT=performance.now();return requestAnimationFrame(loop)}let now=performance.now(),dt=Math.min(.05,(now-lastT)/1000);lastT=now;update(dt);if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>

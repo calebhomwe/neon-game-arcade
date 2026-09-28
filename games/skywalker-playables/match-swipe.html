@@ -12,7 +12,7 @@ function init(){COLS=6;ROWS=8;SZ=Math.floor(Math.min(W/COLS,(H-60)/ROWS));grid=[
 function makeGrid(){for(let r=0;r<ROWS;r++){grid[r]=[];for(let c=0;c<COLS;c++){grid[r][c]={type:Math.floor(Math.random()*SHAPES.length),alive:true,animScale:1,flash:0}}}}
 function swapTiles(r1,c1,r2,c2){if(grid[r1]&&grid[r1][c1]&&grid[r2]&&grid[r2][c2]){let tmp=grid[r1][c1];grid[r1][c1]=grid[r2][c2];grid[r2][c2]=tmp;checkMatches()}}
 C.addEventListener('pointerdown',e=>{if(state==='win'||state==='over'){init();return}if(state==='ready'){state='play';return}if(state!=='play')return;let mx=e.clientX-CRECT.left,my=e.clientY-CRECT.top;
-let col=Math.floor(mx/SZ),row=Math.floor(my/SZ);if(row<0||row>=ROWS||col<0||col>=COLS)return;if(!grid[row]||!grid[row][col])return;
+let offX=(W-COLS*SZ)/2,offY=50;let col=Math.floor((mx-offX)/SZ),row=Math.floor((my-offY)/SZ);if(row<0||row>=ROWS||col<0||col>=COLS)return;if(!grid[row]||!grid[row][col])return;
 if(!selTile){selTile={r:row,c:col}}else{let dr=Math.abs(selTile.r-row),dc=Math.abs(selTile.c-col);if(dr+dc===1){swapTiles(selTile.r,selTile.c,row,col);selTile=null}else{selTile={r:row,c:col}}}});
 function checkMatches(){let matched=true;while(matched){matched=false;
 for(let r=0;r<ROWS;r++)for(let c=0;c<COLS-2;c++){if(grid[r][c].alive&&grid[r][c+1].alive&&grid[r][c+2].alive&&grid[r][c].type===grid[r][c+1].type&&grid[r][c+1].type===grid[r][c+2].type){matchLine([[r,c],[r,c+1],[r,c+2]]);matched=true}}
@@ -39,7 +39,7 @@ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){if(!grid[r][c].alive)continue;let
 let x=offX+c*SZ+SZ/2,y=offY+r*SZ+SZ/2;let s=tile.animScale;
 if(selTile&&selTile.r===r&&selTile.c===c){X.fillStyle='rgba(255,255,255,.15)';X.fillRect(offX+c*SZ,offY+r*SZ,SZ,SZ)}
 if(tile.flash>0){X.globalAlpha=tile.flash/15*.5;X.fillStyle='#fff';X.beginPath();X.arc(x,y,SZ*.4*s,0,Math.PI*2);X.fill();X.globalAlpha=1}
-X.save();X.translate(x,y);X.scale(s,s);X.translate(-x,-y);drawShape(tile.type,x,y,SZ-tile.flash*.3,GCOLORS[tile.type]);X.restore()}
+X.save();X.translate(x,y);X.scale(s,s);X.translate(-x,-y);try{drawShape(tile.type,x,y,Math.max(2,SZ-tile.flash*.3),GCOLORS[tile.type])}catch(err){}X.restore()}
 // Particles
 for(let p of particles){if(p.text){X.globalAlpha=p.life/30;X.fillStyle='#ffd700';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText(p.text,W/2,H/2);X.globalAlpha=1}else{let pr=p.s*(p.life/25);X.globalAlpha=p.life/25;glowAt(p.col,p.x,p.y,pr+6);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}}X.globalAlpha=1;
 // HUD

@@ -6,7 +6,7 @@ const C=document.querySelector('canvas'),X=C.getContext('2d');
 let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#87CEEB');bgGrad.addColorStop(.4,'#98D8C8');bgGrad.addColorStop(.7,'#7CB342');bgGrad.addColorStop(1,'#558B2F');needDraw=true}resize();window.addEventListener('resize',resize);
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
 function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
-let ball,targetX,targetY,tgtR,state,dragging,startX,startY,powerX,powerY,launched,shots,trail=[],particles=[],scorePopups=[],shakeTime=0,muzzleFlash=0,groundY,wind=0,windTimer=0;
+let ball,targetX,targetY,tgtR,state,dragging,startX,startY,powerX,powerY,launched,shots,trail=[],particles=[],scorePopups=[],shakeTime=0,muzzleFlash=0,groundY,wind=0,windTimer=0,dtK=1,lastT=0;
 const GRAV=.28;
 function init(){ball={x:W*.2,y:H*.65};targetX=W*.7;targetY=H*.35;tgtR=28;launched=false;shots=0;dragging=false;trail=[];state='ready';particles=[];scorePopups=[];shakeTime=0;muzzleFlash=0;groundY=H-40;wind=0;windTimer=0}
 C.addEventListener('pointerdown',e=>{let px=e.clientX-CRECT.left,py=e.clientY-CRECT.top;
@@ -19,8 +19,8 @@ let power=Math.min(dist*.07,14);let angle=Math.atan2(dy,dx);ball.vx=Math.cos(ang
 document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(!launched)state='aiming'}});
 function update(){if(state!=='play'&&state!=='aiming')return;if(state==='aiming'&&!dragging)state='play';
 if(!launched)return;
-windTimer++;if(windTimer%180===0)wind=(Math.random()-.5)*.08;
-ball.vy+=GRAV;ball.vx+=wind*.01;ball.x+=ball.vx;ball.y+=ball.vy;
+windTimer+=dtK;if(windTimer>=180){windTimer=0;wind=(Math.random()-.5)*.08;}
+ball.vy+=GRAV*dtK;ball.vx+=wind*.01*dtK;ball.x+=ball.vx*dtK;ball.y+=ball.vy*dtK;
 if(trail.length<20)trail.push({x:ball.x,y:ball.y,life:12});for(let t of trail)t.life--;prune(trail,pLife);
 if(ball.x>tgtR&&ball.x<W-tgtR&&ball.y+tgtR>targetY&&ball.y-tgtR<targetY+targetY*0){
 let hitDist=Math.hypot(ball.x-targetX,ball.y-targetY);
@@ -73,5 +73,5 @@ X.restore();
 if(state==='ready'){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('SLINGSHOT',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Drag back to aim, release to fire',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Hit 3 targets to win',W/2,H/2+30)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 TARGETS DESTROYED! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.font='bold 36px "Segoe UI"';X.textAlign='center';X.fillText('MISS!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play'||state==='aiming'||particles.length>0||scorePopups.length>0||trail.length>0||muzzleFlash>0||shakeTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+let pState='';function loop(now){if(document.hidden){lastT=0;return requestAnimationFrame(loop);}const dt=lastT?Math.min((now-lastT)/1000,.05):1/60;lastT=now;dtK=dt*60;update();if(state!==pState){pState=state;needDraw=true}if(state==='play'||state==='aiming'||particles.length>0||scorePopups.length>0||trail.length>0||muzzleFlash>0||shakeTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>

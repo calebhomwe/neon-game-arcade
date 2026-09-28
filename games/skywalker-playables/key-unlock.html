@@ -28,11 +28,11 @@ let lv=LEVELS[Math.min(currentLevel,LEVELS.length-1)],ky=lv.key.y;
 if(waterY>=ky-15&&!keyCollected){keyCollected=true;
 if(particles.length<220)for(let i=0;i<15;i++)particles.push({x:lv.key.x,y:ky,vx:(Math.random()-.5)*6,vy:-Math.random()*4-2,life:30,s:Math.random()*4+2,col:'#ffd700'});
 scorePopups.push({x:lv.key.x,y:ky-20,txt:'KEY FOUND!',life:40,vy:-1.5})}}
-function update(){if(state!=='play'&&state!=='win')return;pulseT+=.03;
-if(shakeTime>0)shakeTime--;
-for(let b of bubbles){b.x+=Math.sin(pulseT+b.t)*.5;b.y+=b.vy;b.vy-=.01}prune(bubbles,pBub);bubbles.forEach(b=>b.s*=.998);
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
-for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife)}
+function update(dts){if(state!=='play'&&state!=='win')return;pulseT+=.03*dts;
+if(shakeTime>0)shakeTime-=dts;
+for(let b of bubbles){b.x+=Math.sin(pulseT+b.t)*.5*dts;b.y+=b.vy*dts;b.vy-=.01*dts}prune(bubbles,pBub);bubbles.forEach(b=>b.s*=Math.pow(.998,dts));
+for(let p of particles){p.x+=p.vx*dts;p.y+=p.vy*dts;p.vy+=.05*dts;p.life-=dts}prune(particles,pLife);
+for(let sp of scorePopups){sp.y+=sp.vy*dts;sp.life-=dts}prune(scorePopups,pLife)}
 function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
 X.clearRect(-15,-15,W+30,H+30);
 X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
@@ -63,5 +63,5 @@ X.restore();
 if(state==='ready'){X.fillStyle='rgba(255,255,255,.85)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('PULL THE PIN',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap pins to drain water',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Collect the key to advance',W/2,H/2+35)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#2ed573',W/2,H/2-20,110);X.fillStyle='#2ed573';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ALL LEVELS COMPLETE! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.font='bold 36px "Segoe UI"';X.textAlign='center';X.fillText('GAME OVER',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play'||particles.length>0||scorePopups.length>0||bubbles.length>0||shakeTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+let pState='',lastTs=null;function loop(ts){if(document.hidden){lastTs=null;return requestAnimationFrame(loop)}if(lastTs===null)lastTs=ts;let dtMs=ts-lastTs;lastTs=ts;if(dtMs<0)dtMs=0;if(dtMs>50)dtMs=50;const dts=dtMs/1000*60;update(dts);if(state!==pState){pState=state;needDraw=true}if(state==='play'||particles.length>0||scorePopups.length>0||bubbles.length>0||shakeTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();requestAnimationFrame(loop)
 </script></body></html>

@@ -7,7 +7,7 @@ let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.i
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
 function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}function pSpark(s){return s.life>0&&(s.life--)>0}
 let sparkleSpr=null;function sparkleImg(){if(!sparkleSpr){sparkleSpr=document.createElement('canvas');sparkleSpr.width=sparkleSpr.height=20;let g=sparkleSpr.getContext('2d');g.font='10px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='#2ed573';g.fillText('\u2728',10,10)}return sparkleSpr}
-let car,zone,level,state,steerAngle,particles=[],scorePopups=[],shakeTime=0,pulseT=0,sparkles=[];
+let car,zone,level,state,steerAngle=0,particles=[],scorePopups=[],shakeTime=0,pulseT=0,sparkles=[];
 const LEVELS=[
 {car:{x:W*.3,y:H*.35},zone:{x:W*.65,y:H*.3,w:75,h:50},walls:[{x:W*.5,y:H*.22,w:10,h:90},{x:W*.2,y:H*.6,w:90,h:10}]},
 {car:{x:W*.2,y:H*.65},zone:{x:W*.6,y:H*.2,w:75,h:50},walls:[{x:W*.4,y:H*.3,w:10,h:110},{x:W*.55,y:H*.55,w:70,h:10}]},

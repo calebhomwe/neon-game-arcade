@@ -17,18 +17,19 @@ function spawnEnemy(){let side=Math.floor(Math.random()*4),ex,ey,spd,hp,col;
 if(side===0){ex=Math.random()*W;ey=-25}else if(side===1){ex=W+25;ey=Math.random()*H*.4}else if(side===2){ex=Math.random()*W;ey=H*.25+Math.random()*40}else{ex=-25;ey=Math.random()*H*.4}
 spd=1+wave*.25+Math.random()*.5;hp=1+(wave>5&&Math.random()<.3?1:0);col=['#ff4757','#ff6b81','#ffa502','#ff3838'][Math.floor(Math.random()*4)];
 let angle=Math.atan2(turret.y-ey,turret.x-ex);enemies.push({x:ex,y:ey,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd,hp,maxHp:hp,rad:11+Math.random()*5,col,spin:Math.random()*Math.PI*2,spinSpd:(Math.random()-.5)*.1})}
-function update(){if(state!=='play')return;waveTimer++;if(shakeTime>0)shakeTime--;if(comboTimer>0)comboTimer--;else combo=0;if(waveTextTime>0)waveTextTime--;if(muzzleFlash>0)muzzleFlash--;
-if(waveTimer%Math.max(25,80-wave*4)===0)spawnEnemy();
-for(let b of bullets){b.trail.push({x:b.x,y:b.y,life:8});for(let t of b.trail)t.life--;prune(b.trail,t=>t.life>0);b.x+=b.vx;b.y+=b.vy;b.life--;
+function update(dt){if(state!=='play')return;let s=dt*60;waveTimer+=s;if(shakeTime>0)shakeTime-=s;if(comboTimer>0)comboTimer-=s;else combo=0;if(waveTextTime>0)waveTextTime-=s;if(muzzleFlash>0)muzzleFlash-=s;
+let spawnInterval=Math.max(25,80-wave*4);if(waveTimer>=spawnInterval){waveTimer-=spawnInterval;spawnEnemy()}
+for(let e of enemies){e.x+=e.vx*s;e.y+=e.vy*s}
+for(let b of bullets){b.trail.push({x:b.x,y:b.y,life:8});for(let t of b.trail)t.life-=s;prune(b.trail,t=>t.life>0);b.x+=b.vx*s;b.y+=b.vy*s;b.life-=s;
 for(let e of enemies){if(e.hp<=0)continue;let dx=b.x-e.x,dy=b.y-e.y;if(dx*dx+dy*dy<(e.rad+4)*(e.rad+4)){b.life=0;e.hp--;
 if(particles.length<300)for(let i=0;i<5;i++)particles.push({x:b.x,y:b.y,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5,life:15,s:Math.random()*3+1,col:'#0ff'});
 if(e.hp<=0){kills++;combo++;comboTimer=60;if(particles.length<300)for(let i=0;i<15;i++){let a=Math.PI*2/15*i;particles.push({x:e.x,y:e.y,vx:Math.cos(a)*(Math.random()*5+2),vy:Math.sin(a)*(Math.random()*5+2),life:30,s:Math.random()*4+2,col:e.col})}shakeTime=6;
 if(kills>=targetKills){wave++;kills=0;targetKills=8+wave*2;waveTimer=0;enemies=[];waveText='WAVE '+wave;waveTextTime=80;if(wave>10){state='win'}}}}}
 prune(enemies,e=>{if(e.hp<=0)return false;let d=Math.hypot(e.x-turret.x,e.y-turret.y);if(d<=60){lives--;shakeTime=10;if(lives<=0)state='over';return false}return true});prune(bullets,b=>b.life>0);
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vx*=.96;p.vy*=.96;p.life--}prune(particles,pLife);
+for(let p of particles){p.x+=p.vx*s;p.y+=p.vy*s;p.vx*=Math.pow(.96,s);p.vy*=Math.pow(.96,s);p.life-=s}prune(particles,pLife);
 let closest=null,minD=Infinity;for(let e of enemies){let d=Math.hypot(e.x-turret.x,e.y-turret.y);if(d<minD){minD=d;closest=e}}
-if(closest)turret.angle+=(Math.atan2(closest.y-turret.y,closest.x-turret.x)-turret.angle)*.15;
-for(let e of enemies)e.spin+=e.spinSpd}}
+if(closest)turret.angle+=(Math.atan2(closest.y-turret.y,closest.x-turret.x)-turret.angle)*(1-Math.pow(1-.15,s));
+for(let e of enemies)e.spin+=e.spinSpd*s}}
 function draw(){X.save();if(shakeTime>0){X.translate((Math.random()-.5)*shakeTime*1.5,(Math.random()-.5)*shakeTime*1.5)}
 X.clearRect(-15,-15,W+30,H+30);
 X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
@@ -63,5 +64,5 @@ X.restore();
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 VICTORY! \u2728',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('All 10 waves survived!',W/2,H/2+25);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Click to play again',W/2,H/2+55)}
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('OVERRUN!',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Reached Wave '+wave,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Click to retry',W/2,H/2+50)}
 if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-30,110);X.fillStyle='#ff4757';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('TURRET DEFENSE',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Click to shoot. Do not let enemies reach you!',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Click to start',W/2,H/2+35)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play'||particles.length>0||waveTextTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+let pState='',lastT=performance.now();function loop(){if(document.hidden){lastT=performance.now();return requestAnimationFrame(loop)}let now=performance.now(),dt=Math.min(.05,(now-lastT)/1000);lastT=now;update(dt);if(state!==pState){pState=state;needDraw=true}if(state==='play'||particles.length>0||waveTextTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>

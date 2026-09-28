@@ -11,7 +11,7 @@ function init(){player={x:W/2,y:H-100};jellyfish=[];bubbles=[];state='ready';dep
 C.addEventListener('pointermove',e=>{let r=C.getBoundingClientRect();mx=e.clientX-r.left;my=e.clientY-r.top});
 C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready')state='play'});
 document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='ready')state='play'}});
-function update(){if(state!=='play')return;pulseT+=.03;player.x+=(mx-player.x)*.07;player.y+=((my-50)-player.y)*.06;depth=Math.max(0,H-player.y);
+function update(){if(state!=='play')return;pulseT+=.03;player.x+=(mx-player.x)*.07;player.y+=((my-50)-player.y)*.06;depth=Math.max(0,player.y);
 if(depth<H*.2&&!surfaceReached){surfaceReached=true;state='win';spawnWinParticles()}
 if(Math.floor(Math.random()*3)===0)bubbles.push({x:Math.random()*W,y:H+10,vx:(Math.random()-.5)*1,vy:-Math.random()*2-1,s:Math.random()*4+2,life:100});
 for(let b of bubbles){b.x+=b.vx;b.y+=b.vy;b.life--}prune(bubbles,pLife);
