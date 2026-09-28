@@ -1,0 +1,40 @@
+{
+  "gameId": "sky-balance-tile",
+  "title": "Balance Tile",
+  "howto": [
+    "Press Play to start balancing the tile.",
+    "Tap or press Space to flip direction before the edge drops too far.",
+    "Stay centered on the safe edge until the finish meter fills."
+  ],
+  "tips": [
+    "Flip early instead of waiting for the tile to dip hard.",
+    "Short corrections are safer than panic double-taps.",
+    "Watch the finish meter when you are close to winning."
+  ],
+  "controls": {
+    "keyboard": "Space flips direction.",
+    "touch": "Tap anywhere to flip direction."
+  },
+  "difficulty": "Easy and hard adjust the pace of the run while keeping the core objective the same.",
+  "cheats": [
+    {
+      "code": "PARTY",
+      "effect": "Applies a rainbow hue shift to the whole run."
+    },
+    {
+      "code": "CHILL",
+      "effect": "Slows the overall game pace."
+    },
+    {
+      "code": "BOOST",
+      "effect": "Gives you a small game-specific advantage."
+    }
+  ],
+  "features": {
+    "titleCard": "A title card explains the run before play starts.",
+    "results": "A result card reports your latest score and best score.",
+    "bestScore": "Best score is stored locally and cheated runs do not overwrite it.",
+    "tutorial": "Tutorial steps are available from the title card and the SDK tutorial hook."
+  },
+  "pauseButton": "br"
+}

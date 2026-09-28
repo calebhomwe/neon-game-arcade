@@ -13,14 +13,14 @@ function spawnObjects(){while(objects.filter(o=>o.alive).length<12){let sz=4+Mat
 C.addEventListener('pointermove',e=>{mx=e.clientX-CRECT.left;my=e.clientY-CRECT.top;needDraw=true});
 C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready')state='play'});
 document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='ready')state='play'}});
-function update(){if(state!=='play')return;pulseT+=.03;
-hole.x+=(mx-hole.x)*.08;hole.y+=(my-hole.y)*.08;
+function update(dt){if(state!=='play')return;let s=dt*60;pulseT+=.03*s;
+let ease=1-Math.pow(1-.08,s);hole.x+=(mx-hole.x)*ease;hole.y+=(my-hole.y)*ease;
 // Trail
-trail.push({x:hole.x,y:hole.y,life:10});for(let t of trail)t.life--;prune(trail,pLife);
+trail.push({x:hole.x,y:hole.y,life:10});for(let t of trail)t.life-=s;prune(trail,pLife);
 // Orbit objects
-for(let o of objects){if(!o.alive)continue;o.orbitAngle+=o.orbitSpeed;
-let dist=Math.hypot(hole.x-o.x,hole.y-o.y);if(dist<hole.r*3&&dist>hole.r){o.orbitDist=Math.max(0,o.orbitDist-.5);o.x=hole.x+Math.cos(o.orbitAngle)*(hole.r*2+o.orbitDist);o.y=hole.y+Math.sin(o.orbitAngle)*(hole.r*2+o.orbitDist)}
-else{o.orbitDist=Math.min(50,o.orbitDist+.3)}}
+for(let o of objects){if(!o.alive)continue;o.orbitAngle+=o.orbitSpeed*s;
+let dist=Math.hypot(hole.x-o.x,hole.y-o.y);if(dist<hole.r*3&&dist>hole.r){o.orbitDist=Math.max(0,o.orbitDist-.5*s);o.x=hole.x+Math.cos(o.orbitAngle)*(hole.r*2+o.orbitDist);o.y=hole.y+Math.sin(o.orbitAngle)*(hole.r*2+o.orbitDist)}
+else{o.orbitDist=Math.min(50,o.orbitDist+.3*s)}}
 // Eat
 for(let o of objects){if(!o.alive)continue;let dist=Math.hypot(hole.x-o.x,hole.y-o.y);
 if(dist<hole.r+o.sz*.4){if(o.sz<hole.r*1.3){o.alive=false;eaten++;size++;hole.r+=2.5;shakeTime=4;
@@ -29,10 +29,10 @@ if(particles.length<220)for(let i=0;i<8;i++)particles.push({x:o.x,y:o.y,vx:(Math
 if(eaten>=12){state='win';spawnWinParticles()}}else{state='over';shakeTime=12;if(particles.length<220)for(let i=0;i<15;i++)particles.push({x:hole.x,y:hole.y,vx:(Math.random()-.5)*6,vy:(Math.random()-.5)*6,life:25,s:Math.random()*4+2,col:'#ff4757'});return}}}
 // Suction particles toward hole
 for(let o of objects){if(!o.alive)continue;let dist=Math.hypot(hole.x-o.x,hole.y-o.y);if(dist<hole.r*2&&o.sz>=hole.r*1.3&&suctionParticles.length<100){suctionParticles.push({x:o.x+(Math.random()-.5)*10,y:o.y+(Math.random()-.5)*10,vx:(hole.x-o.x)*.01,vy:(hole.y-o.y)*.01,life:10,s:1.5,col:o.col+'88'})}}
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.03;p.life--}prune(particles,pLife);
-for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife);
-for(let s of suctionParticles){s.x+=s.vx;s.y+=s.vy;s.vx*=.95;s.vy*=.95;s.life--}prune(suctionParticles,pLife);
-if(shakeTime>0)shakeTime--}
+for(let p of particles){p.x+=p.vx*s;p.y+=p.vy*s;p.vy+=.03*s;p.life-=s}prune(particles,pLife);
+for(let sp of scorePopups){sp.y+=sp.vy*s;sp.life-=s}prune(scorePopups,pLife);
+for(let sp2 of suctionParticles){sp2.x+=sp2.vx*s;sp2.y+=sp2.vy*s;sp2.vx*=Math.pow(.95,s);sp2.vy*=Math.pow(.95,s);sp2.life-=s}prune(suctionParticles,pLife);
+if(shakeTime>0)shakeTime-=s}
 function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<80;i++){let a=Math.random()*Math.PI*2;particles.push({x:hole.x,y:hole.y,vx:Math.cos(a)*(Math.random()*10+2),vy:Math.sin(a)*(Math.random()*10+2)-3,life:60,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
 function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
 X.clearRect(-15,-15,W+30,H+30);
@@ -72,5 +72,5 @@ X.restore();
 if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#0cf',W/2,H/2-30,110);X.fillStyle='#0cf';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('HOLE EATER',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Eat small objects, avoid big ones',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
 if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('CHOKED!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0cf',W/2,H/2-20,110);X.fillStyle='#0cf';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 COSMIC HOLE! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+let pState='',lastT=performance.now();function loop(){if(document.hidden){lastT=performance.now();return requestAnimationFrame(loop)}let now=performance.now(),dt=Math.min(.05,(now-lastT)/1000);lastT=now;update(dt);if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
 </script></body></html>

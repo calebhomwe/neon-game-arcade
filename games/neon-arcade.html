@@ -1282,7 +1282,7 @@
                 ctx.fillStyle = 'rgba(255,200,100,0.08)';
                 ctx.fillRect(gx, groundY, 8, 20);
                 ctx.fillRect(gx + gw - 8, groundY, 8, 20);
-                if (G.bridgeBuilt > 0 && G.building && !gap.crossed) {
+                if (G.bridgeBuilt > 0 && !gap.crossed) {
                     const bw = (G.bridgeBuilt / 100) * gw;
                     ctx.fillStyle = 'rgba(180,130,80,0.6)';
                     ctx.fillRect(gx, groundY - 6, bw, 12);

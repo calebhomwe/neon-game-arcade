@@ -1,0 +1,40 @@
+{
+  "gameId": "sky-slide-runner",
+  "title": "Slide Runner",
+  "howto": [
+    "Press Play to start the lane run.",
+    "Tap or press Left and Right to switch lanes.",
+    "Dodge obstacles until the timer ends, then replay to beat your best."
+  ],
+  "tips": [
+    "Move early into the safest open lane.",
+    "Do not chase every opening; hold a clear lane when traffic stacks.",
+    "Use BOOST for a quick score bump if a pattern gets crowded."
+  ],
+  "controls": {
+    "keyboard": "Left and Right arrows switch lanes; Space starts.",
+    "touch": "Tap the left or right side to change lanes."
+  },
+  "difficulty": "Easy and hard adjust the pace of the run while keeping the core objective the same.",
+  "cheats": [
+    {
+      "code": "PARTY",
+      "effect": "Applies a rainbow hue shift to the whole run."
+    },
+    {
+      "code": "CHILL",
+      "effect": "Slows the overall game pace."
+    },
+    {
+      "code": "BOOST",
+      "effect": "Gives you a small game-specific advantage."
+    }
+  ],
+  "features": {
+    "titleCard": "A title card explains the run before play starts.",
+    "results": "A result card reports your latest score and best score.",
+    "bestScore": "Best score is stored locally and cheated runs do not overwrite it.",
+    "tutorial": "Tutorial steps are available from the title card and the SDK tutorial hook."
+  },
+  "pauseButton": "br"
+}

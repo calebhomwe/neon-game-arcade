@@ -34,13 +34,13 @@
 
         canvas {
             display: block;
-            width: 800px;
-            height: 500px;
+            width: min(800px, 92vw, calc((92vh - 140px) * 1.6));
+            aspect-ratio: 800 / 500;
+            height: auto;
             border-radius: 24px;
             background: #87CEEB;
             box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 150, 255, 0.2);
             cursor: pointer;
-            image-rendering: pixelated;
         }
 
         /* ─── HUD ─── */
@@ -159,9 +159,7 @@
         /* ─── RESPONSIVE ─── */
         @media (max-width: 860px) {
             canvas {
-                width: 100%;
-                height: auto;
-                aspect-ratio: 800/500;
+                width: min(100%, calc((92vh - 140px) * 1.6));
             }
             .game-wrapper {
                 padding: 12px;
@@ -266,6 +264,22 @@
         const W = 800,
             H = 500;
 
+        // ─── DPR-aware canvas fit: backing store matches CSS size * devicePixelRatio,
+        // context transform keeps all drawing code in the original 800x500 logical space ───
+        function fitCanvas(cv, c, logicalW, logicalH) {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = cv.getBoundingClientRect();
+            if (rect.width < 1 || rect.height < 1) return;
+            const pxW = Math.max(1, Math.round(rect.width * dpr));
+            const pxH = Math.max(1, Math.round(rect.height * dpr));
+            if (cv.width !== pxW || cv.height !== pxH) {
+                cv.width = pxW;
+                cv.height = pxH;
+            }
+            const scale = (rect.width / logicalW) * dpr;
+            c.setTransform(scale, 0, 0, scale, 0, 0);
+        }
+
         // ─── DOM refs ───
         const plankSpan = document.getElementById('plankCount');
         const bridgeSpan = document.getElementById('bridgeProgress');
@@ -314,6 +328,8 @@
             building: false,
             buildTimer: 0,
             buildDuration: 20,
+            plankConsumeAcc: 0,
+            bridgeDecayAcc: 0,
             // auto-run
             autoRun: true,
             // time
@@ -339,6 +355,8 @@
             G.camX = 0;
             G.building = false;
             G.buildTimer = 0;
+            G.plankConsumeAcc = 0;
+            G.bridgeDecayAcc = 0;
             G.frame = 0;
             G.player.y = 340;
             G.player.vy = 0;
@@ -462,26 +480,29 @@
         }
 
         // ─── GAME LOGIC ───
-        function update() {
+        // dts = delta time expressed in "frames at 60fps" so every tuned per-frame
+        // constant below still behaves the same on average, but scales with real time
+        // instead of with however many frames actually rendered (clamped in gameLoop).
+        function update(dts) {
             if (!G.running || G.over) return;
-            G.frame++;
+            G.frame += dts;
 
             const p = G.player;
 
             // ── auto-run ──
             if (G.autoRun) {
-                G.distance += G.speed * 0.6;
-                G.camX += G.speed * 0.6;
+                G.distance += G.speed * 0.6 * dts;
+                G.camX += G.speed * 0.6 * dts;
             }
 
             // ── speed up gradually ──
             if (G.distance > 200 && G.speed < G.maxSpeed) {
-                G.speed += 0.003;
+                G.speed += 0.003 * dts;
             }
 
             // ── player bob ──
-            p.bob += 0.06 * G.speed;
-            p.legSwing += 0.08 * G.speed;
+            p.bob += 0.06 * G.speed * dts;
+            p.legSwing += 0.08 * G.speed * dts;
 
             // ── collect planks ──
             const pWorldX = p.x + G.camX;
@@ -525,12 +546,14 @@
                     G.building = true;
                     G.buildTimer = 0;
                 }
-                G.buildTimer++;
+                G.buildTimer += dts;
                 const buildSpeed = 0.8 + G.planks * 0.04;
-                G.bridgeBuilt = Math.min(100, G.bridgeBuilt + buildSpeed);
+                G.bridgeBuilt = Math.min(100, G.bridgeBuilt + buildSpeed * dts);
 
-                // consume planks as we build
-                if (G.frame % 3 === 0 && G.planks > 0 && G.bridgeBuilt < 100) {
+                // consume planks as we build (every ~3 frames-equivalent, time-based)
+                G.plankConsumeAcc += dts;
+                if (G.plankConsumeAcc >= 3 && G.planks > 0 && G.bridgeBuilt < 100) {
+                    G.plankConsumeAcc -= 3;
                     G.planks--;
                     spawnBridgeParticles(
                         p.x + p.w / 2 + rand(-20, 20),
@@ -555,18 +578,24 @@
                 }
             } else {
                 G.building = false;
-                // if not in a gap, slowly decrease bridge (maintenance)
-                if (G.bridgeBuilt > 0 && G.frame % 10 === 0) {
-                    G.bridgeBuilt = Math.max(0, G.bridgeBuilt - 0.15);
-                    updateHUD();
+                // if not in a gap, slowly decrease bridge (maintenance, time-based)
+                if (G.bridgeBuilt > 0) {
+                    G.bridgeDecayAcc += dts;
+                    if (G.bridgeDecayAcc >= 10) {
+                        G.bridgeDecayAcc -= 10;
+                        G.bridgeBuilt = Math.max(0, G.bridgeBuilt - 0.15);
+                        updateHUD();
+                    }
+                } else {
+                    G.bridgeDecayAcc = 0;
                 }
             }
 
             // ── check if fell ──
             if (inGap && G.bridgeBuilt < 40 && G.planks < 2) {
                 // not enough planks to build - fall!
-                p.vy += 0.5;
-                p.y += p.vy;
+                p.vy += 0.5 * dts;
+                p.y += p.vy * dts;
                 if (p.y > H + 50) {
                     gameOver('💀 You fell into the gap!');
                 }
@@ -575,8 +604,8 @@
 
             // ── gravity ──
             if (!p.grounded) {
-                p.vy += 0.4;
-                p.y += p.vy;
+                p.vy += 0.4 * dts;
+                p.y += p.vy * dts;
             }
 
             // ── ground collision ──
@@ -608,10 +637,10 @@
             // ── update particles ──
             for (let i = G.particles.length - 1; i >= 0; i--) {
                 const pt = G.particles[i];
-                pt.x += pt.vx;
-                pt.y += pt.vy;
-                pt.vy += pt.gravity;
-                pt.life--;
+                pt.x += pt.vx * dts;
+                pt.y += pt.vy * dts;
+                pt.vy += pt.gravity * dts;
+                pt.life -= dts;
                 if (pt.life <= 0 || pt.y > H + 20) {
                     G.particles.splice(i, 1);
                 }
@@ -619,7 +648,7 @@
 
             // ── update clouds ──
             for (const cloud of G.clouds) {
-                cloud.x += cloud.speed * 0.2;
+                cloud.x += cloud.speed * 0.2 * dts;
                 if (cloud.x > 900) cloud.x = -cloud.w;
             }
 
@@ -637,6 +666,7 @@
 
         // ─── DRAW ───
         function draw() {
+            fitCanvas(canvas, ctx, W, H);
             ctx.clearRect(0, 0, W, H);
 
             // ── sky gradient ──
@@ -972,8 +1002,15 @@
         }
 
         // ─── GAME LOOP ───
-        function gameLoop() {
-            update();
+        let lastTs = null;
+        function gameLoop(ts) {
+            if (lastTs === null) lastTs = ts;
+            let dtMs = ts - lastTs;
+            lastTs = ts;
+            if (dtMs < 0) dtMs = 0;
+            if (dtMs > 50) dtMs = 50; // clamp so a stall/tab-switch never causes a huge catch-up jump
+            const dts = (dtMs / 1000) * 60; // convert to "frames at 60fps" units for the tuned constants above
+            update(dts);
             draw();
             requestAnimationFrame(gameLoop);
         }
@@ -1012,7 +1049,7 @@
 
         // ─── START ───
         initGame();
-        gameLoop();
+        requestAnimationFrame(gameLoop);
     </script>
 
     <script>
@@ -2597,6 +2634,7 @@
 
         // ─── Render Princess ───
         function renderPrincess() {
+            fitCanvas(pCanvas, pCtx, PW, PH);
             pCtx.clearRect(0, 0, PW, PH);
             drawPrincess();
             drawSidebar();

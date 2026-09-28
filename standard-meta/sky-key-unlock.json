@@ -1,0 +1,40 @@
+{
+  "gameId": "sky-key-unlock",
+  "title": "Pull the Pin",
+  "howto": [
+    "Press Play to set the water puzzle.",
+    "Pull one pin at a time so the water rises toward the key.",
+    "Clear each pin layout in order to finish the run."
+  ],
+  "tips": [
+    "The tallest active pin often blocks the biggest water rise.",
+    "If one pin reaches the key immediately, pull it before anything else.",
+    "Use Hint after a failure to find the next useful pin."
+  ],
+  "controls": {
+    "keyboard": "Space starts or restarts the puzzle set.",
+    "touch": "Tap a pin to pull it."
+  },
+  "difficulty": "Easy and hard adjust the pace of the run while keeping the core objective the same.",
+  "cheats": [
+    {
+      "code": "PARTY",
+      "effect": "Applies a rainbow hue shift to the whole run."
+    },
+    {
+      "code": "CHILL",
+      "effect": "Slows the overall game pace."
+    },
+    {
+      "code": "BOOST",
+      "effect": "Gives you a small game-specific advantage."
+    }
+  ],
+  "features": {
+    "titleCard": "A title card explains the run before play starts.",
+    "results": "A result card reports your latest score and best score.",
+    "bestScore": "Best score is stored locally and cheated runs do not overwrite it.",
+    "tutorial": "Tutorial steps are available from the title card and the SDK tutorial hook."
+  },
+  "pauseButton": "br"
+}
