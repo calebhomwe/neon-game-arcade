@@ -276,7 +276,7 @@
         /* ─── RESPONSIVE ─── */
         @media (max-width: 860px) {
             canvas { width: 100%; height: auto; aspect-ratio: 800/500; }
-            .game-wrapper { padding: 12px; border-radius: 28px; margin: 10px; width: 95vw; }
+            .game-wrapper { padding: 12px; border-radius: 28px; margin: 10px auto; width: calc(100% - 20px); max-width: 100%; box-sizing: border-box; }
             .menu-wrap { padding: 24px 18px; border-radius: 28px; }
             .menu-title { font-size: 32px; }
             .game-cards { grid-template-columns: 1fr; gap: 16px; }
