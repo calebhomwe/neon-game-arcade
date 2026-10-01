@@ -1,29 +1,32 @@
-﻿<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Color Match</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(255,107,129,.3)</style></head>
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Color Match</title><script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script><script src="sky-arcade.js"></script><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(255,107,129,.3)}</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#1a1a2e');bgGrad.addColorStop(1,'#16213e');needDraw=true}resize();window.addEventListener('resize',resize);
+let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=Math.min(window.innerWidth-20,420);H=Math.min(window.innerHeight-20,720);SKY.fit(C,X,W,H);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#1a1a2e');bgGrad.addColorStop(1,'#16213e');needDraw=true}resize();window.addEventListener('resize',resize);
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
 function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}function pBall(b){return !b.dead&&b.y<H+20}
-let bucket,balls,state,correctCaught,wrongCaught,mx=W/2,palette,nextColor,particles=[],scorePopups=[],shakeTime=0,pulseT=0;
+let best=0,cheat={slow:false,forgive:false,big:false},maxWrong=3,bucket,balls,state,correctCaught,wrongCaught,mx=W/2,palette,nextColor,particles=[],scorePopups=[],shakeTime=0,pulseT=0;
 const COLORS=['#ff4757','#ffa502','#2ed573','#1e90ff','#a55eea'];
-function init(){bucket={x:W/2,y:H-80,w:65,color:0};balls=[];correctCaught=0;wrongCaught=0;state='ready';palette=COLORS.slice();nextColor=null;particles=[];scorePopups=[];shakeTime=0;pulseT=0;changeBucketColor()}
-function changeBucketColor(){bucket.color=(bucket.color+1)%palette.length}
-C.addEventListener('pointermove',e=>{mx=e.clientX-CRECT.left;needDraw=true});
-C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}if(state==='play')changeBucketColor()});
+function init(){bucket={x:W/2,y:H-80,w:cheat.big?104:65,color:0};best=SKY.best();maxWrong=SKY.pick(5,3,2);balls=[];correctCaught=0;wrongCaught=0;state='ready';palette=COLORS.slice();nextColor=null;particles=[];scorePopups=[];shakeTime=0;pulseT=0;changeBucketColor()}
+function changeBucketColor(){bucket.color=(bucket.color+1)%palette.length;if(state==='play')SKY.sfx('swap',{volume:.5})}
+let isDown=false,downX=0,downT=0,moved=false;
+C.addEventListener('pointermove',e=>{const x=e.clientX-CRECT.left;if(isDown&&Math.abs(x-downX)>10)moved=true;mx=x;needDraw=true});
+C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}isDown=true;moved=false;downX=e.clientX-CRECT.left;downT=performance.now();mx=downX});
+C.addEventListener('pointerup',()=>{if(state==='play'&&isDown&&!moved&&performance.now()-downT<300)changeBucketColor();isDown=false});
+C.addEventListener('pointercancel',()=>{isDown=false});
 document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='ready')state='play';else if(state==='play')changeBucketColor()}});
-function update(){if(state!=='play')return;pulseT+=.03;bucket.x+=(mx-bucket.x)*.1;
-if(Math.floor(Math.random()*28)===0&&balls.length<40){let col=COLORS[Math.floor(Math.random()*COLORS.length)];balls.push({x:Math.random()*(W-40)+20,y:-20,vx:(Math.random()-.5)*2,vy:Math.random()*2+2,r:13,col})}
-for(let b of balls){b.x+=b.vx;b.y+=b.vy;
+function update(dts){if(state!=='play')return;pulseT+=.03*dts;bucket.x+=(mx-bucket.x)*(1-Math.pow(.9,dts));
+if(Math.random()<dts/SKY.pick(36,28,20)&&balls.length<40){let col=COLORS[Math.floor(Math.random()*COLORS.length)];balls.push({x:Math.random()*(W-40)+20,y:-20,vx:(Math.random()-.5)*2,vy:Math.random()*2+2,r:13,col})}
+let fs=(cheat.slow?.5:1)*SKY.pick(.8,1,1.25);for(let b of balls){b.x+=b.vx*dts*fs;b.y+=b.vy*dts*fs;if(b.x<b.r||b.x>W-b.r)b.vx*=-1;
 if(b.y+b.r>bucket.y-bucket.w/2&&b.y-b.r<bucket.y+bucket.w/2&&b.x>bucket.x-bucket.w/2&&b.x<bucket.x+bucket.w/2){
-if(b.col===palette[bucket.color]){correctCaught++;scorePopups.push({x:b.x,y:b.y-15,txt:'GOOD!',life:25,vy:-1.5});if(particles.length<220)for(let i=0;i<8;i++)particles.push({x:b.x,y:b.y,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5,life:20,s:Math.random()*3+2,col:palette[bucket.color]});
-if(correctCaught>=20){state='win';spawnWinParticles()}}else{wrongCaught++;shakeTime=8;scorePopups.push({x:b.x,y:b.y-15,txt:'WRONG!',life:25,vy:-1.5});if(particles.length<220)for(let i=0;i<5;i++)particles.push({x:b.x,y:b.y,vx:(Math.random()-.5)*4,vy:(Math.random()-.5)*4,life:15,s:Math.random()*3+2,col:'#ff4757'});if(wrongCaught>=3)state='over'}}b.dead=true}
+if(b.col===palette[bucket.color]){correctCaught++;SKY.sfx('collect',{volume:.6});scorePopups.push({x:b.x,y:b.y-15,txt:'GOOD!',life:25,vy:-1.5});if(particles.length<220)for(let i=0;i<8;i++)particles.push({x:b.x,y:b.y,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5,life:20,s:Math.random()*3+2,col:palette[bucket.color]});
+if(correctCaught>=20){state='win';spawnWinParticles();SKY.sfx('win');if(SKY.saveBest(20))best=20}}else{if(!cheat.forgive)wrongCaught++;shakeTime=SKY.shake(8);SKY.sfx('error',{volume:.6});scorePopups.push({x:b.x,y:b.y-15,txt:'WRONG!',life:25,vy:-1.5});if(particles.length<220)for(let i=0;i<5;i++)particles.push({x:b.x,y:b.y,vx:(Math.random()-.5)*4,vy:(Math.random()-.5)*4,life:15,s:Math.random()*3+2,col:'#ff4757'});if(wrongCaught>=maxWrong){state='over';SKY.sfx('lose');if(SKY.saveBest(correctCaught))best=correctCaught}}b.dead=true}}
 prune(balls,pBall);
 if(correctCaught%5===0&&correctCaught<20&&!nextColor){nextColor=COLORS[Math.floor(Math.random()*COLORS.length)];palette=[nextColor,...palette.slice(0,-1)]}
-if(shakeTime>0)shakeTime--;
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
-for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife)}
+if(shakeTime>0){shakeTime-=dts;if(shakeTime<0)shakeTime=0}
+for(let p of particles){p.x+=p.vx*dts;p.y+=p.vy*dts;p.vy+=.05*dts;p.life-=dts}prune(particles,pLife);
+for(let sp of scorePopups){sp.y+=sp.vy*dts;sp.life-=dts}prune(scorePopups,pLife)}
 function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
 function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
 X.clearRect(-15,-15,W+30,H+30);
@@ -42,11 +45,18 @@ for(let p of particles){let pr=p.s*(p.life/25);X.globalAlpha=p.life/25;glowAt(p.
 for(let sp of scorePopups){X.globalAlpha=sp.life/25;X.fillStyle=sp.txt==='GOOD!'?'#2ed573':'#ff4757';X.font='bold 16px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
 // HUD
 X.fillStyle='#fff';X.font='bold 20px "Segoe UI"';X.textAlign='left';X.fillText('Catch: ',10,25);X.fillStyle=palette[bucket.color];X.fillRect(70,14,15,15);X.fillStyle='#fff';X.fillText(' '+correctCaught+'/20',90,25);
-X.textAlign='right';X.fillStyle=wrongCaught>=2?'#ff4757':'#fff';X.fillText('Wrong: '+wrongCaught+'/3',W-10,25);
-X.textAlign='center';X.fillStyle='rgba(255,255,255,.4)';X.font='14px "Segoe UI"';X.fillText('SPACE to change color',W/2,H-10);
+X.textAlign='right';X.fillStyle=wrongCaught>=maxWrong-1?'#ff4757':'#fff';X.fillText('Wrong: '+wrongCaught+'/'+maxWrong,W-10,25);X.font='bold 14px "Segoe UI"';X.textAlign='left';X.fillStyle='rgba(255,255,255,.7)';X.fillText('BEST '+best+'/20',10,48);
+X.textAlign='center';X.fillStyle='rgba(255,255,255,.4)';X.font='14px "Segoe UI"';X.fillText('Tap or Space: change colour',W/2,H-30);
 X.restore();
-if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#ff6b81',W/2,H/2-30,110);X.fillStyle='#ff6b81';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('COLOR MATCH',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Move to catch, tap/space to switch color',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('TOO MANY WRONG!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
+if(state==='ready'&&SKY.tut)SKY.drawTut(X,W,H,{title:'COLOR MATCH',color:'#ff6b81',gesture:'drag',steps:['Slide your finger or mouse to move the square bucket.','A quick tap (or Space) changes its colour. The dots at the bottom show the order.','Catch only balls that match the bucket. 20 good catches wins; 3 wrong ones ends the run.']});
+else if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#ff6b81',W/2,H/2-30,110);X.fillStyle='#ff6b81';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('COLOR MATCH',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Move to catch, tap/space to switch color',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('TOO MANY WRONG!',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Caught '+correctCaught+'/20   Best: '+best,W/2,H/2+12);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
 if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff6b81',W/2,H/2-20,110);X.fillStyle='#ff6b81';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 PERFECT MATCH! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+let pState='',lastTs=null;function loop(ts){if(document.hidden){lastTs=null;return requestAnimationFrame(loop)}if(lastTs===null)lastTs=ts;let dtMs=ts-lastTs;lastTs=ts;if(dtMs<0)dtMs=0;if(dtMs>50)dtMs=50;const dts=dtMs/1000*60;update(dts);if(state!==pState){pState=state;needDraw=true}if(state==='play'||state==='ready')needDraw=true;SKY.tick(state,correctCaught);if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}SKY.setup({id:'color-match',color:'#ff6b81',pauseButton:'tr',labelAt:'tl',labelTop:58,
+onRestart(){init();state='play'},onExit(){init()},onDiff(){init()},
+onHint(){if(state!=='play')return 'Tap to start, then slide to move the bucket.';let near=balls.filter(b=>b.y<bucket.y).sort((a,b)=>b.y-a.y)[0];if(!near)return 'Nothing is falling yet: get the bucket to the middle.';
+let names={'#ff4757':'red','#ffa502':'orange','#2ed573':'green','#1e90ff':'blue','#a55eea':'purple'},want=names[near.col],have=names[palette[bucket.color]];
+return want===have?'The lowest ball is '+want+', the same as your bucket: slide under it.':'The lowest ball is '+want+' but your bucket is '+have+'. Tap to cycle colours, or dodge it.'},
+cheats:{SLOWFALL:['Balls fall at half speed',()=>{cheat.slow=true}],FORGIVE:['Wrong catches no longer count against you',()=>{cheat.forgive=true}],BIGBUCKET:['The bucket is 60% wider',()=>{cheat.big=true;bucket.w=104}]}});
+init();requestAnimationFrame(loop)
 </script></body></html>

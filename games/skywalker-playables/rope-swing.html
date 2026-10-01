@@ -1,54 +1,78 @@
-﻿<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Rope Swing</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,200,100,.3)</style></head>
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Rope Swing</title><script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script><script src="sky-arcade.js"></script><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,200,100,.3)}</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H,bgGrad,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#0a2a0a');bgGrad.addColorStop(.5,'#1a3a1a');bgGrad.addColorStop(1,'#0a1a0a');needDraw=true}resize();window.addEventListener('resize',resize);
+let W,H,bgGrad,needDraw=true;function resize(){W=Math.min(window.innerWidth-20,420);H=Math.min(window.innerHeight-20,720);SKY.fit(C,X,W,H);bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#0a2a0a');bgGrad.addColorStop(.5,'#1a3a1a');bgGrad.addColorStop(1,'#0a1a0a');needDraw=true}resize();window.addEventListener('resize',resize);
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
 function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
-let platforms,ropeLen,swingAngle,swingVel,released,onPlatform,state,particles=[],scorePopups=[],shakeTime=0,pulseT=0,camX=0;
-function init(){platforms=[];ropeLen=H*.32;swingAngle=-.5;swingVel=0;released=false;onPlatform=false;state='ready';particles=[];scorePopups=[];shakeTime=0;pulseT=0;makePlatforms()}
-function makePlatforms(){platforms=[{x:30,y:H*.6,w:90,h:12},{x:180,y:H*.48,w:70,h:12},{x:320,y:H*.4,w:70,h:12},{x:W+100,y:H*.35,w:90,h:12}]}
-C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}if(!released)released=true});
-document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='ready')state='play';else if(!released)released=true}});
-function update(){if(state!=='play')return;pulseT+=.03;
-if(!released){swingAngle+=swingVel;swingVel+=(-.0035)*Math.cos(swingAngle);swingAngle*=.997;
-let anchorX=platforms[0].x+platforms[0].w/2;playerX=anchorX+Math.sin(swingAngle)*ropeLen;playerY=platforms[0].y-Math.cos(swingAngle)*ropeLen;
-for(let p of platforms)p.x-=1.5}else{playerVY+=.3;playerX+=playerVX;playerY+=playerVY;
-for(let i=1;i<platforms.length;i++){let p=platforms[i];if(playerX>p.x&&playerX<p.x+p.w&&playerY+playerR>p.y&&playerY-playerR<p.y+p.h){playerY=p.y-playerR;playerVY=0;playerVX=.06;onPlatform=true;break}}}
-if(playerY>H+50){state='over';shakeTime=10}
-if(playerX>platforms[platforms.length-1].x+platforms[platforms.length-1].w){state='win';spawnWinParticles()}
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
-if(Math.random()<.2&&particles.length<120)particles.push({x:playerX,y:playerY+playerR,vx:(Math.random()-.5)*2,vy:Math.random()*2,life:15,s:Math.random()*3+1,col:'#90EE90'});
-if(shakeTime>0)shakeTime--}
-let playerX=80,playerY=0,playerVX=0,playerVY=0,playerR=12;
-function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<50;i++){let a=Math.random()*Math.PI*2;particles.push({x:playerX,y:playerY,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:40,s:Math.random()*4+2,col:`hsl(${Math.random()*360},100%,60%)`})}}
+// A jungle of vine anchors. Swing on one, tap to let go (you keep your swing speed),
+// tap again in the air to grab the next anchor in reach. Reach the landing platform after the last vine.
+let anchors,goal,rope,p,state,camX=0,grabs=0,best=0,reach=190,grav=.32,nets=0,particles=[],scorePopups=[],shakeTime=0,pulseT=0,endMsg='',cheat={arms:false,moon:false,net:false};
+const PR=12;
+function init(){state='ready';grabs=0;lastGrab=0;best=SKY.best();reach=SKY.pick(230,190,160)+(cheat.arms?80:0);grav=.32*(cheat.moon?.6:1);nets=cheat.net?3:0;particles=[];scorePopups=[];shakeTime=0;pulseT=0;
+let n=SKY.pick(8,12,16),x=W*.3;anchors=[];for(let i=0;i<n;i++){anchors.push({x,y:70+Math.random()*90});x+=SKY.pick(150,170,190)+Math.random()*50}
+goal={x:x+20,y:H*.72,w:140};
+rope={a:0,L:H*.3,th:-1.05,om:0};p={x:0,y:0,vx:0,vy:0};place();camX=0}
+function place(){let a=anchors[rope.a];p.x=a.x+Math.sin(rope.th)*rope.L;p.y=a.y+Math.cos(rope.th)*rope.L}
+function inReach(){let bestA=-1,bd=1e9;for(let i=0;i<anchors.length;i++){let a=anchors[i],d=Math.hypot(p.x-a.x,p.y-a.y);if(a.x>p.x-60&&d<reach&&d>30&&d<bd&&!(rope&&rope.a===i)){bd=d;bestA=i}}return bestA}
+function act(){if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}if(state!=='play')return;
+if(rope){let a=anchors[rope.a],v=rope.om*rope.L;p.vx=v*Math.cos(rope.th);p.vy=-v*Math.sin(rope.th);rope=null;lastA=-1;SKY.sfx('whoosh',{volume:.5});return}
+let i=inReach();if(i<0){SKY.sfx('error',{volume:.3});return}
+let a=anchors[i],L=Math.hypot(p.x-a.x,p.y-a.y),th=Math.atan2(p.x-a.x,p.y-a.y);rope={a:i,L,th,om:(p.vx*Math.cos(th)-p.vy*Math.sin(th))/L};
+if(i>lastGrab){grabs+=i-lastGrab;lastGrab=i;scorePopups.push({x:a.x,y:a.y-14,txt:'GRAB! '+grabs,life:35,vy:-1});}SKY.sfx('pop',{volume:.6})}
+let lastA=-1,lastGrab=0;
+C.addEventListener('pointerdown',act);
+document.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();if(!e.repeat)act()}});
+function update(dts){if(state!=='play')return;pulseT+=.03*dts;
+if(rope){let a=anchors[rope.a];rope.om+=-(grav/rope.L)*Math.sin(rope.th)*dts;rope.th+=rope.om*dts;place()}
+else{p.vy+=grav*dts;p.x+=p.vx*dts;p.y+=p.vy*dts;
+if(p.vy>0&&p.x>goal.x&&p.x<goal.x+goal.w&&p.y+PR>=goal.y&&p.y+PR<goal.y+20){p.y=goal.y-PR;state='win';endMsg='LANDED!';spawnWinParticles();SKY.sfx('win');if(SKY.saveBest(grabs))best=grabs;return}
+if(p.y>H+30){if(nets>0){nets--;p.vy=-15;p.y=H;SKY.sfx('jump');scorePopups.push({x:p.x,y:H-40,txt:'NET! '+nets+' left',life:35,vy:-1})}else{state='over';endMsg='FELL!';shakeTime=SKY.shake(10);SKY.sfx('lose');if(SKY.saveBest(grabs))best=grabs;return}}}
+camX+=(p.x-W*.35-camX)*Math.min(1,.08*dts);
+for(let q of particles){q.x+=q.vx*dts;q.y+=q.vy*dts;q.vy+=.05*dts;q.life-=dts}prune(particles,pLife);
+for(let sp of scorePopups){sp.y+=sp.vy*dts;sp.life-=dts}prune(scorePopups,pLife);
+if(Math.random()<.2*dts&&particles.length<120)particles.push({x:p.x,y:p.y+PR,vx:(Math.random()-.5)*2,vy:Math.random()*2,life:15,s:Math.random()*3+1,col:'#90EE90'});
+if(shakeTime>0)shakeTime-=dts}
+function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<50;i++){let a=Math.random()*Math.PI*2;particles.push({x:p.x,y:p.y,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:40,s:Math.random()*4+2,col:`hsl(${Math.random()*360},100%,60%)`})}}
 function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
-X.clearRect(-15,-15,W+30,H+30);
-X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
-// Background trees
-X.fillStyle='rgba(0,80,0,.15)';for(let i=0;i<8;i++){let tx=i*W/7+Math.sin(pulseT+i)*10;X.beginPath();X.moveTo(tx-20,H);X.lineTo(tx,H-100-Math.sin(i)*30);X.lineTo(tx+20,H);X.closePath();X.fill()}
-// Platforms
-for(let i=1;i<platforms.length;i++){let p=platforms[i];X.drawImage(glow('#5a8a5a'),p.x+p.w/2-(p.w/2+8),p.y+p.h/2-((p.h+3)/2+8),(p.w/2+8)*2,(p.h+3+16));X.fillStyle='#5a8a5a';X.fillRect(p.x,p.y-3,p.w,6);X.fillStyle='#4a7a4a';X.fillRect(p.x,p.y+3,p.w,p.h-3);
-// Grass on top
-X.fillStyle='#7CB342';for(let gx=p.x;gx<p.x+p.w;gx+=5){X.beginPath();X.moveTo(gx,p.y-3);X.lineTo(gx+2,p.y-8-Math.sin(pulseT+gx)*2);X.lineTo(gx+4,p.y-3);X.closePath();X.fill()}}
-// Rope & character
-if(!released){let anchorX=platforms[0].x+platforms[0].w/2;X.strokeStyle='#4a2a0a';X.lineWidth=4;X.beginPath();X.moveTo(anchorX,platforms[0].y);X.quadraticCurveTo(anchorX+Math.sin(swingAngle)*20,(platforms[0].y+playerY)/2,playerX,playerY);X.stroke();
-// Vine leaves
-X.fillStyle='#2E7D32';for(let t=0;t<3;t++){let ly=platforms[0].y+t*ropeLen/3,lx=anchorX+Math.sin(swingAngle)*t*ropeLen/3*.3;X.beginPath();X.ellipse(lx+5,ly,6,3,swingAngle*.5,0,Math.PI*2);X.fill()}}
-// Character body
-glowAt('#FFD54F',playerX,playerY,playerR+10);X.fillStyle='#FFD54F';X.beginPath();X.arc(playerX,playerY,playerR,0,Math.PI*2);X.fill();
-// Face
-X.fillStyle='#fff';X.beginPath();X.arc(playerX+3,playerY-3,4,0,Math.PI*2);X.fill();X.fillStyle='#1a1a2e';X.beginPath();X.arc(playerX+4,playerY-3,2,0,Math.PI*2);X.fill();
-// Mouth
-X.strokeStyle='#333';X.lineWidth=1.5;X.beginPath();X.arc(playerX+2,playerY+2,3,0,Math.PI);X.stroke();
-// Particles
-for(let p of particles){let pr=p.s*(p.life/40);X.globalAlpha=p.life/40;glowAt(p.col,p.x,p.y,pr+4);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}X.globalAlpha=1;
-// HUD
-X.fillStyle='#fff';X.font='bold 18px "Segoe UI"';X.textAlign='center';X.fillText(released?'SWING!':'RELEASE TO SWING!',W/2,30);
+X.clearRect(-15,-15,W+30,H+30);X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
+// far jungle (parallax)
+X.fillStyle='rgba(0,80,0,.15)';for(let i=0;i<10;i++){let tx=((i*W/7-camX*.3)%(W*1.4)+W*1.4)%(W*1.4)-W*.2;X.beginPath();X.moveTo(tx-20,H);X.lineTo(tx,H-100-Math.sin(i)*30);X.lineTo(tx+20,H);X.closePath();X.fill()}
+X.save();X.translate(-camX,0);
+// canopy branch the vines hang from
+X.fillStyle='#2E5D2E';X.fillRect(camX-20,0,W+40,18);
+let near=rope?-1:inReach();
+for(let i=0;i<anchors.length;i++){let a=anchors[i];if(a.x<camX-40||a.x>camX+W+40)continue;X.strokeStyle='rgba(76,120,60,.6)';X.lineWidth=2;X.beginPath();X.moveTo(a.x,18);X.lineTo(a.x,a.y);X.stroke();
+let hot=i===near,col=hot?'#b6ff5a':i<lastGrab?'#556b2f':'#7CB342';glowAt(col,a.x,a.y,hot?22:14);X.fillStyle=col;X.beginPath();X.arc(a.x,a.y,hot?8:6,0,Math.PI*2);X.fill();
+if(hot){X.strokeStyle='rgba(182,255,90,.35)';X.setLineDash([4,6]);X.beginPath();X.moveTo(a.x,a.y);X.lineTo(p.x,p.y);X.stroke();X.setLineDash([])}}
+// landing platform
+X.drawImage(glow('#5a8a5a'),goal.x-10,goal.y-20,goal.w+20,50);X.fillStyle='#5a8a5a';X.fillRect(goal.x,goal.y-3,goal.w,6);X.fillStyle='#4a7a4a';X.fillRect(goal.x,goal.y+3,goal.w,H-goal.y);
+X.fillStyle='#7CB342';for(let gx=goal.x;gx<goal.x+goal.w;gx+=5){X.beginPath();X.moveTo(gx,goal.y-3);X.lineTo(gx+2,goal.y-8-Math.sin(pulseT+gx)*2);X.lineTo(gx+4,goal.y-3);X.closePath();X.fill()}
+X.fillStyle='#fff';X.font='bold 14px "Segoe UI"';X.textAlign='center';X.fillText('LAND HERE',goal.x+goal.w/2,goal.y-16);
+// rope
+if(rope){let a=anchors[rope.a];X.strokeStyle='#4a2a0a';X.lineWidth=4;X.beginPath();X.moveTo(a.x,a.y);X.lineTo(p.x,p.y);X.stroke();
+X.fillStyle='#2E7D32';for(let t=1;t<4;t++){let lx=a.x+(p.x-a.x)*t/4,ly=a.y+(p.y-a.y)*t/4;X.beginPath();X.ellipse(lx+5,ly,6,3,rope.th*.5,0,Math.PI*2);X.fill()}}
+// swinger
+glowAt('#FFD54F',p.x,p.y,PR+10);X.fillStyle='#FFD54F';X.beginPath();X.arc(p.x,p.y,PR,0,Math.PI*2);X.fill();
+X.fillStyle='#fff';X.beginPath();X.arc(p.x+3,p.y-3,4,0,Math.PI*2);X.fill();X.fillStyle='#1a1a2e';X.beginPath();X.arc(p.x+4,p.y-3,2,0,Math.PI*2);X.fill();
+X.strokeStyle='#333';X.lineWidth=1.5;X.beginPath();X.arc(p.x+2,p.y+2,3,0,Math.PI);X.stroke();
+for(let q of particles){let pr=q.s*(q.life/40);X.globalAlpha=q.life/40;glowAt(q.col,q.x,q.y,pr+4);X.fillStyle=q.col;X.beginPath();X.arc(q.x,q.y,pr,0,Math.PI*2);X.fill()}X.globalAlpha=1;
+for(let sp of scorePopups){X.globalAlpha=Math.max(0,sp.life/35);X.fillStyle='#b6ff5a';X.font='bold 15px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
 X.restore();
-if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#2ed573',W/2,H/2-30,110);X.fillStyle='#2ed573';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('ROPE SWING',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap to release the rope and land',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('FELL!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
-if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 REACHED THE END! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+X.fillStyle='#fff';X.font='bold 18px "Segoe UI"';X.textAlign='center';X.fillText(rope?'TAP TO LET GO':near>=0?'TAP TO GRAB!':'NO VINE IN REACH',W/2,44);
+X.font='bold 14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.75)';X.fillText('Vines '+grabs+' / '+(anchors.length-1)+'   BEST '+best+(nets?'   NETS '+nets:''),W/2,66);
+X.restore();
+if(state==='ready'&&SKY.tut)SKY.drawTut(X,W,H,{title:'ROPE SWING',color:'#2ed573',gesture:'tap',steps:['You start swinging on a vine.','Tap (or Space) to let go: you fly off with the speed of your swing.','In the air, a vine in reach lights up bright green. Tap again to grab it.','Swing from vine to vine and drop onto the LAND HERE platform at the end.']});
+else if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#2ed573',W/2,H/2-30,110);X.fillStyle='#2ed573';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('ROPE SWING',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap to let go, tap again to grab',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('▶ Tap to start',W/2,H/2+35)}
+if(state==='over'||state==='win'){let won=state==='win',col=won?'#0f0':'#ff4757';X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt(col,W/2,H/2-20,100);X.fillStyle=col;X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText(won?'✨ LANDED! ✨':'FELL!',W/2,H/2-20);X.fillStyle='#fff';X.font='20px "Segoe UI"';X.fillText('Vines grabbed: '+grabs+'   Best: '+best,W/2,H/2+14);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText(won?'▶ Tap to play again':'▶ Tap to retry',W/2,H/2+48)}}
+let pState='',lastTs=null;function loop(ts){if(document.hidden){lastTs=null;return requestAnimationFrame(loop)}if(lastTs===null)lastTs=ts;let dtMs=ts-lastTs;lastTs=ts;if(dtMs<0)dtMs=0;if(dtMs>50)dtMs=50;const dts=dtMs/1000*60;update(dts);if(state!==pState){pState=state;needDraw=true}if(state==='play'||state==='ready')needDraw=true;SKY.tick(state,grabs);if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}
+function start(){init();state='play'}
+SKY.setup({id:'rope-swing',color:'#2ed573',pauseButton:'tr',
+onRestart(){start()},onExit(){init()},onDiff(){init()},
+onHint(){if(state!=='play')return 'Tap to start. Let go when you are swinging forwards and upwards.';if(rope){let fwd=rope.om<0?false:true;
+return fwd&&rope.th>0.15?'Let go now: you are swinging forwards and rising, the best moment to fly.':'Wait: let go as you swing forwards past the bottom, just as you start rising to the right.'}
+let i=inReach();if(i>=0)return 'A vine is in reach (bright green): tap now to grab it.';let a=anchors.find((q,k)=>k>lastGrab);return a?'Keep flying: the next vine is '+Math.round(a.x-p.x)+' px ahead. Grab it when it lights up.':'Drop onto the LAND HERE platform.'},
+cheats:{LONGARMS:['Grab vines from 80 px further away',()=>{cheat.arms=true;reach+=80}],MOONSWING:['Gravity drops by 40%: longer, floatier flights',()=>{cheat.moon=true;grav*=.6}],SAFETYNET:['A jungle net bounces you back up 3 times',()=>{cheat.net=true;nets=3}]}});
+init();requestAnimationFrame(loop)
 </script></body></html>

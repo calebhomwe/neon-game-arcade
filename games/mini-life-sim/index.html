@@ -2,334 +2,328 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Mini Life Sim</title>
+  <script type="importmap">{"imports":{"three":"../vendor/three/three.module.min.js","three/addons/":"../vendor/three/jsm/"}}</script>
+  <link rel="modulepreload" href="../vendor/three/three.module.min.js">
   <style>
     :root {
-      --bg: #0f172a;
-      --panel: #111827;
-      --panel-2: #1f2937;
-      --text: #f9fafb;
-      --muted: #9ca3af;
-      --good: #22c55e;
-      --warn: #f59e0b;
-      --bad: #ef4444;
-      --accent: #3b82f6;
+      --ink: #17264a; --ink2: #4a5a7c; --glass: rgba(255, 255, 255, 0.9); --glass2: rgba(240, 247, 255, 0.94);
+      --line: rgba(23, 38, 74, 0.12); --blue: #2f80ed; --blue2: #1c5fc4; --green: #3cc956; --green2: #229a3a;
+      --good: #3cc956; --warn: #f5a623; --bad: #e8474b; --shadow: 0 8px 24px rgba(10, 30, 70, 0.22);
+      --font: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
     }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; overflow: hidden; background: #bfe0ff; color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+    #game { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; touch-action: manipulation; cursor: pointer; }
+    button { font: 700 14px var(--font); color: var(--ink); background: #fff; border: 0; border-radius: 12px; min-height: 40px; min-width: 40px;
+      padding: 8px 12px; cursor: pointer; box-shadow: 0 2px 0 rgba(23, 38, 74, 0.18), inset 0 -2px 0 rgba(23, 38, 74, 0.08);
+      touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform 0.12s, filter 0.12s; }
+    button:hover { filter: brightness(1.05); }
+    button:active { transform: translateY(1px) scale(0.98); }
+    button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+    button.active, button[aria-pressed="true"] { background: linear-gradient(#4a97f5, var(--blue2)); color: #fff; box-shadow: 0 2px 0 #123f85; }
+    .glass { background: var(--glass); border-radius: 18px; box-shadow: var(--shadow); border: 1px solid rgba(255, 255, 255, 0.7); }
+    svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+    h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink2); }
 
-    * {
-      box-sizing: border-box;
+    /* top bar */
+    header { position: fixed; left: 12px; right: 70px; top: calc(10px + env(safe-area-inset-top)); z-index: 10; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; pointer-events: none; }
+    header > * { pointer-events: auto; }
+    .brand { display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; font-weight: 900; font-size: 17px; }
+    .gem { width: 22px; height: 30px; flex: 0 0 auto; }
+    .stat { display: flex; align-items: center; gap: 7px; padding: 8px 14px; font-weight: 800; font-size: 15px; min-height: 40px; }
+    .stat small { font-weight: 700; color: var(--ink2); font-size: 12px; }
+    #money { color: #1f7a33; }
+    .controls { display: flex; gap: 6px; align-items: center; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+    .seg { display: flex; gap: 4px; padding: 4px; }
+    .seg button { min-width: 44px; padding: 6px 8px; box-shadow: none; background: transparent; }
+    .seg button.active { background: linear-gradient(#4a97f5, var(--blue2)); color: #fff; box-shadow: 0 2px 0 #123f85; }
+    #pauseBtn[hidden] { display: none; }
+
+    /* needs */
+    #needs { position: fixed; left: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 10; width: 300px; padding: 12px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+    #needs h2 { grid-column: 1 / -1; margin: 0; display: flex; justify-content: space-between; align-items: center; }
+    #mood { font-size: 13px; color: var(--ink); text-transform: none; letter-spacing: 0; display: flex; align-items: center; gap: 5px; }
+    .need { display: grid; grid-template-columns: 26px 1fr; gap: 2px 7px; align-items: center; }
+    .need .ic { grid-row: span 2; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: #fff; }
+    .need-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; color: var(--ink2); }
+    .bar { height: 10px; background: rgba(23, 38, 74, 0.1); border-radius: 999px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15); }
+    .bar-fill { height: 100%; width: 50%; border-radius: 999px; transition: width 0.25s linear, background-color 0.3s; }
+    .bar-fill.good { background: linear-gradient(#6fe07f, var(--green2)); }
+    .bar-fill.warn { background: linear-gradient(#ffc862, #e08a00); }
+    .bar-fill.bad { background: linear-gradient(#ff7a7d, #c62828); }
+
+    /* right column: goals, inventory, log */
+    #side { position: fixed; right: 12px; top: calc(70px + env(safe-area-inset-top)); z-index: 9; width: 270px; padding: 12px 14px; display: grid; gap: 12px; max-height: calc(100dvh - 160px); overflow: auto; }
+    .goal { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; font-weight: 700; padding: 5px 0; }
+    .goal .box { flex: 0 0 22px; height: 22px; border-radius: 7px; border: 2px solid #b8c4dc; display: grid; place-items: center; background: #fff; }
+    .goal.done { color: var(--green2); }
+    .goal.done .box { background: var(--green); border-color: var(--green2); color: #fff; }
+    .inv { display: flex; flex-wrap: wrap; gap: 6px; }
+    .inv span { display: flex; align-items: center; gap: 6px; background: var(--glass2); border-radius: 10px; padding: 6px 9px; font-size: 13px; font-weight: 800; }
+    .notification { font-size: 12px; padding: 4px 0; border-bottom: 1px solid var(--line); color: var(--ink2); font-weight: 600; }
+    #notificationList .notification:nth-child(n+5) { display: none; }
+    #sideBtn { display: none; gap: 6px; align-items: center; }
+
+    /* interaction menu at the object, and the action card */
+    #menu { position: fixed; z-index: 20; transform: translate(-50%, -100%); display: none; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+    #menu.on { display: flex; }
+    #menu > * { pointer-events: auto; }
+    #objectName { font-weight: 900; font-size: 15px; background: var(--ink); color: #fff; border-radius: 999px; padding: 5px 14px; box-shadow: var(--shadow); }
+    #objectActions { display: flex; flex-direction: column; gap: 6px; }
+    .action { display: flex; align-items: center; gap: 10px; text-align: left; min-width: 200px; padding: 8px 14px 8px 8px; border-radius: 999px; box-shadow: var(--shadow); }
+    .action .dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(#4a97f5, var(--blue2)); color: #fff; flex: 0 0 auto; }
+    .action span { display: grid; }
+    .action small { color: var(--ink2); font-weight: 700; font-size: 12px; }
+    .action small b { color: #1f7a33; }
+    .action small b.cost { color: #b3261e; }
+    #queue { position: fixed; left: 324px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 10; display: none; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; min-width: 250px; }
+    #queue.on { display: flex; }
+    #queue .qi { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(#4a97f5, var(--blue2)); color: #fff; display: grid; place-items: center; flex: 0 0 auto; }
+    #queue .qt { flex: 1; font-weight: 800; font-size: 14px; }
+    #queue .qt small { display: block; font-weight: 700; color: var(--ink2); font-size: 12px; }
+    #queue .bar { margin-top: 4px; height: 8px; }
+    #queue .bar-fill { background: linear-gradient(#6fe07f, var(--green2)); }
+    #queue button { background: #ffe9e9; color: #b3261e; }
+    .hintline { font-size: 13px; color: var(--ink2); font-weight: 700; }
+    #toast { position: fixed; left: 50%; top: calc(72px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 30; display: grid; gap: 6px; pointer-events: none; justify-items: center; }
+    #toast div { background: rgba(23, 38, 74, 0.9); color: #fff; font-weight: 800; font-size: 14px; border-radius: 999px; padding: 8px 16px; box-shadow: var(--shadow); animation: toast 2.6s forwards; }
+    @keyframes toast { 0% { opacity: 0; transform: translateY(-8px) scale(0.96); } 8% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+    .float { position: fixed; z-index: 25; pointer-events: none; font-weight: 900; font-size: 20px; color: #fff; text-shadow: 0 2px 0 #1f7a33, 0 0 10px rgba(0, 0, 0, 0.35); animation: rise 1.4s forwards; transform: translate(-50%, -50%); }
+    @keyframes rise { to { transform: translate(-50%, -160%); opacity: 0; } }
+
+    /* cards: title, day summary; tutorial coach */
+    .overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: linear-gradient(rgba(20, 40, 90, 0.15), rgba(20, 40, 90, 0.45)); }
+    .overlay[hidden] { display: none; }
+    .card { width: min(420px, 100%); max-height: calc(100dvh - 32px); overflow: auto; background: var(--glass); border-radius: 26px; padding: 22px 22px 18px; text-align: center; box-shadow: 0 24px 60px rgba(10, 30, 70, 0.4); border: 2px solid #fff; }
+    .card h1 { margin: 4px 0 2px; font-size: 34px; font-weight: 900; letter-spacing: -0.01em; }
+    .card p { color: var(--ink2); margin: 6px 0 12px; line-height: 1.45; font-size: 15px; font-weight: 600; }
+    .card .big { display: grid; place-items: center; margin: 0 0 4px; }
+    .card button { width: 100%; margin: 6px 0; min-height: 48px; font-size: 16px; }
+    .card button.primary { background: linear-gradient(#58dc6c, var(--green2)); color: #fff; box-shadow: 0 3px 0 #16702a; font-size: 18px; font-weight: 900; }
+    .card button.primary.alt { background: linear-gradient(#4a97f5, var(--blue2)); box-shadow: 0 3px 0 #123f85; }
+    .card .seg { background: rgba(23, 38, 74, 0.06); border-radius: 14px; margin: 4px 0 6px; }
+    .card .seg button { width: auto; flex: 1; margin: 0; min-height: 40px; font-size: 15px; }
+    .row { display: flex; justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid var(--line); font-size: 15px; font-weight: 700; }
+    .row b { font-weight: 900; }
+    #dayMood { font-size: 15px; font-weight: 800; color: var(--ink2); }
+    #coach { position: fixed; left: 50%; top: calc(76px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 40; width: min(470px, calc(100vw - 20px));
+      background: var(--glass); border: 3px solid var(--blue); border-radius: 18px; padding: 10px 12px; display: flex; gap: 8px; align-items: center; box-shadow: var(--shadow); }
+    #coach[hidden] { display: none; }
+    #coach .ct { flex: 1; font-size: 15px; line-height: 1.4; font-weight: 700; }
+    #coach .ct b { color: var(--blue2); }
+    #coach .step { font-size: 12px; color: var(--ink2); display: block; margin-bottom: 2px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+    #codesOn { position: fixed; left: 12px; top: calc(62px + env(safe-area-inset-top)); z-index: 45; background: var(--warn); color: #3a2400; font: 900 12px var(--font);
+      letter-spacing: 0.1em; text-transform: uppercase; border-radius: 8px; padding: 5px 9px; pointer-events: none; }
+    #codesOn[hidden] { display: none; }
+    #load { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: linear-gradient(#8cc8ff, #e6f4ff); font-weight: 900; font-size: 20px; color: var(--ink); }
+    #load[hidden] { display: none; }
+
+    /* small windows (an embedded player, a laptop): goals, inventory, log and Save/Load/Reset move into a drawer */
+    @media (max-width: 1100px), (max-height: 620px) {
+      .brand, .controls .opt { display: none; }
+      #sideBtn { display: flex; }
+      #side { display: none; top: calc(62px + env(safe-area-inset-top)); z-index: 30; max-height: calc(100dvh - 190px); }
+      #side.open { display: grid; }
+      #side .opt { display: flex; gap: 6px; flex-wrap: wrap; }
+      #needs { width: 430px; grid-template-columns: 1fr 1fr 1fr; padding: 8px 12px; gap: 5px 12px; }
+      #queue { left: 454px; }
+      #coach { top: auto; bottom: calc(126px + env(safe-area-inset-bottom)); }
     }
-
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: Arial, sans-serif;
-    }
-
-    header {
-      padding: 12px 16px;
-      background: #020617;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      align-items: center;
-      border-bottom: 1px solid #334155;
-    }
-
-    .title {
-      font-size: 20px;
-      font-weight: bold;
-      margin-right: 8px;
-    }
-
-    .stat {
-      background: var(--panel-2);
-      padding: 8px 10px;
-      border-radius: 10px;
-      min-width: 80px;
-      text-align: center;
-    }
-
-    .stat.small {
-      min-width: 56px;
-    }
-
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      margin-left: auto;
-    }
-
-    button {
-      background: var(--panel-2);
-      color: var(--text);
-      border: 1px solid #475569;
-      border-radius: 10px;
-      padding: 8px 10px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      filter: brightness(1.15);
-    }
-
-    button.active {
-      background: var(--accent);
-      border-color: var(--accent);
-    }
-
-    label {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      background: var(--panel-2);
-      padding: 8px 10px;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-
-    main {
-      display: flex;
-      gap: 12px;
-      padding: 12px;
-      align-items: flex-start;
-    }
-
-    aside {
-      background: var(--panel);
-      border: 1px solid #334155;
-      border-radius: 14px;
-      padding: 12px;
-    }
-
-    #needs {
-      width: 240px;
-      display: grid;
-      gap: 10px;
-    }
-
-    #side {
-      width: 300px;
-      display: grid;
-      gap: 12px;
-    }
-
-    #canvas-wrap {
-      flex: 1;
-      display: grid;
-      place-items: center;
-      background: var(--panel);
-      border: 1px solid #334155;
-      border-radius: 14px;
-      padding: 12px;
-      overflow: auto;
-    }
-
-    canvas {
-      background: white;
-      border-radius: 12px;
-      max-width: 100%;
-      height: auto;
-    }
-
-    h2 {
-      margin: 0 0 10px;
-      font-size: 16px;
-    }
-
-    .need {
-      display: grid;
-      gap: 4px;
-    }
-
-    .need-label {
-      display: flex;
-      justify-content: space-between;
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .bar {
-      height: 14px;
-      background: #334155;
-      border-radius: 999px;
-      overflow: hidden;
-    }
-
-    .bar-fill {
-      height: 100%;
-      width: 50%;
-      transition: width 0.15s linear;
-    }
-
-    .bar-fill.good {
-      background: var(--good);
-    }
-
-    .bar-fill.warn {
-      background: var(--warn);
-    }
-
-    .bar-fill.bad {
-      background: var(--bad);
-    }
-
-    #objectName {
-      font-size: 18px;
-      margin-bottom: 10px;
-    }
-
-    #objectActions {
-      display: grid;
-      gap: 8px;
-    }
-
-    .action {
-      display: grid;
-      gap: 2px;
-      text-align: left;
-      padding: 10px;
-    }
-
-    .action small {
-      color: var(--muted);
-    }
-
-    .current {
-      background: var(--panel-2);
-      border-radius: 10px;
-      padding: 10px;
-      margin-bottom: 8px;
-      line-height: 1.4;
-    }
-
-    .notification {
-      font-size: 13px;
-      padding: 6px 0;
-      border-bottom: 1px solid #334155;
-      color: #e5e7eb;
-    }
-
-    .hint {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.4;
-    }
-
-    @media (max-width: 1200px) {
-      main {
-        flex-wrap: wrap;
-      }
-
-      #needs,
-      #side {
-        width: 100%;
-      }
-    }
-  
-    /* iPhone/touch playability */
-    button, label, canvas { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-    body { min-height: 100dvh; padding-bottom: env(safe-area-inset-bottom); }
+    /* phone */
     @media (max-width: 700px) {
-      header { padding: calc(8px + env(safe-area-inset-top)) 8px 8px; gap: 6px; position: relative; }
-      .title { width: 100%; font-size: 18px; }
-      .stat, .stat.small { min-width: 0; flex: 1; padding: 7px 6px; font-size: 13px; }
-      .controls { width: 100%; margin-left: 0; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 3px; }
-      .controls button, .controls label { flex: 0 0 auto; min-height: 42px; }
-      main { display: grid; grid-template-columns: 1fr; padding: 6px; gap: 8px; }
-      #canvas-wrap { order: -3; width: 100%; padding: 3px; overflow: hidden; border-radius: 10px; }
-      canvas { width: 100%; height: auto; border-radius: 8px; }
-      #needs { order: -2; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
-      #needs h2 { grid-column: 1 / -1; margin: 0; }
-      #side { order: -1; }
-      #needs, #side { width: 100%; padding: 10px; }
-      #objectActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .notification { font-size: 12px; }
+      header { left: 8px; right: 60px; gap: 6px; }
+      .brand { display: none; }
+      .stat { padding: 6px 10px; font-size: 14px; }
+      .controls { margin-left: 0; width: 100%; justify-content: flex-start; gap: 5px; }
+      .controls .opt { display: none; }
+      .seg button { min-width: 40px; padding: 4px 6px; }
+      #autonomy { padding: 6px 10px; }
+      #needs { left: 8px; right: 8px; width: auto; grid-template-columns: 1fr 1fr; bottom: calc(8px + env(safe-area-inset-bottom)); padding: 10px 12px; gap: 6px 12px; }
+      #queue { left: 8px; right: 8px; bottom: calc(176px + env(safe-area-inset-bottom)); min-width: 0; }
+      #side { display: none; top: auto; bottom: calc(180px + env(safe-area-inset-bottom)); left: 8px; right: 8px; width: auto; max-height: 46vh; z-index: 30; }
+      #side.open { display: grid; }
+      #side .opt { display: flex; gap: 6px; flex-wrap: wrap; }
+      #sideBtn { display: flex; }
+      .action { min-width: 180px; }
+      #coach { top: auto; bottom: calc(176px + env(safe-area-inset-bottom)); }
+      #codesOn { top: calc(112px + env(safe-area-inset-top)); }
+    }
+    @media (min-width: 1101px) and (min-height: 621px) { #side .opt { display: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      .bar-fill, button { transition: none; }
+      #toast div, .float { animation-duration: 0.01s; animation-delay: 1.5s; }
+      button:active { transform: none; }
     }
   </style>
 </head>
 <body>
-  <header>
-    <div class="title">Mini Life Sim</div>
-    <div class="stat" id="clock">Day 1 08:00</div>
-    <div class="stat small" id="money">$120</div>
-    <div class="stat small" id="mood">🙂</div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-hunger" viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></symbol>
+    <symbol id="i-bladder" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></symbol>
+    <symbol id="i-energy" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+    <symbol id="i-hygiene" viewBox="0 0 24 24"><path d="M9.9 14.5A2 2 0 0 0 8.5 13l-6.1-1.6a.5.5 0 0 1 0-1L8.5 9A2 2 0 0 0 9.9 7.5l1.6-6.1a.5.5 0 0 1 1 0L14 7.5A2 2 0 0 0 15.5 9l6.1 1.6a.5.5 0 0 1 0 1L15.5 13a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z"/></symbol>
+    <symbol id="i-fun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></symbol>
+    <symbol id="i-social" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8M12 18V6"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-1 1.2-1.2.5-2 2-2 3.8M14 14.7V17c0 .6.5 1 1 1.2 1.2.5 2 2 2 3.8M18 2H6v7a6 6 0 0 0 12 0V2z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m6 3 14 9-14 9V3z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-auto" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></symbol>
+  </svg>
+  <canvas id="game" aria-label="Your Sim's house. Click an object to choose what your Sim does, or the floor to walk there."></canvas>
 
+  <header>
+    <div class="brand glass"><svg class="gem" viewBox="0 0 22 30" aria-hidden="true"><path d="M11 0 22 15 11 30 0 15z" fill="#46e05a"/><path d="M11 0 22 15H0z" fill="#8af29a"/><path d="M11 0v30L0 15z" fill="#2fb846" opacity=".7"/></svg>Mini Life Sim</div>
+    <div class="stat glass"><svg class="i"><use href="#i-clock"/></svg><span id="clock">Day 1 08:00</span></div>
+    <div class="stat glass"><svg class="i" style="color:#1f7a33"><use href="#i-coin"/></svg><span id="money">$120</span></div>
     <div class="controls">
-      <button id="pauseBtn">Pause</button>
-      <button class="speed" data-speed="1">1x</button>
-      <button class="speed active" data-speed="5">5x</button>
-      <button class="speed" data-speed="15">15x</button>
-      <button class="speed" data-speed="60">60x</button>
-      <label>
-        <input type="checkbox" id="autonomy" checked />
-        Autonomy
-      </label>
-      <button id="saveBtn">Save</button>
-      <button id="loadBtn">Load</button>
-      <button id="resetBtn">Reset</button>
+      <button id="pauseBtn" class="glass">Pause</button>
+      <div class="seg glass" role="group" aria-label="Game speed">
+        <button class="speed" data-speed="1">1x</button>
+        <button class="speed active" data-speed="5">5x</button>
+        <button class="speed" data-speed="15">15x</button>
+        <button class="speed" data-speed="60">60x</button>
+      </div>
+      <button id="autonomy" aria-pressed="true" title="Let your Sim look after itself">Autonomy: on</button>
+      <button id="sideBtn" aria-expanded="false" aria-controls="side"><svg class="i"><use href="#i-list"/></svg><span id="sideBtnTxt">Goals</span></button>
+      <span class="opt" style="display:contents"><button id="saveBtn" class="opt">Save</button><button id="loadBtn" class="opt">Load</button><button id="resetBtn" class="opt">Reset</button></span>
     </div>
   </header>
 
-  <main>
-    <aside id="needs"></aside>
+  <aside id="needs" class="glass" aria-label="Needs"></aside>
 
-    <div id="canvas-wrap">
-      <canvas id="game" width="960" height="600"></canvas>
+  <aside id="side" class="glass">
+    <div>
+      <h2 id="goalsTitle">Today's goals</h2>
+      <div id="goalList"></div>
     </div>
+    <div>
+      <h2>Inventory</h2>
+      <div class="inv" id="invList"></div>
+    </div>
+    <div class="opt"><button id="saveBtn2">Save</button><button id="loadBtn2">Load</button><button id="resetBtn2">Reset</button></div>
+    <div>
+      <h2>Log</h2>
+      <div id="notificationList"></div>
+    </div>
+  </aside>
 
-    <aside id="side">
-      <div>
-        <h2>Selected</h2>
-        <div id="objectName">None</div>
-        <div id="objectActions"></div>
-      </div>
+  <div id="menu" role="dialog" aria-label="Interactions">
+    <div id="objectName">None</div>
+    <div id="objectActions"></div>
+  </div>
+  <div id="queue" class="glass" aria-live="polite"></div>
+  <div id="toast" aria-live="polite"></div>
 
-      <div>
-        <h2>Log</h2>
-        <div id="notificationList"></div>
+  <div id="codesOn" hidden>Codes on</div>
+  <div id="coach" hidden role="status" aria-live="polite">
+    <div class="ct"><span class="step" id="coachStep"></span><span id="coachTxt"></span></div>
+    <button id="coachNext">Next</button>
+    <button id="coachSkip">Skip</button>
+  </div>
+  <div class="overlay" id="titleCard" role="dialog" aria-modal="true" aria-labelledby="titleH">
+    <div class="card">
+      <div class="big" aria-hidden="true"><svg viewBox="0 0 22 30" width="34" height="46"><path d="M11 0 22 15 11 30 0 15z" fill="#46e05a"/><path d="M11 0 22 15H0z" fill="#8af29a"/><path d="M11 0v30L0 15z" fill="#2fb846" opacity=".7"/></svg></div>
+      <h1 id="titleH">Mini Life Sim</h1>
+      <p>Look after your Sim: keep six needs healthy, earn money at the computer and finish each day's goals.</p>
+      <div class="seg" role="group" aria-label="Difficulty">
+        <button class="diff" data-diff="relaxed">Relaxed</button>
+        <button class="diff" data-diff="normal">Normal</button>
+        <button class="diff" data-diff="hard">Hard</button>
       </div>
-    </aside>
-  </main>
+      <p id="diffNote" style="margin-top:0;font-size:13px"></p>
+      <button class="primary alt" id="continueBtn" hidden>Continue</button>
+      <button class="primary" id="newBtn">New life</button>
+      <button id="gfxBtn">Graphics: High</button>
+      <p id="bestLine" style="font-size:13px;margin-bottom:0"></p>
+    </div>
+  </div>
+  <div class="overlay" id="dayCard" hidden role="dialog" aria-modal="true" aria-labelledby="dayH">
+    <div class="card">
+      <div class="big" aria-hidden="true"><svg viewBox="0 0 24 24" class="i" style="color:#f5a623;width:46px;height:46px"><use href="#i-trophy"/></svg></div>
+      <h1 id="dayH">Day 1 done</h1>
+      <div id="dayMood"></div>
+      <div id="dayRows"></div>
+      <button class="primary" id="dayNext">Start the next day</button>
+    </div>
+  </div>
+  <div id="load">Moving in…</div>
 
   <script>
     const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
+    /* Graphics: High renders at the screen's pixel ratio (up to 2x) with shadows and night lamps; Low at 1x
+       without them. With no saved choice, a device that renders WebGL on the CPU starts on Low. */
+    let gfxPref = null; try { gfxPref = localStorage.getItem("mls_gfx"); } catch (e) {}
+    let gfxLow = gfxPref === "low";
+    /* Caleb's Arcade SDK (guarded: the game still runs without it) */
+    const SDK = window.ArcadeSDK || null;
+    const sdkState = (scene, score) => { try { SDK && SDK.state(score == null ? { scene } : { scene, score }); } catch (e) {} };
+    const sfx = (n) => { try { SDK && SDK.sfx(n); } catch (e) {} };
+    const RM = window.matchMedia ? matchMedia("(prefers-reduced-motion: reduce)") : null;
+    const DIFF = { relaxed: { decay: 0.6, note: "Needs drop 40% slower and groceries are cheaper." }, normal: { decay: 1, note: "The standard pace." },
+      hard: { decay: 1.4, note: "Needs drop 40% faster and groceries cost more." } };
+    const GROCERY_PRICE = { relaxed: 15, normal: 18, hard: 24 };
 
     const NEEDS = [
-      { id: "hunger", label: "Hunger" },
-      { id: "bladder", label: "Bladder" },
-      { id: "energy", label: "Energy" },
-      { id: "hygiene", label: "Hygiene" },
-      { id: "fun", label: "Fun" },
-      { id: "social", label: "Social" }
+      { id: "hunger", label: "Hunger", col: "#f08a24" },
+      { id: "bladder", label: "Bladder", col: "#2aa9e0" },
+      { id: "energy", label: "Energy", col: "#f5c400" },
+      { id: "hygiene", label: "Hygiene", col: "#3fc1b0" },
+      { id: "fun", label: "Fun", col: "#e25bb5" },
+      { id: "social", label: "Social", col: "#7a6cf0" }
     ];
 
+    /* The house: 960 x 600 board, 1 px = 1 cm. Each object has a spot where the Sim stands to use it
+       (use, in metres from the centre of the house). The 3D layout lives in house3d.js. */
     const OBJECTS = [
-      { id: "fridge", name: "Fridge", emoji: "🧊", x: 45, y: 70, w: 64, h: 64 },
-      { id: "stove", name: "Stove", emoji: "🍳", x: 135, y: 70, w: 64, h: 64 },
-      { id: "sink", name: "Sink", emoji: "🚰", x: 225, y: 70, w: 64, h: 64 },
-      { id: "trash", name: "Trash", emoji: "🗑️", x: 315, y: 150, w: 50, h: 50 },
-      { id: "toilet", name: "Toilet", emoji: "🚽", x: 665, y: 70, w: 64, h: 64 },
-      { id: "shower", name: "Shower", emoji: "🚿", x: 775, y: 70, w: 64, h: 64 },
-      { id: "bathSink", name: "Sink", emoji: "🧼", x: 880, y: 70, w: 64, h: 64 },
-      { id: "bed", name: "Bed", emoji: "🛏️", x: 45, y: 430, w: 130, h: 80 },
-      { id: "tv", name: "TV", emoji: "📺", x: 665, y: 430, w: 80, h: 50 },
-      { id: "sofa", name: "Sofa", emoji: "🛋️", x: 780, y: 480, w: 100, h: 50 },
-      { id: "computer", name: "Computer", emoji: "💻", x: 875, y: 390, w: 64, h: 64 },
-      { id: "phone", name: "Phone", emoji: "📱", x: 470, y: 290, w: 48, h: 48 }
+      { id: "fridge", name: "Fridge", icon: "hunger", use: [-4.22, -1.9] },
+      { id: "stove", name: "Stove", icon: "hunger", use: [-3.5, -1.92] },
+      { id: "sink", name: "Sink", icon: "hygiene", use: [-2.84, -1.92] },
+      { id: "trash", name: "Trash", icon: "hygiene", use: [-3.8, -0.95] },
+      { id: "toilet", name: "Toilet", icon: "bladder", use: [2.2, -1.9] },
+      { id: "shower", name: "Shower", icon: "hygiene", use: [3.95, -1.35] },
+      { id: "bathSink", name: "Sink", icon: "hygiene", use: [3.02, -2.02] },
+      { id: "bed", name: "Bed", icon: "energy", use: [-2.4, 1.15] },
+      { id: "tv", name: "TV", icon: "fun", use: [2.4, 2.0] },
+      { id: "sofa", name: "Sofa", icon: "fun", use: [2.4, 2.0] },
+      { id: "computer", name: "Computer", icon: "coin", use: [3.3, 1.75] },
+      { id: "phone", name: "Phone", icon: "social", use: [0, -2.02] }
     ];
+    /* rooms and their doors, for walking round the walls instead of through them */
+    const ROOMS = [
+      { id: "kitchen", x0: -4.6, x1: -1.6, z0: -2.8, z1: -0.6, door: [[-1.95, -1.0], [-1.2, -1.0]] },
+      { id: "bath", x0: 1.6, x1: 4.6, z0: -2.8, z1: -0.6, door: [[1.95, -1.0], [1.2, -1.0]] },
+      { id: "bed", x0: -4.6, x1: -1.6, z0: 0.6, z1: 2.8, door: [[-1.95, 1.0], [-1.2, 1.0]] },
+      { id: "living", x0: 1.6, x1: 4.6, z0: 0.6, z1: 2.8, door: [[1.95, 1.0], [1.2, 1.0]] },
+      { id: "hallW", x0: -4.6, x1: -1.6, z0: -0.6, z1: 0.6, door: [[-1.2, 0]] },
+      { id: "hallE", x0: 1.6, x1: 4.6, z0: -0.6, z1: 0.6, door: [[1.2, 0]] }
+    ];
+    const toBoard = (x, z) => ({ x: x * 100 + 480, y: z * 100 + 300 });
+    function roomAt(p) { const x = (p.x - 480) / 100, z = (p.y - 300) / 100; return ROOMS.find((r) => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1) || null; }
+    function route(from, to) {
+      const a = roomAt(from), b = roomAt(to), path = [];
+      if (a !== b) {
+        if (a) a.door.forEach((d) => path.push(toBoard(d[0], d[1])));
+        if (b) b.door.slice().reverse().forEach((d) => path.push(toBoard(d[0], d[1])));
+      }
+      path.push({ x: to.x, y: to.y });
+      return path;
+    }
 
     const ACTIONS = {
       snack: {
         label: "Grab Snack",
         objectIds: ["fridge"],
         duration: 10,
-        cost: 3,
+        uses: { groceries: 1 },
         effects: { hunger: 25, hygiene: -1, fun: 1 },
         notify: "Ate a snack."
       },
@@ -337,7 +331,7 @@
         label: "Cook Meal",
         objectIds: ["stove"],
         duration: 35,
-        cost: 8,
+        uses: { groceries: 2 },
         effects: { hunger: 65, fun: 4, energy: -4, hygiene: -2 },
         notify: "Cooked and ate a meal."
       },
@@ -412,6 +406,15 @@
         effects: { social: 65, fun: 12, energy: -3 },
         notify: "Called a friend."
       },
+      groceries: {
+        label: "Order Groceries",
+        objectIds: ["phone"],
+        duration: 10,
+        cost: 18,
+        gives: { groceries: 6 },
+        effects: { fun: 2 },
+        notify: "Groceries delivered: +6 in the fridge."
+      },
       clean: {
         label: "Clean Up",
         objectIds: ["trash"],
@@ -429,6 +432,7 @@
       fun: -0.040,
       social: -0.025
     };
+
 
     function createInitialState() {
       return {
@@ -448,18 +452,26 @@
         },
         char: {
           x: 480,
-          y: 300
+          y: 330
         },
         moveTarget: null,
+        path: null,
         currentAction: null,
         selectedObject: null,
         notifications: [],
         warnings: {},
-        autonomyCooldown: 0
+        autonomyCooldown: 0,
+        diff: "normal",
+        inventory: { groceries: 6, trophies: 0 },
+        stats: { earned: 0, meals: 0, showers: 0, calls: 0, actions: 0 },
+        goals: [],
+        lastHour: 8,
+        daysDone: 0
       };
     }
 
     let state = createInitialState();
+    let cheer = 0;
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
@@ -475,7 +487,107 @@
       state.notifications.unshift({ time: formatClock(), msg });
       state.notifications = state.notifications.slice(0, 10);
       renderNotifications();
+      toast(msg);
     }
+    function toast(msg) {
+      const box = document.getElementById("toast"); if (!box || document.getElementById("titleCard").hidden === false) return;
+      const d = document.createElement("div"); d.textContent = msg; box.appendChild(d);
+      while (box.children.length > 2) box.firstChild.remove();
+      setTimeout(() => d.remove(), 2700);
+    }
+    function floatText(txt, at) {
+      if (!at) return;
+      const d = document.createElement("div"); d.className = "float"; d.textContent = txt; d.style.left = at.x + "px"; d.style.top = at.y + "px";
+      document.body.appendChild(d); setTimeout(() => d.remove(), 1500);
+    }
+    const icon = (id) => `<svg class="i"><use href="#i-${id}"/></svg>`;
+
+    /* ── daily goals, inventory, autosave ── */
+    const GOAL_POOL = [
+      { id: "earn", text: (n) => `Earn $${n} at the computer`, n: [140, 280], check: (s, n) => s.stats.earned >= n },
+      { id: "cook", text: () => "Cook a meal", n: [1, 1], check: (s) => s.stats.meals >= 1 },
+      { id: "shower", text: () => "Take a shower", n: [1, 1], check: (s) => s.stats.showers >= 1 },
+      { id: "call", text: () => "Call a friend", n: [1, 1], check: (s) => s.stats.calls >= 1 },
+      { id: "happy", text: () => "Get your mood to Very happy", n: [1, 1], check: () => moodLevel() === 4 },
+      { id: "busy", text: (n) => `Finish ${n} activities`, n: [8, 12], check: (s, n) => s.stats.actions >= n }
+    ];
+    function newGoals() {
+      const pool = GOAL_POOL.slice(); const out = [];
+      while (out.length < 3 && pool.length) {
+        const g = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+        const n = g.n[0] + Math.floor(Math.random() * (g.n[1] - g.n[0] + 1));
+        out.push({ id: g.id, n, text: g.text(n), done: false });
+      }
+      state.goals = out;
+      state.stats = { earned: 0, meals: 0, showers: 0, calls: 0, actions: 0 };
+      renderGoals();
+    }
+    function checkGoals() {
+      let changed = false;
+      state.goals.forEach((g) => {
+        const def = GOAL_POOL.find((d) => d.id === g.id);
+        if (!g.done && def && def.check(state, g.n)) {
+          g.done = true; changed = true; state.money += 25;
+          notify(`Goal done: ${g.text} (+$25)`); sfx("levelup");
+          cheer = 1.6; if (window.H3) { H3.fx("goal"); floatText("+$25", H3.simAnchor()); }
+        }
+      });
+      if (changed) renderGoals();
+    }
+    function renderGoals() {
+      const el = document.getElementById("goalList"); if (!el) return;
+      document.getElementById("goalsTitle").textContent = `Day ${state.day} goals`;
+      el.innerHTML = "";
+      state.goals.forEach((g) => {
+        const d = document.createElement("div");
+        d.className = "goal" + (g.done ? " done" : "");
+        d.innerHTML = `<span class="box">${g.done ? '<svg class="i" style="width:14px;height:14px"><use href="#i-check"/></svg>' : ""}</span><span></span>`;
+        d.lastChild.textContent = g.text + (g.done ? "" : "  (+$25)");
+        el.appendChild(d);
+      });
+      const done = state.goals.filter((g) => g.done).length;
+      const t = document.getElementById("sideBtnTxt"); if (t) t.textContent = `Goals ${done}/${state.goals.length}`;
+    }
+    function renderInventory() {
+      const el = document.getElementById("invList"); if (!el) return;
+      const inv = state.inventory, key = inv.groceries + "/" + inv.trophies;
+      if (el.dataset.k === key) return; el.dataset.k = key;
+      el.innerHTML = "";
+      [["bag", "Groceries", inv.groceries], ["trophy", "Trophies", inv.trophies]].forEach(([i, k, v]) => {
+        const s = document.createElement("span"); s.innerHTML = icon(i); s.appendChild(document.createTextNode(`${k}: ${v}`)); el.appendChild(s);
+      });
+    }
+    function cheatedNow() { return !!((SDK && SDK.cheated) || Object.keys(cheat).some((k) => cheat[k])); }
+    function autosave() {
+      try { localStorage.setItem("miniLifeSimSave", JSON.stringify(state)); } catch (e) {}
+    }
+    function readBest() { try { return JSON.parse(localStorage.getItem("mls_best")) || { days: 0, trophies: 0 }; } catch (e) { return { days: 0, trophies: 0 }; } }
+    function endOfDay() {
+      /* end-of-day summary: goals, money, mood; a trophy for a clean sweep */
+      const done = state.goals.filter((g) => g.done).length;
+      if (done === state.goals.length && done) { state.inventory.trophies += 1; }
+      state.daysDone += 1;
+      const best = readBest();
+      if (!cheatedNow()) {
+        best.days = Math.max(best.days, state.daysDone); best.trophies = Math.max(best.trophies, state.inventory.trophies);
+        try { localStorage.setItem("mls_best", JSON.stringify(best)); } catch (e) {}
+      }
+      document.getElementById("dayH").textContent = `Day ${state.day - 1} done`;
+      document.getElementById("dayMood").textContent = "Mood: " + moodWord();
+      const rows = [["Goals", `${done} of ${state.goals.length}` + (done === state.goals.length ? "  · trophy won" : "")],
+        ["Money earned", `$${Math.round(state.stats.earned)}`], ["Money now", `$${Math.round(state.money)}`],
+        ["Groceries left", state.inventory.groceries], ["Days lived", state.daysDone], ["Best", `${best.days} days`]];
+      if (cheatedNow()) rows.push(["Codes on", "Best not saved"]);
+      const box = document.getElementById("dayRows"); box.innerHTML = "";
+      rows.forEach(([a, b]) => { const r = document.createElement("div"); r.className = "row";
+        r.innerHTML = "<span></span><b></b>"; r.firstChild.textContent = a; r.lastChild.textContent = b; box.appendChild(r); });
+      document.getElementById("dayCard").hidden = false;
+      state.paused = true; dayPause = true; closeMenu();
+      sfx(done === state.goals.length ? "win" : "reward");
+      sdkState("over", state.daysDone);
+      newGoals(); autosave(); updateHUD();
+    }
+    let dayPause = false;
 
     function renderNotifications() {
       const el = document.getElementById("notificationList");
@@ -491,12 +603,13 @@
 
     function buildNeedsUI() {
       const needsPanel = document.getElementById("needs");
-      needsPanel.innerHTML = "<h2>Needs</h2>";
+      needsPanel.innerHTML = `<h2><span>Needs</span><span id="mood"></span></h2>`;
 
       NEEDS.forEach((need) => {
         const div = document.createElement("div");
         div.className = "need";
         div.innerHTML = `
+          <span class="ic" style="background:${need.col}">${icon(need.id)}</span>
           <div class="need-label">
             <span>${need.label}</span>
             <span id="value-${need.id}">0</span>
@@ -509,24 +622,19 @@
       });
     }
 
-    function moodEmoji() {
-      const avg =
-        NEEDS.reduce((sum, need) => sum + state.needs[need.id], 0) /
-        NEEDS.length;
-
-      if (avg > 75) return "😄";
-      if (avg > 55) return "🙂";
-      if (avg > 35) return "😐";
-      if (avg > 20) return "😟";
-      return "😭";
-    }
+    function moodAvg() { return NEEDS.reduce((sum, need) => sum + state.needs[need.id], 0) / NEEDS.length; }
+    /* 4 very happy, 3 happy, 2 fine, 1 uncomfortable, 0 miserable (the plumbob turns from green to red) */
+    function moodLevel() { const avg = moodAvg(); return avg > 75 ? 4 : avg > 55 ? 3 : avg > 35 ? 2 : avg > 20 ? 1 : 0; }
+    function moodWord() { return ["Miserable", "Uncomfortable", "Fine", "Happy", "Very happy"][moodLevel()]; }
 
     function updateHUD() {
       document.getElementById("clock").textContent = formatClock();
       document.getElementById("money").textContent = `$${Math.round(state.money)}`;
-      document.getElementById("mood").textContent = moodEmoji();
-      document.getElementById("pauseBtn").textContent = state.paused ? "Resume" : "Pause";
-      document.getElementById("autonomy").checked = state.autonomy;
+      const mood = document.getElementById("mood"), ml = moodLevel();
+      if (mood && mood.dataset.l !== String(ml)) { mood.dataset.l = ml; const c = ["#e8474b", "#f08a24", "#f5c400", "#7ccf3a", "#2fb846"][moodLevel()]; mood.innerHTML = `<svg viewBox="0 0 22 30" width="11" height="15" aria-hidden="true"><path d="M11 0 22 15 11 30 0 15z" fill="${c}"/></svg>`; mood.appendChild(document.createTextNode(moodWord())); }
+      const ab = document.getElementById("autonomy");
+      ab.setAttribute("aria-pressed", String(!!state.autonomy)); ab.textContent = "Autonomy: " + (state.autonomy ? "on" : "off");
+      renderInventory();
 
       NEEDS.forEach((need) => {
         const value = Math.round(state.needs[need.id]);
@@ -549,82 +657,83 @@
           Number(btn.dataset.speed) === state.speed && !state.paused
         );
       });
+      renderQueue();
     }
 
-    function renderPanel() {
-      const objectName = document.getElementById("objectName");
-      const objectActions = document.getElementById("objectActions");
-
-      objectActions.innerHTML = "";
-
-      if (state.currentAction) {
-        const action = state.currentAction;
-
-        objectName.textContent = action.label;
-
-        const current = document.createElement("div");
-        current.className = "current";
-        current.innerHTML = `
-          <strong>${action.label}</strong><br />
-          ${action.phase === "move" ? `Moving to ${action.targetName}` : "Doing action"}<br />
-          ${action.phase === "doing" ? `${Math.floor(action.elapsed)} / ${action.duration} min` : ""}
-        `;
-
-        const cancel = document.createElement("button");
-        cancel.textContent = "Cancel Action";
-        cancel.onclick = () => {
+    /* the action card: what the Sim is doing now, with its progress and a cancel button */
+    let queueKey = "";
+    function renderQueue() {
+      const q = document.getElementById("queue"), a = state.currentAction;
+      if (!a) { if (queueKey) { q.classList.remove("on"); q.innerHTML = ""; queueKey = ""; } return; }
+      const obj = OBJECTS.find((o) => o.id === a.obj) || {};
+      const key = a.id + a.phase;
+      if (key !== queueKey) {
+        queueKey = key;
+        q.innerHTML = `<span class="qi">${icon(obj.icon || "play")}</span><div class="qt"><span id="qLabel"></span><small id="qSub"></small><div class="bar"><div class="bar-fill" id="qBar"></div></div></div><button id="qCancel" aria-label="Cancel action">${icon("x")}</button>`;
+        document.getElementById("qLabel").textContent = a.label;
+        document.getElementById("qCancel").onclick = () => {
           state.currentAction = null;
-          state.moveTarget = null;
+          state.moveTarget = null; state.path = null;
           notify("Action cancelled.");
           renderPanel();
         };
-
-        objectActions.appendChild(current);
-        objectActions.appendChild(cancel);
-        return;
+        q.classList.add("on");
       }
+      document.getElementById("qSub").textContent = a.phase === "move" ? `Walking to the ${a.targetName}` : `${Math.floor(a.elapsed)} / ${a.duration} min`;
+      document.getElementById("qBar").style.width = (a.phase === "move" ? 0 : clamp(a.elapsed / a.duration, 0, 1) * 100) + "%";
+    }
+
+    /* the interaction menu: bubbles over the chosen object, like a pie menu */
+    function closeMenu() { document.getElementById("menu").classList.remove("on"); }
+    function renderPanel() {
+      const objectName = document.getElementById("objectName");
+      const objectActions = document.getElementById("objectActions");
+      const menu = document.getElementById("menu");
+
+      objectActions.innerHTML = "";
+      renderQueue();
 
       const obj = OBJECTS.find((o) => o.id === state.selectedObject);
 
-      if (!obj) {
+      if (!obj || state.currentAction) {
         objectName.textContent = "None";
-        objectActions.innerHTML = `
-          <div class="hint">
-            Click an object to choose an interaction.<br /><br />
-            Click the floor to move.<br /><br />
-            Keep needs healthy, earn money, and survive the day.
-          </div>
-        `;
+        menu.classList.remove("on");
         return;
       }
 
-      objectName.textContent = `${obj.emoji} ${obj.name}`;
+      objectName.textContent = obj.name;
 
       const actions = Object.entries(ACTIONS).filter(([, action]) =>
         action.objectIds.includes(obj.id)
       );
 
-      if (!actions.length) {
-        objectActions.innerHTML = `<div class="hint">No interactions available.</div>`;
-        return;
-      }
-
       actions.forEach(([id, action]) => {
         const btn = document.createElement("button");
         btn.className = "action";
 
-        const costText = action.cost ? `-$${action.cost}` : "";
-        const moneyText = action.money ? `+$${action.money}` : "";
-        const moneyParts = [costText, moneyText].filter(Boolean).join(" ");
+        const price = actionCost(action);
+        const costText = price ? `<b class="cost">-$${price}</b>` : "";
+        const moneyText = action.money ? `<b>+$${action.money}</b>` : "";
+        const useText = action.uses ? ` · ${action.uses.groceries} grocer${action.uses.groceries > 1 ? "ies" : "y"}` : "";
 
-        btn.innerHTML = `
-          <span>${action.label}</span>
-          <small>${action.duration} min ${moneyParts}</small>
-        `;
+        btn.innerHTML = `<span class="dot">${icon(obj.icon)}</span>
+          <span><span></span>
+          <small>${action.duration} min${useText} ${costText}${moneyText}</small></span>`;
+        btn.querySelector("span span").textContent = action.label;
 
-        btn.onclick = () => startAction(id);
+        btn.onclick = (e) => { e.stopPropagation(); sfx("tap"); startAction(id); };
         objectActions.appendChild(btn);
       });
+      menu.classList.add("on");
+      placeMenu();
+    }
+    function placeMenu() {
+      const menu = document.getElementById("menu");
+      if (!menu.classList.contains("on") || !window.H3) return;
+      const p = H3.anchor(state.selectedObject); if (!p) return;
+      const r = menu.getBoundingClientRect(), w = r.width || 220, h = r.height || 120;
+      const x = clamp(p.x, w / 2 + 8, innerWidth - w / 2 - 8), y = clamp(p.y, h + 70, innerHeight - 8);
+      menu.style.left = x + "px"; menu.style.top = y + "px";
     }
 
     function applyEffects(effects) {
@@ -641,8 +750,13 @@
       const action = ACTIONS[id];
       if (!action) return;
 
-      if (action.cost && state.money < action.cost) {
-        notify(`Not enough money for ${action.label}.`);
+      const price = actionCost(action);
+      if (price && state.money < price) {
+        notify(`Not enough money for ${action.label}.`); sfx("error");
+        return;
+      }
+      if (action.uses && Object.entries(action.uses).some(([k, n]) => (state.inventory[k] || 0) < n)) {
+        notify(`No groceries left: order some on the phone.`); sfx("error");
         return;
       }
 
@@ -656,22 +770,26 @@
 
       state.selectedObject = obj.id;
       state.moveTarget = null;
+      const spot = toBoard(obj.use[0], obj.use[1]);
 
       state.currentAction = {
         id,
+        obj: obj.id,
         label: action.label,
         duration: action.duration,
-        cost: action.cost || 0,
+        cost: price || 0,
         money: action.money || 0,
+        uses: action.uses || null,
+        gives: action.gives || null,
         effects: action.effects || {},
         notify: action.notify || `${action.label} finished.`,
         phase: "move",
         elapsed: 0,
-        targetX: obj.x + obj.w / 2,
-        targetY: obj.y + obj.h / 2,
+        targetX: spot.x,
+        targetY: spot.y,
         targetName: obj.name
       };
-
+      state.path = route(state.char, spot);
       renderPanel();
     }
 
@@ -684,39 +802,53 @@
       }
 
       if (action.money) {
-        state.money += action.money;
-      }
-
+        state.money += action.money; state.stats.earned += action.money; sfx("coin");
+        if (window.H3) { H3.fx("money"); floatText(`+$${action.money}`, H3.simAnchor()); }
+      } else { sfx("collect"); if (window.H3) H3.fx("done", action.obj); }
+      if (action.cost && window.H3) floatText(`-$${action.cost}`, H3.simAnchor());
+      if (action.uses) for (const [k, n] of Object.entries(action.uses)) state.inventory[k] = Math.max(0, (state.inventory[k] || 0) - n);
+      if (action.gives) for (const [k, n] of Object.entries(action.gives)) state.inventory[k] = (state.inventory[k] || 0) + n;
+      state.stats.actions += 1;
+      if (action.id === "cook") state.stats.meals += 1;
+      if (action.id === "shower") state.stats.showers += 1;
+      if (action.id === "call") state.stats.calls += 1;
       applyEffects(action.effects);
       notify(action.notify);
-
       state.currentAction = null;
       state.autonomyCooldown = 3;
-
-      renderPanel();
+      renderPanel(); checkGoals(); autosave();
+    }
+    function actionCost(action) {
+      if (!action || !action.cost) return 0;
+      return action === ACTIONS.groceries ? GROCERY_PRICE[state.diff] || action.cost : action.cost;
     }
 
+    /* walks along the route (door to door); true once the last point is reached */
     function moveTowards(target, dt) {
-      const dx = target.x - state.char.x;
-      const dy = target.y - state.char.y;
-      const dist = Math.hypot(dx, dy);
-
-      const step = 170 * dt * Math.max(1, Math.min(state.speed, 10));
-
-      if (dist <= step || dist < 2) {
-        state.char.x = target.x;
-        state.char.y = target.y;
-        return true;
+      if (!state.path || !state.path.length) state.path = [{ x: target.x, y: target.y }];
+      let step = 170 * dt * Math.max(1, Math.min(state.speed, 10));
+      while (step > 0 && state.path.length) {
+        const p = state.path[0];
+        const dx = p.x - state.char.x;
+        const dy = p.y - state.char.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist <= step || dist < 2) {
+          state.char.x = p.x; state.char.y = p.y; step -= dist; state.path.shift();
+        } else {
+          state.char.x += (dx / dist) * step;
+          state.char.y += (dy / dist) * step;
+          step = 0;
+        }
       }
-
-      state.char.x += (dx / dist) * step;
-      state.char.y += (dy / dist) * step;
+      if (!state.path.length) { state.path = null; return true; }
       return false;
     }
 
     function decayNeeds(gameMinutes) {
+      if (cheat.SERENITY) return;
+      const k = (DIFF[state.diff] || DIFF.normal).decay;
       for (const [key, rate] of Object.entries(DECAY)) {
-        state.needs[key] = clamp(state.needs[key] + rate * gameMinutes, 0, 100);
+        state.needs[key] = clamp(state.needs[key] + rate * k * gameMinutes, 0, 100);
       }
     }
 
@@ -725,7 +857,7 @@
         const value = state.needs[need.id];
 
         if (value < 20 && !state.warnings[need.id]) {
-          notify(`${need.label} is critically low!`);
+          notify(`${need.label} is critically low!`); sfx("error");
           state.warnings[need.id] = true;
         } else if (value > 30 && state.warnings[need.id]) {
           state.warnings[need.id] = false;
@@ -745,10 +877,10 @@
       }
 
       if (n.hunger < 70) {
-        const wantsCook = n.hunger < 35 && state.money >= (ACTIONS.cook.cost || 0);
-
+        const g = state.inventory.groceries;
+        const wantsCook = n.hunger < 35 && g >= 2;
         candidates.push({
-          id: wantsCook ? "cook" : "snack",
+          id: g < 1 ? "groceries" : wantsCook ? "cook" : "snack",
           score: 105 - n.hunger + (n.hunger < 30 ? 25 : 0)
         });
       }
@@ -798,7 +930,8 @@
 
       let affordable = candidates.filter((candidate) => {
         const action = ACTIONS[candidate.id];
-        return !action.cost || state.money >= action.cost;
+        return state.money >= actionCost(action) &&
+          !(action.uses && Object.entries(action.uses).some(([k, q]) => (state.inventory[k] || 0) < q));
       });
 
       if (!affordable.length) {
@@ -826,7 +959,12 @@
         state.time -= 1440;
         state.day += 1;
         notify("A new day begins.");
+        endOfDay();
+        return;
       }
+      const hour = Math.floor(state.time / 60);
+      if (hour !== state.lastHour) { state.lastHour = hour; autosave(); }   /* autosave every game hour */
+      checkGoals();
 
       decayNeeds(gameMinutes);
 
@@ -870,129 +1008,27 @@
       updateHUD();
     }
 
-    function drawRooms() {
-      ctx.fillStyle = "#0f172a";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = "#e2e8f0";
-      ctx.fillRect(20, 20, 920, 560);
-
-      const rooms = [
-        { name: "Kitchen", x: 20, y: 20, w: 300, h: 220, color: "#fde68a" },
-        { name: "Bathroom", x: 640, y: 20, w: 300, h: 220, color: "#bae6fd" },
-        { name: "Bedroom", x: 20, y: 360, w: 300, h: 220, color: "#ddd6fe" },
-        { name: "Living Room", x: 640, y: 360, w: 300, h: 220, color: "#bbf7d0" }
-      ];
-
-      rooms.forEach((room) => {
-        ctx.fillStyle = room.color;
-        ctx.fillRect(room.x, room.y, room.w, room.h);
-
-        ctx.strokeStyle = "#334155";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(room.x, room.y, room.w, room.h);
-
-        ctx.fillStyle = "#334155";
-        ctx.font = "16px Arial";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "alphabetic";
-        ctx.fillText(room.name, room.x + 10, room.y + 24);
-      });
-    }
-
-    function drawObjects() {
-      OBJECTS.forEach((obj) => {
-        const selected = state.selectedObject === obj.id;
-
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
-
-        ctx.strokeStyle = selected ? "#2563eb" : "#334155";
-        ctx.lineWidth = selected ? 4 : 2;
-        ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
-
-        ctx.font = `${Math.min(obj.w, obj.h) * 0.45}px serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillStyle = "#111827";
-        ctx.fillText(obj.emoji, obj.x + obj.w / 2, obj.y + obj.h / 2);
-
-        ctx.font = "11px Arial";
-        ctx.fillStyle = "#334155";
-        ctx.textBaseline = "alphabetic";
-        ctx.fillText(obj.name, obj.x + obj.w / 2, obj.y + obj.h + 12);
-      });
-    }
-
-    function drawCharacter() {
-      let status = "Idle";
-
-      if (state.currentAction) {
-        const action = state.currentAction;
-
-        status =
-          action.phase === "move"
-            ? `Moving to ${action.targetName}`
-            : `${action.label} ${Math.floor(action.elapsed)}/${action.duration}m`;
-      } else if (state.moveTarget) {
-        status = "Moving";
-      }
-
-      ctx.beginPath();
-      ctx.arc(state.char.x, state.char.y, 16, 0, Math.PI * 2);
-      ctx.fillStyle = "#f97316";
-      ctx.fill();
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 3;
-      ctx.stroke();
-
-      ctx.font = "20px serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "#111827";
-      ctx.fillText(moodEmoji(), state.char.x, state.char.y);
-
-      ctx.font = "14px Arial";
-      ctx.fillStyle = "#111827";
-      ctx.fillText(status, state.char.x, state.char.y - 34);
-
-      if (state.currentAction && state.currentAction.phase === "doing") {
-        const action = state.currentAction;
-        const pct = clamp(action.elapsed / action.duration, 0, 1);
-
-        ctx.fillStyle = "#111827";
-        ctx.fillRect(state.char.x - 40, state.char.y - 54, 80, 8);
-
-        ctx.fillStyle = "#22c55e";
-        ctx.fillRect(state.char.x - 40, state.char.y - 54, 80 * pct, 8);
-      }
-    }
-
-    function draw() {
-      drawRooms();
-      drawObjects();
-      drawCharacter();
-    }
-
-    function getObjectAt(x, y) {
-      for (let i = OBJECTS.length - 1; i >= 0; i--) {
-        const obj = OBJECTS[i];
-
-        if (x >= obj.x && x <= obj.x + obj.w && y >= obj.y && y <= obj.y + obj.h) {
-          return obj;
-        }
-      }
-
-      return null;
-    }
-
-    function selectObject(obj) {
-      state.selectedObject = obj.id;
+    function selectObject(id) {
+      state.selectedObject = id; sfx("tap");
       renderPanel();
+    }
+    /* a click in the house (from house3d.js): an object opens its menu; the floor walks the Sim there */
+    function boardClick(hit) {
+      if (!document.getElementById("titleCard").hidden || !document.getElementById("dayCard").hidden) return;
+      if (hit && hit.obj) { selectObject(hit.obj); return; }
+      if (hit && hit.floor) {
+        state.currentAction = null;
+        state.selectedObject = null;
+        state.moveTarget = { x: hit.floor.x, y: hit.floor.y };
+        state.path = route(state.char, state.moveTarget);
+        renderPanel();
+        return;
+      }
+      state.selectedObject = null; renderPanel();
     }
 
     function saveGame() {
-      localStorage.setItem("miniLifeSimSave", JSON.stringify(state));
+      autosave();
       notify("Game saved.");
     }
 
@@ -1016,11 +1052,15 @@
           warnings: { ...base.warnings, ...(data.warnings || {}) }
         };
 
+        state.inventory = { ...base.inventory, ...(data.inventory || {}) };
+        state.stats = { ...base.stats, ...(data.stats || {}) };
+        if (!Array.isArray(state.goals) || !state.goals.length) newGoals();
         state.currentAction = null;
         state.moveTarget = null;
-
+        state.path = null;
+        state.paused = false;
         renderPanel();
-        renderNotifications();
+        renderNotifications(); renderGoals();
         notify("Game loaded.");
       } catch (err) {
         notify("Save could not be loaded.");
@@ -1028,94 +1068,198 @@
     }
 
     function resetGame() {
+      const diff = state.diff;
       localStorage.removeItem("miniLifeSimSave");
       state = createInitialState();
+      state.diff = diff;
+      if (cheat.MONEYBAGS) state.money += 1000;
+      newGoals();
       renderPanel();
       renderNotifications();
       notify("New game started.");
+      autosave();
     }
 
-    canvas.addEventListener("click", (e) => {
-      const rect = canvas.getBoundingClientRect();
-
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-
-      const x = (e.clientX - rect.left) * scaleX;
-      const y = (e.clientY - rect.top) * scaleY;
-
-      const obj = getObjectAt(x, y);
-
-      if (obj) {
-        selectObject(obj);
-      } else {
-        state.currentAction = null;
-        state.moveTarget = { x, y };
-        renderPanel();
-      }
-    });
-
-    document.getElementById("pauseBtn").onclick = () => {
-      state.paused = !state.paused;
-      updateHUD();
-    };
+    /* one pause: the arcade pause menu (or pauses the house without it) */
+    function togglePause() {
+      if (SDK) { if (SDK.paused) SDK.resume(); else SDK.showMenu(); return; }
+      state.paused = !state.paused; updateHUD();
+    }
+    document.getElementById("pauseBtn").onclick = togglePause;
 
     document.querySelectorAll(".speed").forEach((btn) => {
       btn.onclick = () => {
         state.speed = Number(btn.dataset.speed);
-        state.paused = false;
-        updateHUD();
+        if (!dayPause && document.getElementById("titleCard").hidden) state.paused = false;
+        sfx("tap"); updateHUD();
       };
     });
 
-    document.getElementById("autonomy").onchange = (e) => {
-      state.autonomy = e.target.checked;
+    document.getElementById("autonomy").onclick = () => {
+      state.autonomy = !state.autonomy; updateHUD(); sfx("tap");
       notify(`Autonomy ${state.autonomy ? "enabled" : "disabled"}.`);
     };
 
     document.getElementById("saveBtn").onclick = saveGame;
     document.getElementById("loadBtn").onclick = loadGame;
     document.getElementById("resetBtn").onclick = resetGame;
+    document.getElementById("saveBtn2").onclick = saveGame;
+    document.getElementById("loadBtn2").onclick = loadGame;
+    document.getElementById("resetBtn2").onclick = resetGame;
+    document.getElementById("sideBtn").onclick = () => {
+      const s = document.getElementById("side"), open = !s.classList.contains("open");
+      s.classList.toggle("open", open); document.getElementById("sideBtn").setAttribute("aria-expanded", String(open)); sfx("tap");
+    };
 
     window.addEventListener("keydown", (e) => {
+      if (e.target && /INPUT|BUTTON/.test(e.target.tagName)) return;
+      if (!document.getElementById("titleCard").hidden || !document.getElementById("dayCard").hidden) return;
       if (e.code === "Space") {
         e.preventDefault();
-        state.paused = !state.paused;
-        updateHUD();
+        togglePause();
       }
+      if (e.key === "Escape" && document.getElementById("menu").classList.contains("on")) { state.selectedObject = null; renderPanel(); }
 
       if (e.key === "1") {
         state.speed = 1;
-        state.paused = false;
+        if (!dayPause) state.paused = false;
         updateHUD();
       }
 
       if (e.key === "2") {
         state.speed = 5;
-        state.paused = false;
+        if (!dayPause) state.paused = false;
         updateHUD();
       }
 
       if (e.key === "3") {
         state.speed = 15;
-        state.paused = false;
+        if (!dayPause) state.paused = false;
         updateHUD();
       }
 
       if (e.key === "4") {
         state.speed = 60;
-        state.paused = false;
+        if (!dayPause) state.paused = false;
         updateHUD();
       }
     });
 
+    /* ── title card, first-run coach, codes, hints ── */
+    const CODES = { MONEYBAGS: "+$1000 (and every new life starts with it)", SERENITY: "Needs stop dropping",
+      PANTRY: "+20 groceries in the fridge" };
+    const cheat = { MONEYBAGS: false, SERENITY: false, PANTRY: false };
+    function applyCode(code) {
+      code = String(code || "").trim().toUpperCase();
+      if (!CODES[code]) return { ok: false };
+      cheat[code] = true; document.getElementById("codesOn").hidden = false;
+      if (code === "MONEYBAGS") state.money += 1000;
+      if (code === "PANTRY") state.inventory.groceries += 20;
+      updateHUD(); sfx("unlock");
+      return { ok: true, message: CODES[code] };
+    }
+    const COACH = [
+      { txt: "Click the <b>Fridge</b> in the kitchen (top left).", done: () => state.selectedObject === "fridge" },
+      { txt: "Now choose <b>Grab Snack</b>. Your Sim walks over and eats (it uses 1 grocery).", done: () => !!state.currentAction || state.stats.actions > 0 },
+      { txt: "The <b>Needs</b> bars drop all day. Green is fine; red means act now.", next: true },
+      { txt: "Work at the <b>Computer</b> for $140, and order groceries on the <b>Phone</b>. Tick off today's goals!", next: true }
+    ];
+    let coachIx = -1;
+    function coachShow(i) {
+      coachIx = i;
+      const c = COACH[i];
+      if (!c) { coachEnd(); return; }
+      document.getElementById("coachStep").textContent = `Tutorial ${i + 1} of ${COACH.length}`;
+      document.getElementById("coachTxt").innerHTML = c.txt;
+      document.getElementById("coachNext").hidden = !c.next;
+      document.getElementById("coach").hidden = false;
+    }
+    function coachEnd() { coachIx = -1; document.getElementById("coach").hidden = true; try { localStorage.setItem("mls_tut", "1"); } catch (e) {} }
+    function coachTick() { if (coachIx >= 0 && COACH[coachIx].done && COACH[coachIx].done()) { sfx("correct"); coachShow(coachIx + 1); } }
+    document.getElementById("coachNext").onclick = () => coachShow(coachIx + 1);
+    document.getElementById("coachSkip").onclick = coachEnd;
+    function hasSave() { try { return !!localStorage.getItem("miniLifeSimSave"); } catch (e) { return false; } }
+    function setDiff(d) {
+      state.diff = d;
+      document.querySelectorAll(".diff").forEach((b) => b.classList.toggle("active", b.dataset.diff === d));
+      document.getElementById("diffNote").textContent = DIFF[d].note;
+    }
+    document.querySelectorAll(".diff").forEach((b) => (b.onclick = () => { setDiff(b.dataset.diff); sfx("tap"); }));
+    function showTitle() {
+      coachIx = -1; document.getElementById("coach").hidden = true;
+      document.getElementById("dayCard").hidden = true; dayPause = false;
+      state.paused = true; closeMenu();
+      document.getElementById("continueBtn").hidden = !hasSave();
+      const best = readBest();
+      document.getElementById("bestLine").textContent = best.days ? `Best: ${best.days} days lived, ${best.trophies} trophies` : "";
+      setDiff(state.diff || "normal");
+      updateHUD();
+      document.getElementById("titleCard").hidden = false;
+      try { document.getElementById("newBtn").focus({ preventScroll: true }); } catch (e) {}
+      sdkState("title");
+    }
+    function beginPlay(fresh) {
+      const d = state.diff;
+      document.getElementById("titleCard").hidden = true;
+      if (fresh || !hasSave()) { state.diff = d; resetGame(); } else loadGame();
+      state.paused = false; updateHUD(); sfx("go");
+      sdkState("play", 0);
+      let seen = false; try { seen = localStorage.getItem("mls_tut") === "1"; } catch (e) {}
+      if (!seen) coachShow(0);
+    }
+    function syncGfx() { document.getElementById("gfxBtn").textContent = "Graphics: " + (gfxLow ? "Low" : "High"); }
+    document.getElementById("gfxBtn").onclick = () => { gfxLow = !gfxLow; try { localStorage.setItem("mls_gfx", gfxLow ? "low" : "high"); } catch (e) {} if (window.H3) H3.setQuality(gfxLow ? "low" : "high"); syncGfx(); sfx("tap"); };
+    syncGfx();
+    document.getElementById("newBtn").onclick = () => beginPlay(true);
+    document.getElementById("continueBtn").onclick = () => beginPlay(false);
+    document.getElementById("dayNext").onclick = () => {
+      document.getElementById("dayCard").hidden = true; dayPause = false; state.paused = false; updateHUD(); sdkState("play", 0); sfx("go");
+    };
+    function hintNow() {
+      if (!document.getElementById("titleCard").hidden) return "Pick a difficulty and press New life.";
+      const low = NEEDS.slice().sort((a, b) => state.needs[a.id] - state.needs[b.id])[0];
+      const fix = { hunger: state.inventory.groceries ? "the Fridge (snack) or Stove (meal)" : "the Phone to order groceries, then the Fridge",
+        bladder: "the Toilet", energy: "the Bed (nap or sleep)", hygiene: "the Shower", fun: "the TV", social: "the Phone (call a friend)" }[low.id];
+      if (state.needs[low.id] < 45) return `${low.label} is lowest (${Math.round(state.needs[low.id])}): use ${fix}.`;
+      if (state.money < 30) return "Money is low: work at the Computer for $140.";
+      const g = state.goals.find((x) => !x.done);
+      if (g) return `Next goal: ${g.text}. Each goal pays $25.`;
+      return "All goals done today: keep everyone happy until midnight for a trophy.";
+    }
+    /* With the arcade SDK its round pause button (top right) is the one pause button; Space still pauses. */
+    if (SDK) document.getElementById("pauseBtn").hidden = true;
+    if (SDK) { try { window.ArcadeSDK.init({
+      pauseKeys: "p+esc", pauseButton: "tr",
+      onPause() { state.paused = true; updateHUD(); },
+      onResume() { if (document.getElementById("titleCard").hidden && !dayPause) state.paused = false; updateHUD(); },
+      onRestart() { beginPlay(true); },
+      onExit() { autosave(); showTitle(); },
+      onTutorial() { document.getElementById("titleCard").hidden = true; if (!dayPause) state.paused = false; coachShow(0); },
+      onHint: hintNow,
+      onCheat: applyCode
+    }); } catch (e) {} }
+
     buildNeedsUI();
+    newGoals();
     renderPanel();
     renderNotifications();
     notify("Welcome! Click objects to interact.");
+    showTitle();
 
+    /* the free part of the screen (not under the panels) that the house is framed in */
+    function freeRect() {
+      const W = innerWidth, H = innerHeight;
+      if (W <= 700) { const top = 104, bottom = 176; return { x: 0, y: top, w: W, h: Math.max(160, H - top - bottom) }; }
+      if (W <= 1100 || H <= 620) { const top = 56, bottom = 116; return { x: 0, y: top, w: W, h: Math.max(160, H - top - bottom) }; }
+      const top = 64, left = W > 1000 ? 0 : 0, right = 290;
+      return { x: left, y: top, w: Math.max(300, W - right - left), h: Math.max(200, H - top - 10) };
+    }
     let last = performance.now();
-
+    function view() {
+      return { char: state.char, action: state.currentAction, moving: !!(state.path && state.path.length) && !state.paused, fast: state.speed >= 15,
+        selected: state.selectedObject, time: state.time, mood: moodAvg(), target: state.moveTarget || (state.currentAction && state.currentAction.phase === "move" ? { x: state.currentAction.targetX, y: state.currentAction.targetY } : null),
+        title: !document.getElementById("titleCard").hidden, cheer };
+    }
     function loop(now) {
       const dt = Math.min((now - last) / 1000, 0.1);
       last = now;
@@ -1123,12 +1267,25 @@
       if (!state.paused) {
         update(dt);
       }
-
-      draw();
+      cheer = Math.max(0, cheer - dt);
+      coachTick();
+      if (window.H3) { H3.frame(dt, now, view()); placeMenu(); }
       requestAnimationFrame(loop);
     }
 
     requestAnimationFrame(loop);
+  </script>
+  <script type="module">
+    import { createHouse } from "./house3d.js";
+    const q = gfxPref === "low" || gfxPref === "high" ? gfxPref : "auto";
+    createHouse(canvas, { quality: q, objects: OBJECTS }).then((H) => {
+      window.H3 = H;
+      gfxLow = H.quality === "low"; syncGfx();
+      const fit = () => H.resize(freeRect());
+      fit(); addEventListener("resize", fit);
+      canvas.addEventListener("click", (e) => boardClick(H.pick(e.clientX, e.clientY)));
+      document.getElementById("load").hidden = true;
+    }).catch((e) => { document.getElementById("load").textContent = "The house could not load."; console.warn(e); });
   </script>
 </body>
 </html>

@@ -1,56 +1,69 @@
-﻿<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Swim Dodge</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,150,255,.3)}</style></head>
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Swim Dodge</title><script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script><script src="sky-arcade.js"></script><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,150,255,.3)}</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H,bgGrad,meterGrad,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#0a3a5a');bgGrad.addColorStop(.3,'#0a2a4a');bgGrad.addColorStop(.7,'#0a1a3a');bgGrad.addColorStop(1,'#050a2a');meterGrad=X.createLinearGradient(0,H*.85,0,H*.15);meterGrad.addColorStop(0,'#0cf');meterGrad.addColorStop(1,'#0984e3');needDraw=true}resize();window.addEventListener('resize',resize);
+let W,H,bgGrad,meterGrad,needDraw=true;function resize(){W=Math.min(window.innerWidth-20,420);H=Math.min(window.innerHeight-20,720);SKY.fit(C,X,W,H);bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#0a3a5a');bgGrad.addColorStop(.3,'#0a2a4a');bgGrad.addColorStop(.7,'#0a1a3a');bgGrad.addColorStop(1,'#050a2a');meterGrad=X.createLinearGradient(0,H*.85,0,H*.15);meterGrad.addColorStop(0,'#0cf');meterGrad.addColorStop(1,'#0984e3');needDraw=true}resize();window.addEventListener('resize',resize);
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
 function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
-let player,jellyfish,bubbles,state,depth,surfaceReached,mx=W/2,my=H/2,particles=[],scorePopups=[],shakeTime=0,pulseT=0;
-function init(){player={x:W/2,y:H-100};jellyfish=[];bubbles=[];state='ready';depth=0;surfaceReached=false;mx=W/2;my=H/2;particles=[];scorePopups=[];shakeTime=0;pulseT=0}
+// The diver swims up from 100 m. Jellyfish drift down past you as you rise; touching one stings.
+// Swimming higher on the screen climbs faster, but leaves less time to see what is coming.
+const START=100;
+let player,jellyfish,bubbles,state,depth,mx,my,keys={},best=0,lives=1,hurtT=0,spawnP=.028,particles=[],scorePopups=[],shakeTime=0,pulseT=0,cheat={slow:false,shield:false,tiny:false};
+function init(){player={x:W/2,y:H*.75,r:cheat.tiny?6:12};jellyfish=[];bubbles=[];state='ready';depth=START;mx=W/2;my=H*.75;particles=[];scorePopups=[];shakeTime=0;pulseT=0;hurtT=0;best=SKY.best();lives=SKY.pick(3,2,1)+(cheat.shield?3:0);spawnP=SKY.pick(.02,.028,.04)}
+function climbed(){return Math.round(START-depth)}
 C.addEventListener('pointermove',e=>{let r=C.getBoundingClientRect();mx=e.clientX-r.left;my=e.clientY-r.top});
-C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready')state='play'});
-document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='ready')state='play'}});
-function update(){if(state!=='play')return;pulseT+=.03;player.x+=(mx-player.x)*.07;player.y+=((my-50)-player.y)*.06;depth=Math.max(0,H-player.y);
-if(depth<H*.2&&!surfaceReached){surfaceReached=true;state='win';spawnWinParticles()}
-if(Math.floor(Math.random()*3)===0)bubbles.push({x:Math.random()*W,y:H+10,vx:(Math.random()-.5)*1,vy:-Math.random()*2-1,s:Math.random()*4+2,life:100});
-for(let b of bubbles){b.x+=b.vx;b.y+=b.vy;b.life--}prune(bubbles,pLife);
-if(Math.floor(Math.random()*35)===0){let jy=H+30;jellyfish.push({x:Math.random()*W,y:jy,vx:(Math.random()-.5)*2,vy:-Math.random()*1.5-.5,r:14+Math.random()*16,phase:Math.random()*Math.PI*2,col:`hsla(${270+Math.random()*60},80%,60%,.6)`})}
-for(let j of jellyfish){j.y+=j.vy;j.x+=Math.sin(j.phase++)*.5;if(j.y<-80)j.dead=true;
-if(Math.hypot(player.x-j.x,player.y-j.y)<player.r+j.r){state='over';shakeTime=12;spawnStingParticles();return}}
-prune(jellyfish,j=>!j.dead);
-if(shakeTime>0)shakeTime--;
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.03;p.life--}prune(particles,pLife)}
+C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}let r=C.getBoundingClientRect();mx=e.clientX-r.left;my=e.clientY-r.top});
+document.addEventListener('keyup',e=>{keys[e.code]=false});
+document.addEventListener('keydown',e=>{if(e.code.startsWith('Arrow')){keys[e.code]=true;e.preventDefault();if(state==='ready')state='play'}if(e.code==='Space'){e.preventDefault();if(state==='over'||state==='win')init();else if(state==='ready')state='play'}});
+function update(dt){if(state!=='play')return;const f=dt*60;pulseT+=.03*f;
+let kv=5*f;if(keys.ArrowLeft)mx-=kv;if(keys.ArrowRight)mx+=kv;if(keys.ArrowUp)my-=kv;if(keys.ArrowDown)my+=kv;mx=Math.max(14,Math.min(W-14,mx));my=Math.max(H*.3,Math.min(H-30,my));
+player.x+=(mx-player.x)*(1-Math.pow(.93,f));player.y+=(my-player.y)*(1-Math.pow(.94,f));
+// Rise speed: 1.2 m/s at the bottom of the screen up to 3 m/s near the top.
+let rise=1.2+1.8*(1-(player.y-H*.3)/(H*.7-30)),sp=(cheat.slow?.5:1);depth=Math.max(0,depth-rise*dt);
+if(depth<=0){state='win';spawnWinParticles();SKY.sfx('splash');SKY.sfx('win');if(SKY.saveBest(START))best=START;return}
+if(Math.random()<.35*f)bubbles.push({x:Math.random()*W,y:H+10,vx:(Math.random()-.5),vy:-Math.random()*2-1,s:Math.random()*4+2,life:100});
+for(let b of bubbles){b.x+=b.vx*f;b.y+=b.vy*f;b.life-=f}prune(bubbles,pLife);
+if(Math.random()<spawnP*(1+(START-depth)/80)*f){jellyfish.push({x:Math.random()*W,y:-40,vy:(.8+Math.random()*1.2)*(1+rise/3),r:14+Math.random()*16,phase:Math.random()*Math.PI*2,col:`hsla(${270+Math.random()*60},80%,60%,.6)`})}
+for(let j of jellyfish){j.y+=j.vy*sp*f;j.phase+=.05*f;j.x+=Math.sin(j.phase)*.6*f;if(j.y>H+60)j.dead=true;
+if(hurtT<=0&&Math.hypot(player.x-j.x,player.y-j.y)<player.r+j.r*.8){lives--;j.dead=true;spawnStingParticles();shakeTime=SKY.shake(12);
+if(lives<=0){state='over';SKY.sfx('lose');if(SKY.saveBest(climbed()))best=climbed();return}hurtT=90;SKY.sfx('hurt');scorePopups.push({x:player.x,y:player.y-24,txt:'STUNG! '+lives+' left',life:40,vy:-1})}}
+prune(jellyfish,j=>!j.dead);if(hurtT>0)hurtT-=f;
+if(shakeTime>0)shakeTime-=f;
+for(let p of particles){p.x+=p.vx*f;p.y+=p.vy*f;p.vy+=.03*f;p.life-=f}prune(particles,pLife);
+for(let sp2 of scorePopups){sp2.y+=sp2.vy*f;sp2.life-=f}prune(scorePopups,pLife)}
 function spawnStingParticles(){if(particles.length>300)return;for(let i=0;i<15;i++){let a=Math.random()*Math.PI*2;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*(Math.random()*5+2),vy:Math.sin(a)*(Math.random()*5+2),life:25,s:Math.random()*3+2,col:'#c066ff'})}}
 function spawnWinParticles(){if(particles.length>300)return;for(let i=0;i<50;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H*.2,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2)-2,life:40,s:Math.random()*4+2,col:`hsl(${Math.random()*360},100%,60%)`})}}
 function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
 X.clearRect(-15,-15,W+30,H+30);
-// Water gradient - deeper at bottom
 X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
-// Light rays from surface
-X.fillStyle='rgba(100,200,255,.03)';for(let i=0;i<5;i++){let rx=W*.2+i*W*.15+Math.sin(pulseT+i)*10;X.beginPath();X.moveTo(rx-10,0);X.lineTo(rx+10,0);X.lineTo(rx+30,H);X.lineTo(rx-30,H);X.closePath();X.fill()}
-// Surface line
-X.fillStyle='rgba(100,200,255,.2)';X.fillRect(0,0,W,3);
-// Bubbles
+// light from the surface gets stronger as you rise
+let near=1-depth/START;X.fillStyle='rgba(100,200,255,'+(.03+near*.08)+')';for(let i=0;i<5;i++){let rx=W*.2+i*W*.15+Math.sin(pulseT+i)*10;X.beginPath();X.moveTo(rx-10,0);X.lineTo(rx+10,0);X.lineTo(rx+30,H);X.lineTo(rx-30,H);X.closePath();X.fill()}
+if(depth<15){X.fillStyle='rgba(150,220,255,'+(.4*(1-depth/15))+')';X.fillRect(0,0,W,6)}
 for(let b of bubbles){X.globalAlpha=b.life/100*.3;X.fillStyle='#88ccff';X.beginPath();X.arc(b.x,b.y,b.s,0,Math.PI*2);X.fill();X.strokeStyle='rgba(150,220,255,.3)';X.lineWidth=.5;X.stroke()}X.globalAlpha=1;
-// Seaweed
-X.strokeStyle='rgba(50,150,50,.2)';X.lineWidth=3;for(let i=0;i<6;i++){let sx=i*W/5+W/10;X.beginPath();X.moveTo(sx,H);for(let y=H;y>H-80;y-=5){X.quadraticCurveTo(sx+Math.sin(pulseT+i+y*.02)*15,y-5,sx,y-10)}X.stroke()}
-// Jellyfish
+X.strokeStyle='rgba(50,150,50,.2)';X.lineWidth=3;let sy=H+(START-depth)*6;if(sy<H+90)for(let i=0;i<6;i++){let sx=i*W/5+W/10;X.beginPath();X.moveTo(sx,sy);for(let y=sy;y>sy-80;y-=5){X.quadraticCurveTo(sx+Math.sin(pulseT+i+y*.02)*15,y-5,sx,y-10)}X.stroke()}
 for(let j of jellyfish){glowAt(j.col,j.x,j.y,j.r+15);X.fillStyle=j.col;X.beginPath();X.arc(j.x,j.y,j.r,Math.PI,0);X.lineTo(j.x+j.r,j.y);X.lineTo(j.x-j.r,j.y);X.closePath();X.fill();
 X.strokeStyle='rgba(200,100,255,.3)';X.lineWidth=1;for(let t=-2;t<=2;t++){X.beginPath();X.moveTo(j.x+t*j.r/2,j.y);for(let s=0;s<j.r*2;s+=5){X.lineTo(j.x+t*j.r/2+Math.sin(pulseT*2+t+s*.1)*5,j.y+s)}X.stroke()}}
-// Player (diver)
-glowAt('#ffd700',player.x,player.y,27);X.fillStyle='#ffd700';X.beginPath();X.arc(player.x,player.y,12,0,Math.PI*2);X.fill();
-X.fillStyle='rgba(255,255,255,.4)';X.beginPath();X.arc(player.x-3,player.y-3,4,0,Math.PI*2);X.fill();
-// Depth meter
+// diver (blinks after a sting)
+if(!(hurtT>0&&Math.floor(hurtT/6)%2)){glowAt('#ffd700',player.x,player.y,player.r+15);X.fillStyle='#ffd700';X.beginPath();X.arc(player.x,player.y,player.r,0,Math.PI*2);X.fill();
+X.fillStyle='rgba(255,255,255,.4)';X.beginPath();X.arc(player.x-3,player.y-3,player.r/3,0,Math.PI*2);X.fill()}
+// depth meter
 let meterW=8,meterH=H*.7,meterX=25,meterY=H*.15;X.fillStyle='rgba(255,255,255,.1)';X.fillRect(meterX,meterY,meterW,meterH);
-let fill=Math.min(1,depth/(H*.8));X.fillStyle=meterGrad;X.fillRect(meterX,meterY+meterH-meterH*fill,meterW,meterH*fill);
-X.fillStyle='#fff';X.font='bold 11px "Segoe UI"';X.textAlign='center';X.fillText(Math.floor(depth)+'m',meterX+4,meterY-5);
-// Particles
+let fill=Math.min(1,near);X.fillStyle=meterGrad;X.fillRect(meterX,meterY+meterH-meterH*fill,meterW,meterH*fill);
+X.fillStyle='#fff';X.font='bold 14px "Segoe UI"';X.textAlign='left';X.fillText(Math.ceil(depth)+' m',meterX-8,meterY-8);
+X.textAlign='center';X.fillText('❤ '+lives,W/2,26);X.fillStyle='rgba(255,255,255,.7)';X.fillText('BEST '+best+' m',W/2,46);
 for(let p of particles){let pr=p.s*(p.life/50);X.globalAlpha=p.life/50;glowAt(p.col,p.x,p.y,pr+6);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}X.globalAlpha=1;
+for(let sp of scorePopups){X.globalAlpha=Math.max(0,sp.life/40);X.fillStyle='#c066ff';X.font='bold 16px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
 X.restore();
-if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#0cf',W/2,H/2-30,110);X.fillStyle='#0cf';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('SWIM DODGE',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Move pointer to swim. Avoid jellyfish!',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
-if(surfaceReached){X.fillStyle='rgba(0,200,255,.3)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 SURFACE! \u2728',W/2,H/2-20)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('STUNG!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
-if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0cf',W/2,H/2-20,110);X.fillStyle='#0cf';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ESCAPED! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+if(state==='ready'&&SKY.tut)SKY.drawTut(X,W,H,{title:'SWIM DODGE',color:'#0cf',gesture:'drag',steps:['Drag your finger, move the mouse or hold the arrow keys: the diver swims after it.','You rise towards the surface on your own. Swimming higher on the screen climbs faster.','Jellyfish drift down past you. Touch one and you are stung.','Reach 0 m to escape.']});
+else if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#0cf',W/2,H/2-30,110);X.fillStyle='#0cf';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('SWIM DODGE',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Swim up 100 m. Avoid the jellyfish!',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('▶ Tap to start',W/2,H/2+35)}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('STUNG!',W/2,H/2-20);X.fillStyle='#fff';X.font='20px "Segoe UI"';X.fillText('Climbed '+climbed()+' m   Best: '+best+' m',W/2,H/2+14);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('▶ Tap to retry',W/2,H/2+48)}
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0cf',W/2,H/2-20,110);X.fillStyle='#0cf';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('✨ SURFACE! ✨',W/2,H/2-20);X.fillStyle='#fff';X.font='20px "Segoe UI"';X.fillText('You swam all 100 m',W/2,H/2+14);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('▶ Tap to play again',W/2,H/2+48)}}
+let pState='',last=performance.now();function loop(now){if(document.hidden){last=performance.now();return requestAnimationFrame(loop)}let dt=Math.min(.05,(now-last)/1000);last=now;update(dt);if(state!==pState){pState=state;needDraw=true}if(state==='play'||state==='ready')needDraw=true;SKY.tick(state,climbed());if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}
+SKY.setup({id:'swim-dodge',color:'#0cf',pauseButton:'tr',
+onRestart(){init();state='play'},onExit(){init()},onDiff(){init()},
+onHint(){if(state!=='play')return 'Tap to start, then drag to steer the diver.';let t=jellyfish.filter(j=>j.y<player.y&&Math.abs(j.x-player.x)<j.r+player.r+20).sort((a,b)=>b.y-a.y)[0];
+if(t){let go=t.x>player.x?'left':'right';return 'A jellyfish is drifting down right above you, '+Math.round(player.y-t.y)+' px away: slide '+go+' out of its path.'}return 'The water above you is clear: move up the screen to climb faster ('+Math.ceil(depth)+' m to go).'},
+cheats:{SLOWJELLY:['Jellyfish drift at half speed',()=>{cheat.slow=true}],WETSUIT:['3 extra stings before the run ends',()=>{cheat.shield=true;lives+=3}],TINYDIVER:['The diver shrinks to half size',()=>{cheat.tiny=true;player.r=6}]}});
+init();requestAnimationFrame(loop)
 </script></body></html>

@@ -1,82 +1,101 @@
-﻿<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Parking Puzzle</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(46,213,115,.3)</style></head>
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Parking Puzzle</title><script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script><script src="sky-arcade.js"></script><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(46,213,115,.3)}</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#3a3a3a');bgGrad.addColorStop(1,'#2a2a2a');needDraw=true}resize();window.addEventListener('resize',resize);
+// A packed car park, 6 x 6. Slide cars along their length to clear a path so the green car can drive out of the exit on the right.
+// Every level was checked by a solver; MIN is the fewest moves it can be done in (one move = one slide of one car, any distance).
+const PACKS={"easy":["..JJ..CDDIB.CAAIB.EMMFFFEHLG.K.HLG.K",".FFDDD.....JGAA..JG.BB.HIE...HIE.CCH",".KK.JJ..HH.I..AABI..FFBGDCCC.GD..EEE","C.....C.GG..AA.HB..F.HB..F.DBE.F.D.E","K.CCIIKDDEFG.AAEFG..BBF....H..JJ.H..","FF.....CC...AAEB....EB..I.EBDDIGGHH.",".BBBE.F.KKE.FAA.EJ.GGG.JI..CCLIDDHHL","JJ.HC.BB.HC.AA.H....GGEE.FFDDI.....I"],"normal":[".MBBLLFM.EE.FAAJIDFH.JIDGHKJC.G.K.C.",".KKIIILLBB.NAAMFDNJ.MFDGJEH..GJEHCCC","CC.MMIB..JJIBAA.DFH.EGDFHKEGDF.KELL.","E.CCBLE.FFBLAA.HB..GDH..JGDKK.JG.II.","EEJJCCBBB.G...AAG...DLFFI.DL.KI.HHHK","..GE....GEF.AACHFB..CHFBJ..IIBJDD...","LHMMC.LHDDCKAA..CK.B.I.KFBGIJJF.G.EE",".HHB..C..B..CAABF..E..F..EGGF.DDD..."],"hard":["..HJJJG.HFK.GAAFK.EI.FCCEIBB.D..LL.D",".D.CC..D.EEGAAKHFG..KHFIJ..BFIJ..B..","DD......BKHIAABKHI.G.KF..GCCF.EEE.JJ","GGDDIC....IC.AA.IC.EFFF..E.BKK.HHBJJ","KKG...FMG.BBFMAAHE..DJHELIDJ.ELIDJCC",".E...F.EHHIF.EAAIFGGC.I...CBB..JJ.DD",".GGGEE.KFFDD.KAABHCCL.BHI.LN.MIJJN.M","..G...H.G.JJHAA.FDH...FDBBEEEDIICCC."]};
+const MIN={"easy":[4,4,4,4,5,6,7,7],"normal":[9,10,10,10,10,11,11,12],"hard":[16,16,17,17,17,19,19,22]};
+const PAL={B:['#1e90ff','blue'],C:['#ffa502','orange'],D:['#a55eea','purple'],E:['#ff6b81','pink'],F:['#eccc68','yellow'],G:['#00d2d3','teal'],H:['#ff4757','red'],I:['#70a1ff','sky-blue'],J:['#ff7f50','coral'],K:['#cd6133','brown'],L:['#dfe4ea','white'],M:['#e056fd','magenta'],N:['#747d8c','grey']};
+const N=6,STORE='sky-parking-puzzle-stars';
+let W,H,SZ,BX,BY,board,state,pack='normal',lvl=0,sel=0,stars={},unlockAll=false,moves=0,history=[],drag=null,hintMove=null,hintT=0,usedHint=false,lastKeyCar=null,cur='A',exitAnim=0,resultStars=0,tow=0,cheat={show:false},particles=[],pulseT=0;
+let bgGrad,CRECT;function resize(){W=Math.min(window.innerWidth-20,420);H=Math.min(window.innerHeight-20,720);SKY.fit(C,X,W,H);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#3a3a3a');bgGrad.addColorStop(1,'#2a2a2a');SZ=Math.floor(Math.min((W-56)/N,(H-230)/N));BX=Math.floor((W-N*SZ)/2)-8;BY=96}
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
-function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}function pSpark(s){return s.life>0&&(s.life--)>0}
-let sparkleSpr=null;function sparkleImg(){if(!sparkleSpr){sparkleSpr=document.createElement('canvas');sparkleSpr.width=sparkleSpr.height=20;let g=sparkleSpr.getContext('2d');g.font='10px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='#2ed573';g.fillText('\u2728',10,10)}return sparkleSpr}
-let car,zone,level,state,steerAngle,particles=[],scorePopups=[],shakeTime=0,pulseT=0,sparkles=[];
-const LEVELS=[
-{car:{x:W*.3,y:H*.35},zone:{x:W*.65,y:H*.3,w:75,h:50},walls:[{x:W*.5,y:H*.22,w:10,h:90},{x:W*.2,y:H*.6,w:90,h:10}]},
-{car:{x:W*.2,y:H*.65},zone:{x:W*.6,y:H*.2,w:75,h:50},walls:[{x:W*.4,y:H*.3,w:10,h:110},{x:W*.55,y:H*.55,w:70,h:10}]},
-{car:{x:W*.5,y:H*.75},zone:{x:W*.15,y:H*.15,w:75,h:50},walls:[{x:W*.3,y:H*.4,w:10,h:130},{x:W*.6,y:H*.55,w:80,h:10},{x:W*.4,y:H*.7,w:10,h:70}]}
-];
-function init(){level=0;state='ready';particles=[];scorePopups=[];shakeTime=0;sparkles=[]}
-function loadLevel(){let lv=LEVELS[level];car={...lv.car,vx:0,vy:0,angle:0};zone={...lv.zone};state='play'}
-C.addEventListener('pointermove',e=>{if(state!=='play')return;let mx=e.clientX-CRECT.left,my=e.clientY-CRECT.top;
-steerAngle=Math.atan2(my-car.y,mx-car.x)});
-C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){loadLevel();return}
-let mx=e.clientX-CRECT.left,my=e.clientY-CRECT.top;steerAngle=Math.atan2(my-car.y,mx-car.x)});
-document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win'){init();return}if(state==='ready')loadLevel()}});
-function update(){if(state!=='play')return;pulseT+=.05;
-let spd=2.2;car.vx=Math.cos(steerAngle)*spd;car.vy=Math.sin(steerAngle)*spd;car.x+=car.vx;car.y+=car.vy;
-let lv=LEVELS[Math.min(level,LEVELS.length-1)];
-for(let w of lv.walls){if(car.x>w.x-w.w/2-15&&car.x<w.x+w.w/2+15&&car.y>w.y-w.h/2-15&&car.y<w.y+w.h/2+15){state='over';shakeTime=12;spawnCrashParticles();return}}
-if(car.x<-30||car.x>W+30||car.y<-30||car.y>H+30){state='over';shakeTime=8;return}
-let dx=car.x-(zone.x+zone.w/2),dy=car.y-(zone.y+zone.h/2);
-if(Math.abs(dx)<zone.w/2-10&&Math.abs(dy)<zone.h/2-10){parked()}
-if(shakeTime>0)shakeTime--;
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
-for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife);
-for(let s of sparkles){s.t=(s.t||0)+.05;s.x+=s.vx||0;s.y+=s.vy||0}prune(sparkles,pSpark)}
-function parked(){level++;if(level>=LEVELS.length){state='win';spawnWinParticles()}else{scorePopups.push({x:zone.x+zone.w/2,y:zone.y,txt:'PARKED!',life:40,vy:-1.5});loadLevel()}}
-function spawnCrashParticles(){if(particles.length>180)return;for(let i=0;i<15;i++)particles.push({x:car.x,y:car.y,vx:(Math.random()-.5)*6,vy:(Math.random()-.5)*6,life:25,s:Math.random()*4+2,col:['#ff4757','#ffa502'][Math.floor(Math.random()*2)]})}
-function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<50;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
-function draw(){if(!car){X.clearRect(0,0,W,H);X.fillStyle='#fff';X.font='bold 30px sans-serif';X.textAlign='center';X.fillText('PARKING PUZZLE',W/2,H/2-10);X.font='16px sans-serif';X.fillStyle='rgba(255,255,255,.6)';X.fillText('Tap to start',W/2,H/2+24);return}X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
-X.clearRect(-15,-15,W+30,H+30);
-// Asphalt
-X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
-// Road texture
-X.fillStyle='rgba(255,255,255,.02)';for(let i=0;i<30;i++){X.fillRect(Math.random()*W,Math.random()*H,Math.random()*30+5,1)}
-// Parking zone
-let pulse=1+Math.sin(pulseT)*.05;X.save();X.translate(zone.x+zone.w/2,zone.y+zone.h/2);X.scale(pulse,pulse);X.translate(-(zone.x+zone.w/2),-(zone.y+zone.h/2));
-X.fillStyle='rgba(46,213,115,.15)';X.fillRect(zone.x,zone.y,zone.w,zone.h);
-X.strokeStyle='#2ed573';X.lineWidth=2;X.setLineDash([6,4]);X.strokeRect(zone.x,zone.y,zone.w,zone.h);X.setLineDash([]);
-X.fillStyle='rgba(46,213,115,.6)';X.font='bold 11px sans-serif';X.textAlign='center';X.fillText('PARK',zone.x+zone.w/2,zone.y+zone.h/2+4);
-// Sparkles in zone
-let spImg=sparkleImg();for(let i=0;i<3;i++){let sx=zone.x+10+Math.sin(pulseT+i*2)*zone.w*.3+zone.w*.3,sy=zone.y+5+Math.cos(pulseT+i*3)*zone.h*.2+zone.h*.3;X.globalAlpha=.3+Math.sin(pulseT*2+i)*.2;X.drawImage(spImg,sx-10,sy-10)}X.globalAlpha=1;
-X.restore();
-// Walls
-for(let w of LEVELS[Math.min(level,LEVELS.length-1)].walls){X.fillStyle='#666';X.fillRect(w.x-w.w/2,w.y-w.h/2,w.w,w.h);X.fillStyle='rgba(255,255,255,.1)';X.fillRect(w.x-w.w/2,w.y-w.h/2,w.w,2)}
-// Car
-X.save();X.translate(car.x,car.y);X.rotate(steerAngle);
-// Headlight beams
-X.fillStyle='rgba(255,255,200,.05)';X.beginPath();X.moveTo(18,-8);X.lineTo(60,-20);X.lineTo(60,20);X.lineTo(18,8);X.closePath();X.fill();
-// Body
-X.drawImage(glow('#e74c3c'),-28,-21,56,42);X.fillStyle='#e74c3c';X.fillRect(-20,-13,40,26);
-// Windshield
-X.fillStyle='rgba(100,200,255,.5)';X.fillRect(6,-10,10,20);
-// Roof detail
-X.fillStyle='rgba(0,0,0,.1)';X.fillRect(-5,-11,15,22);
-// Wheels
-X.fillStyle='#222';X.fillRect(-16,-15,8,4);X.fillRect(-16,11,8,4);X.fillRect(8,-15,8,4);X.fillRect(8,11,8,4);
-// Headlights
-X.fillStyle='#ffff00';X.fillRect(18,-10,3,5);X.fillRect(18,5,3,5);
-// Taillights
-X.fillStyle='#ff0000';X.fillRect(-20,-10,3,5);X.fillRect(-20,5,3,5);
-X.restore();
-// Particles
-for(let p of particles){let pr=p.s*(p.life/50);X.globalAlpha=p.life/50;glowAt(p.col,p.x,p.y,pr+6);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}X.globalAlpha=1;
-// Score popups
-for(let sp of scorePopups){X.globalAlpha=sp.life/40;X.fillStyle='#2ed573';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
-// HUD
-X.fillStyle='#fff';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillText('Level '+(level+1)+' / '+LEVELS.length,W/2,25);
-X.restore();
-if(state==='ready'){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('PARKING PUZZLE',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Click & drag to steer',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Park in the green zone',W/2,H/2+30)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 36px "Segoe UI"';X.textAlign='center';X.fillText('CRASHED!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
-if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#2ed573',W/2,H/2-20,110);X.fillStyle='#2ed573';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 PARKING MASTER! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-let muzzleFlash=0;let origUpdate=update;let origDraw=draw;
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);muzzleFlash=Math.max(0,muzzleFlash-1);update();if(state!==pState){pState=state;needDraw=true}if(state==='play'||particles.length>0||scorePopups.length>0||shakeTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
+function loadStars(){try{stars=JSON.parse(localStorage.getItem(STORE))||{}}catch(e){stars={}}for(let k in PACKS)stars[k]=stars[k]||[]}
+function saveStars(){if(SKY.cheated)return;try{localStorage.setItem(STORE,JSON.stringify(stars))}catch(e){}}
+function unlocked(i){return unlockAll||i===0||(stars[pack][i-1]||0)>0}
+// ---- board model ----
+function carsOf(b){let cs={};for(let i=0;i<N*N;i++){let ch=b[i];if(ch!=='.'){(cs[ch]=cs[ch]||[]).push(i)}}let out={};for(let ch in cs){let c=cs[ch];out[ch]={ch,cells:c,horiz:c.length>1&&c[1]-c[0]===1,r:Math.floor(c[0]/N),c:c[0]%N,len:c.length}}return out}
+function slide(b,ch,d){let car=carsOf(b)[ch],step=car.horiz?1:N,nb=b.split('');for(const c of car.cells)nb[c]='.';for(const c of car.cells){let n=c+d*step;if(n<0||n>=N*N||(car.horiz&&Math.floor(n/N)!==car.r)||(b[n]!=='.'&&b[n]!==ch))return null;nb[n]=ch}return nb.join('')}
+function reach(b,ch){let lo=0,hi=0;while(slideBy(b,ch,lo-1))lo--;while(slideBy(b,ch,hi+1))hi++;return [lo,hi]}
+function slideBy(b,ch,k){if(!k)return b;let s=b,d=Math.sign(k);for(let i=0;i<Math.abs(k);i++){s=slide(s,ch,d);if(!s)return null}return s}
+function solved(b){return b[2*N+5]==='A'}
+function solve(b){let q=[b],prev=new Map([[b,null]]),i=0;while(i<q.length&&q.length<120000){let s=q[i++];if(solved(s)){let p=[];while(prev.get(s)){let [ps,ch,k]=prev.get(s);p.unshift([ch,k]);s=ps}return p}
+let cs=carsOf(s);for(const ch in cs){let [lo,hi]=reach(s,ch);for(let k=lo;k<=hi;k++){if(!k)continue;let nb=slideBy(s,ch,k);if(!prev.has(nb)){prev.set(nb,[s,ch,k]);q.push(nb)}}}}return null}
+// ---- flow ----
+function start(i){lvl=i;sel=i;board=PACKS[pack][i];moves=0;history=[];drag=null;hintMove=null;hintT=0;usedHint=false;lastKeyCar=null;cur='A';exitAnim=0;tow=0;particles=[];state='play';if(cheat.show)refreshShow()}
+function refreshShow(){let p=solve(board);hintMove=p&&p.length?p[0]:null;hintT=cheat.show?1e9:hintT}
+function commit(nb,ch){history.push({b:board,m:moves});board=nb;if(!(lastKeyCar===ch&&drag===null&&keyRun))moves++;SKY.sfx('place',{volume:.5});hintT=cheat.show?1e9:0;if(cheat.show)refreshShow();if(solved(board))win()}
+let keyRun=false;
+function undo(){if(state!=='play'||!history.length)return;let h=history.pop();board=h.b;moves=h.m;lastKeyCar=null;SKY.sfx('swap',{volume:.4});if(cheat.show)refreshShow()}
+function hint(){if(state!=='play')return;let p=solve(board);if(!p||!p.length)return;hintMove=p[0];hintT=4;usedHint=true;SKY.sfx('powerup',{volume:.4})}
+function win(){state='out';exitAnim=0;SKY.sfx('whoosh')}
+function finish(){let m=MIN[pack][lvl];resultStars=moves<=m?3:moves<=m+4?2:1;if(usedHint)resultStars=Math.min(2,resultStars);
+if(!SKY.cheated&&resultStars>(stars[pack][lvl]||0)){stars[pack][lvl]=resultStars;saveStars()}state='done';SKY.sfx('win');
+for(let i=0;i<50;i++){let a=Math.random()*Math.PI*2;particles.push({x:BX+N*SZ,y:BY+2.5*SZ,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2)-2,life:50,s:Math.random()*4+2,col:`hsl(${Math.random()*360},100%,60%)`})}}
+function toTitle(){state='ready';sel=0;for(let i=0;i<8;i++)if(unlocked(i))sel=i;if(sel<7&&(stars[pack][sel]||0)>0)sel=Math.min(7,sel+1)}
+// ---- input ----
+function cellAt(px,py){let c=Math.floor((px-BX)/SZ),r=Math.floor((py-BY)/SZ);return c>=0&&c<N&&r>=0&&r<N?r*N+c:-1}
+function tileRect(i){let cols=4,tw=Math.min(70,(W-60)/cols),gap=(W-cols*tw)/(cols+1);return {x:gap+(i%cols)*(tw+gap),y:H*.44+Math.floor(i/cols)*(tw+14),w:tw,h:tw}}
+function playRect(){return {x:W/2-115,y:H*.27,w:230,h:54}}
+function inR(p,r){return p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h}
+C.addEventListener('pointerdown',e=>{let p={x:e.clientX-CRECT.left,y:e.clientY-CRECT.top};
+if(state==='ready'){if(SKY.tut){start(sel);return}for(let i=0;i<8;i++)if(inR(p,tileRect(i))){if(unlocked(i))start(i);else SKY.sfx('error',{volume:.3});return}if(inR(p,playRect()))start(sel);return}
+if(state==='done'){if(lvl<7)start(lvl+1);else toTitle();return}
+if(state!=='play')return;let i=cellAt(p.x,p.y);if(i<0||board[i]==='.')return;let ch=board[i];
+if(tow>0&&ch!=='A'){history.push({b:board,m:moves});board=board.split(ch).join('.');tow--;moves++;SKY.sfx('explode',{volume:.5});if(cheat.show)refreshShow();return}
+let car=carsOf(board)[ch],[lo,hi]=reach(board,ch);drag={ch,horiz:car.horiz,sx:p.x,sy:p.y,lo,hi,off:0};cur=ch;lastKeyCar=null;C.setPointerCapture&&C.setPointerCapture(e.pointerId)});
+C.addEventListener('pointermove',e=>{if(!drag)return;let p={x:e.clientX-CRECT.left,y:e.clientY-CRECT.top},d=drag.horiz?p.x-drag.sx:p.y-drag.sy;drag.off=Math.max(drag.lo*SZ,Math.min(drag.hi*SZ,d))});
+function endDrag(){if(!drag)return;let k=Math.round(drag.off/SZ),ch=drag.ch;drag=null;if(k){commit(slideBy(board,ch,k),ch)}}
+C.addEventListener('pointerup',endDrag);C.addEventListener('pointercancel',()=>{drag=null});
+document.addEventListener('keydown',e=>{let k=e.code;
+if(state==='ready'){if(k==='Space'||k==='Enter'){e.preventDefault();if(unlocked(sel))start(sel)}else if(k==='ArrowRight')sel=Math.min(7,sel+1);else if(k==='ArrowLeft')sel=Math.max(0,sel-1);return}
+if(state==='done'){if(k==='Space'||k==='Enter'){e.preventDefault();if(lvl<7)start(lvl+1);else toTitle()}return}
+if(state!=='play')return;
+if(k==='Space'||k==='Tab'){e.preventDefault();let ids=Object.keys(carsOf(board)).sort();cur=ids[(ids.indexOf(cur)+1)%ids.length];lastKeyCar=null;return}
+if(k==='KeyZ'||k==='Backspace'){e.preventDefault();undo();return}if(k==='KeyH'){hint();return}
+let d={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[k];if(!d)return;e.preventDefault();let car=carsOf(board)[cur];if(!car)return;
+let dir=car.horiz?d[0]:d[1];if(!dir)return;let nb=slide(board,cur,dir);if(!nb){SKY.sfx('error',{volume:.25});return}keyRun=lastKeyCar===cur;commit(nb,cur);keyRun=false;lastKeyCar=cur});
+function update(dt){pulseT+=.05*dt*60;if(hintT>0&&hintT<1e8)hintT-=dt;if(state==='out'){exitAnim+=dt;if(exitAnim>.6)finish()}
+for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife)}
+function carRect(car){let x=BX+car.c*SZ,y=BY+car.r*SZ,w=car.horiz?car.len*SZ:SZ,h=car.horiz?SZ:car.len*SZ;return {x,y,w,h}}
+function drawCar(car,dx,dy,hl){let r=carRect(car),col=car.ch==='A'?'#2ed573':PAL[car.ch][0];r.x+=dx+3;r.y+=dy+3;r.w-=6;r.h-=6;
+glowAt(col,r.x+r.w/2,r.y+r.h/2,Math.max(r.w,r.h)/2+6);X.fillStyle=col;X.beginPath();X.roundRect(r.x,r.y,r.w,r.h,8);X.fill();
+X.fillStyle='rgba(0,0,0,.28)';if(car.horiz){X.fillRect(r.x+r.w*.18,r.y+5,r.w*.18,r.h-10);X.fillRect(r.x+r.w*.64,r.y+5,r.w*.14,r.h-10)}else{X.fillRect(r.x+5,r.y+r.h*.18,r.w-10,r.h*.18);X.fillRect(r.x+5,r.y+r.h*.64,r.w-10,r.h*.14)}
+X.fillStyle='rgba(255,255,255,.22)';X.fillRect(r.x+4,r.y+3,r.w-8,3);if(hl){X.strokeStyle='#fff';X.lineWidth=3;X.beginPath();X.roundRect(r.x-2,r.y-2,r.w+4,r.h+4,10);X.stroke()}}
+function starStr(n){return '★'.repeat(n)+'☆'.repeat(3-n)}
+function draw(){X.clearRect(0,0,W,H);X.fillStyle=bgGrad;X.fillRect(0,0,W,H);if(state==='ready'){drawTitle();return}
+X.fillStyle='#fff';X.textAlign='center';X.font='bold 20px "Segoe UI"';X.fillText(pack[0].toUpperCase()+pack.slice(1)+' · Level '+(lvl+1)+' / 8',W/2,30);
+X.font='bold 14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.75)';X.fillText('Moves '+moves+'  ·  best possible '+MIN[pack][lvl]+(tow?'  ·  TOW: tap a car':''),W/2,54);
+// car park
+X.fillStyle='#232323';X.beginPath();X.roundRect(BX-8,BY-8,N*SZ+16,N*SZ+16,12);X.fill();X.strokeStyle='#555';X.lineWidth=3;X.stroke();
+X.setLineDash([6,8]);X.strokeStyle='rgba(255,255,255,.12)';X.lineWidth=1;for(let i=1;i<N;i++){X.beginPath();X.moveTo(BX+i*SZ,BY);X.lineTo(BX+i*SZ,BY+N*SZ);X.moveTo(BX,BY+i*SZ);X.lineTo(BX+N*SZ,BY+i*SZ);X.stroke()}X.setLineDash([]);
+// exit gap with sparkles
+let ey=BY+2*SZ;X.fillStyle='#2a2a2a';X.fillRect(BX+N*SZ-2,ey+3,14,SZ-6);X.fillStyle='rgba(46,213,115,'+(.5+Math.sin(pulseT)*.3)+')';X.font='bold 14px "Segoe UI"';X.save();X.translate(BX+N*SZ+18,ey+SZ/2);X.rotate(Math.PI/2);X.fillText('EXIT',0,0);X.restore();
+let cars=carsOf(board);for(const ch in cars){let car=cars[ch],dx=0,dy=0;if(drag&&drag.ch===ch){if(car.horiz)dx=drag.off;else dy=drag.off}if(state==='out'&&ch==='A')dx=exitAnim*SZ*8;drawCar(car,dx,dy,ch===cur&&lastKeyCar!==undefined&&kbd)}
+if(hintMove&&hintT>0&&state==='play'){let car=cars[hintMove[0]];if(car){let r=carRect(car),k=hintMove[1],a=.5+.4*Math.sin(pulseT*2);X.strokeStyle='rgba(255,215,0,'+a+')';X.lineWidth=4;X.beginPath();X.roundRect(r.x+1,r.y+1,r.w-2,r.h-2,9);X.stroke();
+let tx=r.x+r.w/2+(car.horiz?k*SZ:0),ty=r.y+r.h/2+(car.horiz?0:k*SZ);X.setLineDash([6,5]);X.beginPath();X.moveTo(r.x+r.w/2,r.y+r.h/2);X.lineTo(tx,ty);X.stroke();X.setLineDash([]);X.fillStyle='rgba(255,215,0,'+a+')';X.beginPath();X.arc(tx,ty,7,0,Math.PI*2);X.fill()}}
+for(let p of particles){X.globalAlpha=Math.max(0,p.life/50);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/50),0,Math.PI*2);X.fill()}X.globalAlpha=1;
+if(state==='done'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#2ed573',W/2,H/2-30,110);X.fillStyle='#2ed573';X.font='bold 34px "Segoe UI"';X.textAlign='center';X.fillText('✨ PARKED OUT! ✨',W/2,H/2-40);
+X.fillStyle='#ffd700';X.font='bold 34px "Segoe UI"';X.fillText(starStr(resultStars),W/2,H/2+4);X.fillStyle='#fff';X.font='16px "Segoe UI"';X.fillText(moves+' moves (best possible '+MIN[pack][lvl]+')'+(usedHint?' · hint used':''),W/2,H/2+34);
+X.fillStyle='rgba(255,255,255,.7)';X.fillText(lvl<7?'▶ Tap for level '+(lvl+2):'▶ Tap for the level list',W/2,H/2+66)}}
+let kbd=false;document.addEventListener('keydown',e=>{if(/Arrow|Space|Tab/.test(e.code))kbd=true},true);C.addEventListener('pointerdown',()=>{kbd=false},true);
+function drawTitle(){X.textAlign='center';glowAt('#2ed573',W/2,H*.12,110);X.fillStyle='#2ed573';X.font='bold 30px "Segoe UI"';X.fillText('PARKING PUZZLE',W/2,H*.13);
+X.fillStyle='rgba(255,255,255,.7)';X.font='15px "Segoe UI"';X.fillText('Slide the cars. Get the green car out.',W/2,H*.13+28);
+let p=playRect();X.fillStyle='#2ed573';X.beginPath();X.roundRect(p.x,p.y,p.w,p.h,27);X.fill();X.fillStyle='#1a1a1a';X.font='bold 20px "Segoe UI"';X.fillText('▶ PLAY LEVEL '+(sel+1),W/2,p.y+34);
+X.fillStyle='rgba(255,255,255,.6)';X.font='bold 14px "Segoe UI"';X.fillText(pack.toUpperCase()+' LEVELS (change pack below)',W/2,H*.44-14);
+for(let i=0;i<8;i++){let r=tileRect(i),u=unlocked(i);X.fillStyle=i===sel?'rgba(46,213,115,.35)':u?'rgba(255,255,255,.08)':'rgba(255,255,255,.03)';X.beginPath();X.roundRect(r.x,r.y,r.w,r.h,10);X.fill();
+if(i===sel){X.strokeStyle='#2ed573';X.lineWidth=2;X.stroke()}X.fillStyle=u?'#fff':'rgba(255,255,255,.3)';X.font='bold 20px "Segoe UI"';X.fillText(u?(i+1):'🔒',r.x+r.w/2,r.y+r.h/2+2);
+X.fillStyle='#ffd700';X.font='12px "Segoe UI"';X.fillText(stars[pack][i]?starStr(stars[pack][i]):'',r.x+r.w/2,r.y+r.h-6)}
+if(SKY.tut)SKY.drawTut(X,W,H,{title:'PARKING PUZZLE',color:'#2ed573',gesture:'drag',steps:['The green car wants to leave by the EXIT on the right.','Drag any car along its length (cars never turn). Keys: Space picks a car, arrows slide it.','Move the blockers out of the way, then slide the green car out.','Finish in the fewest moves for 3 stars. Undo takes a move back; Hint shows a move from a perfect solution.'],go:'▶ Tap to play level 1'})}
+let last=performance.now();function loop(now){if(document.hidden){last=performance.now();return requestAnimationFrame(loop)}let dt=Math.min(.05,(now-last)/1000);last=now;update(dt);SKY.tick(state,moves);draw();requestAnimationFrame(loop)}
+SKY.setup({id:'parking-puzzle',color:'#2ed573',pauseButton:'tr',bestKey:STORE,scenes:{ready:'title',play:'play',out:'play',done:'over'},
+buttons:[{label:'↶ Undo',aria:'Undo last move',fn:undo},{label:'💡 Hint',aria:'Hint',fn:hint}],
+onRestart(){start(lvl)},onExit(){toTitle()},onDiff(d){pack=d;toTitle()},
+onHint(){if(state!=='play')return 'Press Play (or Space) to start '+pack+' level '+(sel+1)+'.';let p=solve(board);if(!p)return 'This board cannot be solved from here: press Undo.';let [ch,k]=p[0],car=carsOf(board)[ch];hintMove=p[0];hintT=4;
+return 'Slide the '+(ch==='A'?'green':PAL[ch][1])+' '+(car.len===3?'truck':'car')+' '+(car.horiz?(k>0?'right':'left'):(k>0?'down':'up'))+' '+Math.abs(k)+' space'+(Math.abs(k)>1?'s':'')+'. '+p.length+' moves from here if you play perfectly.'},
+cheats:{TOWTRUCK:['Tap one car to tow it off the board',()=>{tow++}],SHOWMOVE:['The best next move is always outlined in gold',()=>{cheat.show=true;if(state==='play')refreshShow()}],ALLLEVELS:['Every level in every pack unlocked (this session only)',()=>{unlockAll=true}]}});
+pack=SKY.diff;loadStars();resize();window.addEventListener('resize',resize);toTitle();requestAnimationFrame(loop);
 </script></body></html>

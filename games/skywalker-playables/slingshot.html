@@ -1,38 +1,42 @@
-﻿<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Slingshot</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(255,165,0,.3)}</style></head>
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Slingshot</title><script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script><script src="sky-arcade.js"></script><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(255,165,0,.3)}</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#87CEEB');bgGrad.addColorStop(.4,'#98D8C8');bgGrad.addColorStop(.7,'#7CB342');bgGrad.addColorStop(1,'#558B2F');needDraw=true}resize();window.addEventListener('resize',resize);
+let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=Math.min(window.innerWidth-20,420);H=Math.min(window.innerHeight-20,720);SKY.fit(C,X,W,H);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#87CEEB');bgGrad.addColorStop(.4,'#98D8C8');bgGrad.addColorStop(.7,'#7CB342');bgGrad.addColorStop(1,'#558B2F');needDraw=true}resize();window.addEventListener('resize',resize);
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
 function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
-let ball,targetX,targetY,tgtR,state,dragging,startX,startY,powerX,powerY,launched,shots,trail=[],particles=[],scorePopups=[],shakeTime=0,muzzleFlash=0,groundY,wind=0,windTimer=0;
-const GRAV=.28;
-function init(){ball={x:W*.2,y:H*.65};targetX=W*.7;targetY=H*.35;tgtR=28;launched=false;shots=0;dragging=false;trail=[];state='ready';particles=[];scorePopups=[];shakeTime=0;muzzleFlash=0;groundY=H-40;wind=0;windTimer=0}
+let ball,targetX,targetY,tgtR,state,dragging,startX,startY,powerX,powerY,launched,shots,trail=[],particles=[],scorePopups=[],shakeTime=0,muzzleFlash=0,groundY,wind=0,windTimer=0,dtK=1,lastT=0;
+const GRAV=.28;let best=0,maxShots=5,kAng=-.8,kPow=9,kAim=false,cheat={line:false,big:false,extra:0};
+function sling(){ball={x:W*.2,y:H*.65,vx:0,vy:0};launched=false}
+function init(){sling();targetX=W*.7;targetY=H*.35;tgtR=28*(cheat.big?1.5:1);shots=0;hits=0;best=SKY.best();maxShots=SKY.pick(7,5,4)+cheat.extra;kAim=false;dragging=false;trail=[];state='ready';particles=[];scorePopups=[];shakeTime=0;muzzleFlash=0;groundY=H-40;wind=0;windTimer=0}
 C.addEventListener('pointerdown',e=>{let px=e.clientX-CRECT.left,py=e.clientY-CRECT.top;
-if(state==='over'||state==='win'){init();return}if(!launched&&state!=='aiming'){state='aiming'}
+if(state==='over'||state==='win'){init();return}if(launched)return;kAim=false;if(state!=='aiming'){state='aiming'}
 if(state==='aiming'){dragging=true;startX=ball.x;startY=ball.y;powerX=px;powerY=py}});
 C.addEventListener('pointermove',e=>{if(!dragging)return;powerX=e.clientX-CRECT.left;powerY=e.clientY-CRECT.top});
 C.addEventListener('pointerup',()=>{if(!dragging){dragging=false;return}
 let dx=startX-powerX,dy=startY-powerY;let dist=Math.sqrt(dx*dx+dy*dy);if(dist<15){dragging=false;return}
-let power=Math.min(dist*.07,14);let angle=Math.atan2(dy,dx);ball.vx=Math.cos(angle)*power;ball.vy=Math.sin(angle)*power;launched=true;shots++;dragging=false;trail=[];muzzleFlash=8});
-document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(!launched)state='aiming'}});
+launch(Math.atan2(dy,dx),Math.min(dist*.07,14));dragging=false});
+function launch(angle,power){ball.vx=Math.cos(angle)*power;ball.vy=Math.sin(angle)*power;launched=true;shots++;trail=[];muzzleFlash=8;kAim=false;SKY.sfx('shoot',{volume:.6})}
+document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();if(state==='over'||state==='win'){init();return}if(launched)return;if(state==='ready'){state='play';kAim=true;return}if(kAim)launch(kAng,kPow);else kAim=true;return}
+if(launched||(state!=='play'&&state!=='aiming'&&state!=='ready'))return;let k={ArrowLeft:[-.05,0],ArrowRight:[.05,0],ArrowUp:[0,.5],ArrowDown:[0,-.5]}[e.code];if(!k)return;e.preventDefault();if(state==='ready')state='play';kAim=true;kAng=Math.max(-Math.PI+.1,Math.min(-.05,kAng+k[0]));kPow=Math.max(3,Math.min(14,kPow+k[1]))});
 function update(){if(state!=='play'&&state!=='aiming')return;if(state==='aiming'&&!dragging)state='play';
 if(!launched)return;
-windTimer++;if(windTimer%180===0)wind=(Math.random()-.5)*.08;
-ball.vy+=GRAV;ball.vx+=wind*.01;ball.x+=ball.vx;ball.y+=ball.vy;
+windTimer+=dtK;if(windTimer>=180){windTimer=0;wind=(Math.random()-.5)*.08;}
+ball.vy+=GRAV*dtK;ball.vx+=wind*.01*dtK;ball.x+=ball.vx*dtK;ball.y+=ball.vy*dtK;
 if(trail.length<20)trail.push({x:ball.x,y:ball.y,life:12});for(let t of trail)t.life--;prune(trail,pLife);
 if(ball.x>tgtR&&ball.x<W-tgtR&&ball.y+tgtR>targetY&&ball.y-tgtR<targetY+targetY*0){
 let hitDist=Math.hypot(ball.x-targetX,ball.y-targetY);
 if(hitDist<tgtR){hitsTarget(targetX,targetY);return}}
-if(ball.x>W+30||ball.y>H+30||(ball.y>-30&&ball.x<30&&ball.vx<0)){launched=false;if(shots>=5&&hits<3)state='over'}
+if(ball.y>groundY-8&&ball.vy>0){ball.y=groundY-8;ball.vy*=-.45;ball.vx*=.7;if(Math.abs(ball.vy)<1.2)ball.y=H+40;else SKY.sfx('land',{volume:.4})}
+if(ball.x>W+30||ball.y>H+30||(ball.y>-30&&ball.x<-10&&ball.vx<0)){sling();if(shots>=maxShots&&hits<3){state='over';SKY.sfx('lose')}}
 if(shakeTime>0)shakeTime--;if(muzzleFlash>0)muzzleFlash--}
 let hits=0;
-function hitsTarget(tx,ty){hits++;shakeTime=8;muzzleFlash=12;
+function hitsTarget(tx,ty){hits++;shakeTime=SKY.shake(8);muzzleFlash=SKY.rm?0:12;SKY.sfx('explode',{volume:.6});
 if(particles.length<220)for(let i=0;i<25;i++){let a=Math.PI*2/25*i;particles.push({x:tx,y:ty,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2),life:35,s:Math.random()*5+3,col:`hsl(${Math.random()*60+10},100%,55%)`})}
 scorePopups.push({x:tx,y:ty-20,txt:hits>=3?'TARGETS DESTROYED!':'HIT '+hits+'/3',life:45,vy:-1.5});
-tgtR=Math.max(15,28-hits*3);targetX=W*.2+Math.random()*W*.6;targetY=H*.2+Math.random()*H*.35;ball.vx*=.2;ball.vy*=.2;ball.x=targetX-ball.vx*5;ball.y=targetY-ball.vy*5;
-if(hits>=3){state='win';spawnWinParticles()}}
+tgtR=Math.max(15,28-hits*3)*(cheat.big?1.5:1);targetX=W*.2+Math.random()*W*.6;targetY=H*.2+Math.random()*H*.35;sling();
+if(hits>=3){state='win';spawnWinParticles();SKY.sfx('win');if(SKY.saveBest(shots,true))best=shots}}
 function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:targetX,y:targetY,vx:Math.cos(a)*(Math.random()*10+3),vy:Math.sin(a)*(Math.random()*10+3)-5,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
 function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
 X.clearRect(-15,-15,W+30,H+30);
@@ -43,14 +47,15 @@ X.fillStyle='rgba(255,255,255,.6)';for(let i=0;i<3;i++){let cx=(Date.now()*.01+i
 // Ground
 X.fillStyle='#4CAF50';X.fillRect(0,groundY,W,H-groundY);X.fillStyle='#388E3C';X.fillRect(0,groundY,W,5);
 // Wind indicator
-if(Math.abs(wind)>.01){X.fillStyle='rgba(255,255,255,.5)';X.font='12px "Segoe UI"';X.textAlign='center';X.fillText('WIND \u2192',W/2,25)}
+if(Math.abs(wind)>.01){X.fillStyle='rgba(255,255,255,.5)';X.font='12px "Segoe UI"';X.textAlign='center';X.fillText(wind>0?'WIND \u2192':'\u2190 WIND',W/2,70)}
 // Aim line + trajectory preview
-if(dragging||state==='aiming'){let pullX=Math.min(startX-powerX,80),pullY=Math.min(startY-powerY,80);
+if(!launched&&(dragging||kAim)){let pwr,ang;if(dragging){let pullX=startX-powerX,pullY=startY-powerY;
 // Elastic bands
 X.strokeStyle='#5D4037';X.lineWidth=4;X.beginPath();X.moveTo(ball.x-8,ball.y-8);X.lineTo(powerX,powerY);X.lineTo(ball.x+8,ball.y-8);X.stroke();
+pwr=Math.min(Math.sqrt(pullX*pullX+pullY*pullY)*.07,14);ang=Math.atan2(pullY,pullX)}else{pwr=kPow;ang=kAng}
 // Trajectory dots
-let pwr=Math.min(Math.sqrt(pullX*pullX+pullY*pullY)*.07,14);let ang=Math.atan2(pullY,pullX);let pvx=Math.cos(ang)*pwr,pvy=Math.sin(ang)*pwr;let px2=ball.x,py2=ball.y;
-X.fillStyle='rgba(255,255,255,.4)';for(let i=0;i<15;i++){px2+=pvx;pvy+=GRAV;py2+=pvy;if(i%2===0){X.beginPath();X.arc(px2,py2,2,0,Math.PI*2);X.fill()}}}
+let pvx=Math.cos(ang)*pwr,pvy=Math.sin(ang)*pwr;let px2=ball.x,py2=ball.y;
+X.fillStyle='rgba(255,255,255,.4)';for(let i=0;i<(cheat.line?60:15);i++){px2+=pvx;pvy+=GRAV;py2+=pvy;if(i%2===0){X.beginPath();X.arc(px2,py2,2,0,Math.PI*2);X.fill()}}}
 // Ball trail
 for(let t of trail){X.globalAlpha=t.life/12*.5;X.fillStyle='#ff6b35';X.beginPath();X.arc(t.x,t.y,4*(t.life/12),0,Math.PI*2);X.fill()}X.globalAlpha=1;
 // Muzzle flash
@@ -68,10 +73,16 @@ for(let p of particles){let pr=p.s*(p.life/50);X.globalAlpha=p.life/50;glowAt(p.
 // Score popups
 for(let sp of scorePopups){X.globalAlpha=sp.life/45;X.fillStyle='#ffd700';X.font=sp.txt.includes('DESTROYED')?'bold 22px "Segoe UI"':'bold 18px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
 // HUD
-X.fillStyle='#fff';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText(hits+'/3  |  Shots left: '+Math.max(0,5-shots),W/2,25);
+X.fillStyle='#fff';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText(hits+'/3  |  Shots left: '+Math.max(0,maxShots-shots),W/2,25);X.font='bold 14px "Segoe UI"';X.fillText('BEST '+(best?best+' shots':'--'),W/2,46);
 X.restore();
-if(state==='ready'){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('SLINGSHOT',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Drag back to aim, release to fire',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Hit 3 targets to win',W/2,H/2+30)}
-if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 TARGETS DESTROYED! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.font='bold 36px "Segoe UI"';X.textAlign='center';X.fillText('MISS!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play'||state==='aiming'||particles.length>0||scorePopups.length>0||trail.length>0||muzzleFlash>0||shakeTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+if(state==='ready'&&SKY.tut)SKY.drawTut(X,W,H,{title:'SLINGSHOT',color:'#ff8c00',gesture:'pull',steps:['Press anywhere and drag away from the red stone: the dotted arc shows where it will fly.','Let go to fire. Pull further for more power.','Hit 3 bullseyes before you run out of shots. Each hit moves the target and makes it smaller.','Keys: arrows aim, Space fires.']});
+else if(state==='ready'){X.fillStyle='rgba(0,0,0,.5)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('SLINGSHOT',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Drag back to aim, release to fire',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Hit 3 targets to win',W/2,H/2+30)}
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.font='bold 30px "Segoe UI"';X.fillText('\u2728 TARGETS DESTROYED! \u2728',W/2,H/2-20);X.fillStyle='#fff';X.font='20px "Segoe UI"';X.fillText('Shots used: '+shots+'   Best: '+best,W/2,H/2+12);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.font='bold 36px "Segoe UI"';X.textAlign='center';X.fillText('OUT OF SHOTS!',W/2,H/2-20);X.fillStyle='#fff';X.font='20px "Segoe UI"';X.fillText('Targets hit: '+hits+' / 3',W/2,H/2+12);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}}
+let pState='';function loop(now){if(document.hidden){lastT=0;return requestAnimationFrame(loop);}const dt=lastT?Math.min((now-lastT)/1000,.05):1/60;lastT=now;dtK=dt*60;update();SKY.tick(state,hits);if(state!==pState){pState=state;needDraw=true}if(state==='play'||state==='aiming'||state==='ready'||particles.length>0||scorePopups.length>0||trail.length>0||muzzleFlash>0||shakeTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}SKY.setup({id:'slingshot',color:'#ff8c00',pauseButton:'tr',scenes:{ready:'title',play:'play',aiming:'play',over:'over',win:'over'},
+onRestart(){init();state='play'},onExit(){init()},onDiff(){init()},
+onHint(){if(state==='ready')return 'Press and drag away from the stone, then let go.';if(launched)return 'Watch where this shot lands and adjust the next one.';
+let dx=targetX-ball.x,dy=ball.y-targetY;return 'The target is '+Math.round(dx)+' px right and '+Math.round(dy)+' px up. Drag down and to the left of the stone so the dotted arc passes through its centre'+(Math.abs(wind)>.01?'; the wind pushes a little '+(wind>0?'right':'left'):'')+'.'},
+cheats:{AIMLINE:['The dotted aim arc shows the whole flight',()=>{cheat.line=true}],EXTRASHOTS:['5 extra shots',()=>{cheat.extra+=5;maxShots+=5}],BIGTARGET:['Targets are 50% bigger',()=>{cheat.big=true;tgtR*=1.5}]}});
+init();loop()
 </script></body></html>

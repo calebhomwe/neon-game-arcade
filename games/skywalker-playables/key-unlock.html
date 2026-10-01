@@ -1,67 +1,129 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Pull the Pin</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,150,255,.3)</style></head>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Pull the Pin</title><script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script><script src="sky-arcade.js"></script><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(0,150,255,.3)}</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#1a2a3a');bgGrad.addColorStop(1,'#0a1a2a');needDraw=true}resize();window.addEventListener('resize',resize);
+// Glass chambers joined by pipes, each pipe held shut by a golden pin. Pull a pin and whatever is in that chamber drops down the pipe.
+// Water + lava = harmless stone. Lava melts the key and burns gems. A pit swallows whatever falls in.
+// Get the key into the lock chamber; every gem already in the lock when the key arrives is a star.
+// Each level was checked by trying every pull order (see the solver in the hint code below).
+const LEVELS=[{"name":"First pull","ch":[{"x":0.5,"y":0,"kind":"c","items":{"gem":1}},{"x":1.5,"y":0,"kind":"c","items":{"key":1}},{"x":1,"y":1.6,"kind":"L"}],"pins":[[0,2],[1,2]]},{"name":"Cool it","ch":[{"x":0,"y":0,"kind":"c","items":{"water":1,"gem":1}},{"x":2,"y":0,"kind":"c","items":{"key":1}},{"x":1,"y":1.1,"kind":"c","items":{"lava":1}},{"x":1,"y":2.4,"kind":"L"}],"pins":[[0,2],[1,2],[2,3]]},{"name":"Gem run","ch":[{"x":1,"y":0,"kind":"c","items":{"key":1}},{"x":0,"y":0,"kind":"c","items":{"water":1}},{"x":1,"y":1.2,"kind":"c","items":{"lava":1}},{"x":2,"y":0,"kind":"c","items":{"gem":1}},{"x":1,"y":2.5,"kind":"L"}],"pins":[[0,2],[1,2],[3,2],[2,4]]},{"name":"Trapdoor","ch":[{"x":1,"y":0,"kind":"c","items":{"key":1}},{"x":1,"y":1.2,"kind":"c","items":{"lava":1}},{"x":0,"y":2.5,"kind":"P"},{"x":2,"y":2.5,"kind":"L"},{"x":0,"y":0,"kind":"c","items":{"gem":1}},{"x":2,"y":0,"kind":"c","items":{"water":1}}],"pins":[[0,1],[1,2],[1,3],[4,1],[5,3]]},{"name":"Dump the heat","ch":[{"x":1,"y":0,"kind":"c","items":{"key":1,"gem":1}},{"x":1,"y":1.2,"kind":"c","items":{"lava":1}},{"x":0,"y":2.5,"kind":"P"},{"x":2,"y":2.5,"kind":"L"},{"x":2,"y":0,"kind":"c","items":{"gem":1}},{"x":0,"y":0,"kind":"c","items":{"water":1}}],"pins":[[0,1],[1,2],[1,3],[4,3],[5,1]]},{"name":"Double boiler","ch":[{"x":0,"y":0,"kind":"c","items":{"water":1}},{"x":1,"y":0,"kind":"c","items":{"key":1}},{"x":2,"y":0,"kind":"c","items":{"lava":1,"gem":0}},{"x":0.5,"y":1.2,"kind":"c","items":{"lava":1}},{"x":1.5,"y":1.2,"kind":"c","items":{"gem":1}},{"x":1,"y":2.5,"kind":"L"}],"pins":[[0,3],[1,3],[2,4],[3,5],[4,5]]},{"name":"One bucket","ch":[{"x":1,"y":0,"kind":"c","items":{"water":1}},{"x":0,"y":1,"kind":"c","items":{"lava":1}},{"x":2,"y":1,"kind":"c","items":{"lava":1}},{"x":0,"y":0,"kind":"c","items":{"key":1}},{"x":2,"y":0,"kind":"c","items":{"gem":1}},{"x":1,"y":2.4,"kind":"L"}],"pins":[[0,1],[0,2],[3,1],[4,2],[1,5],[2,5]]},{"name":"Crossfire","ch":[{"x":0,"y":0,"kind":"c","items":{"key":1}},{"x":2,"y":0,"kind":"c","items":{"water":1}},{"x":1,"y":1,"kind":"c","items":{"lava":1}},{"x":0,"y":2,"kind":"P"},{"x":2,"y":2,"kind":"c","items":{"gem":1}},{"x":1,"y":3,"kind":"L"},{"x":1,"y":0,"kind":"c","items":{"lava":1}}],"pins":[[0,2],[1,2],[6,2],[2,3],[2,4],[4,5]]}];
+const STORE='sky-key-unlock-stars';
+let W,H,BX,BY,CW,RH,state,lvl=0,sel=0,stars=[],unlockAll=false,items,opened,hist=[],anim=null,queue=[],result='',gemsSaved=0,resultStars=0,usedHint=false,hintPin=-1,hintT=0,particles=[],popups=[],pulseT=0,cheat={fire:false,show:false};
+let bgGrad,CRECT;function resize(){W=Math.min(window.innerWidth-20,420);H=Math.min(window.innerHeight-20,720);SKY.fit(C,X,W,H);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#1a2a3a');bgGrad.addColorStop(1,'#0a1a2a');BX=20;BY=90;CW=(W-40)/3;RH=Math.min(150,(H-BY-120)/3.4)}
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
-function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}function pBub(b){return b.y>-10&&b.s>0}
-let levels,currentLevel,pins,waterY,keyCollected,state,score,bubbles=[],particles=[],scorePopups=[],shakeTime=0,pulseT=0,wgY=-1,waterGrad=null;
-const LEVELS=[
-{pins:[{x:W*.3,h:W*.35},{x:W*.7,h:W*.5}],key:{x:W*.5,y:H*.82,r:15}},
-{pins:[{x:W*.2,h:W*.3},{x:W*.5,h:W*.45},{x:W*.8,h:W*.35}],key:{x:W*.5,y:H*.78,r:15}},
-{pins:[{x:W*.25,h:W*.25},{x:W*.5,h:W*.5},{x:W*.75,h:W*.3}],key:{x:W*.5,y:H*.85,r:15}}
-];
-function init(){currentLevel=0;score=0;state='ready';particles=[];scorePopups=[];shakeTime=0;pulseT=0;loadLevel()}
-function loadLevel(){if(currentLevel>=LEVELS.length){state='win';return}let lv=LEVELS[currentLevel];pins=lv.pins.map(p=>({...p,active:true}));waterY=0;keyCollected=false;bubbles=[]}
-function getWaterHeight(){let totalPinHeights=pins.filter(p=>p.active).reduce((s,p)=>s+p.h,0);let maxH=H*.6;return Math.max(0,maxH-totalPinHeights*.35)}
-C.addEventListener('pointerdown',e=>{let px=e.clientX-CRECT.left,py=e.clientY-CRECT.top;
- if(state==='ready'){state='play';return}
- if(state==='over'||state==='win'){if(currentLevel>=LEVELS.length)init();else{currentLevel=0;loadLevel();state='play'};return}
-for(let pin of pins){if(!pin.active)continue;let dist=Math.abs(px-pin.x);if(dist<28){pin.active=false;shakeTime=5;
-if(particles.length<220)for(let i=0;i<8;i++)particles.push({x:pin.x,y:0,vx:(Math.random()-.5)*4,vy:Math.random()*3+1,life:20,s:Math.random()*3+2,col:'#A0522D'});
-scorePopups.push({x:pin.x,y:30,txt:'PULL!',life:25,vy:-1});break}}
-checkWin()});
-document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='ready'){state='play';return}if(state==='over'||state==='win'){if(currentLevel>=LEVELS.length)init();else{currentLevel=0;loadLevel();state='play'}}}});
-function checkWin(){waterY=getWaterHeight();if(keyCollected){currentLevel++;if(currentLevel>=LEVELS.length){state='win';score+=100}else{loadLevel();state='play'}}
-let lv=LEVELS[Math.min(currentLevel,LEVELS.length-1)],ky=lv.key.y;
-if(waterY>=ky-15&&!keyCollected){keyCollected=true;
-if(particles.length<220)for(let i=0;i<15;i++)particles.push({x:lv.key.x,y:ky,vx:(Math.random()-.5)*6,vy:-Math.random()*4-2,life:30,s:Math.random()*4+2,col:'#ffd700'});
-scorePopups.push({x:lv.key.x,y:ky-20,txt:'KEY FOUND!',life:40,vy:-1.5})}}
-function update(){if(state!=='play'&&state!=='win')return;pulseT+=.03;
-if(shakeTime>0)shakeTime--;
-for(let b of bubbles){b.x+=Math.sin(pulseT+b.t)*.5;b.y+=b.vy;b.vy-=.01}prune(bubbles,pBub);bubbles.forEach(b=>b.s*=.998);
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
-for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife)}
-function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
-X.clearRect(-15,-15,W+30,H+30);
-X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
-let waterH=getWaterHeight(),baseY=H-waterH;
-if(waterH>0){if(Math.round(baseY)!==wgY||!waterGrad){wgY=Math.round(baseY);waterGrad=X.createLinearGradient(0,baseY,0,H);waterGrad.addColorStop(0,'rgba(0,120,255,.4)');waterGrad.addColorStop(1,'rgba(0,60,180,.7)')}X.fillStyle=waterGrad;X.fillRect(0,baseY,W,waterH);
-for(let i=0;i<3;i++){X.strokeStyle=`rgba(100,200,255,${.2+i*.1})`;X.lineWidth=2;X.beginPath();for(let x=0;x<W;x+=5){X.lineTo(x,baseY+i*12+Math.sin(x*.03+Date.now()*.003+i)*4)}X.stroke()}
-for(let i=0;i<8;i++){if(!bubbles[i])bubbles[i]={x:Math.random()*W,y:baseY+Math.random()*waterH,vx:(Math.random()-.5)*.5,vy:-Math.random()-.5,s:Math.random()*4+2,t:Math.random()*Math.PI*2};bubbles[i].y-=1}}
-// Container walls
-X.fillStyle='#555';X.fillRect(0,0,8,H);X.fillRect(W-8,0,8,H);
-// Pins
-for(let pin of pins){if(!pin.active){X.fillStyle='rgba(139,69,19,.3)';X.beginPath();X.arc(pin.x,0,6,0,Math.PI*2);X.fill();continue}
-X.fillStyle='#8B4513';X.fillRect(pin.x-4,0,8,pin.h);X.fillStyle='#A0522D';X.beginPath();X.arc(pin.x,0,10,0,Math.PI*2);X.fill();X.fillStyle='#DEB887';X.beginPath();X.arc(pin.x,0,5,0,Math.PI*2);X.fill();
-// Pin highlight
-X.fillStyle='rgba(255,255,255,.2)';X.fillRect(pin.x-1,0,2,pin.h)}
-// Key
-let lv=LEVELS[Math.min(currentLevel,LEVELS.length-1)];
-if(!keyCollected){glowAt('#ffd700',lv.key.x,lv.key.y,lv.key.r+15+Math.sin(pulseT*3)*5);X.fillStyle='#ffd700';X.beginPath();X.arc(lv.key.x,lv.key.y,lv.key.r,0,Math.PI*2);X.fill();
-X.fillStyle='#b8860b';X.font='bold 14px sans-serif';X.textAlign='center';X.fillText('K',lv.key.x,lv.key.y+5)}
-// Bubbles
-for(let b of bubbles){if(!b||b.s<=0)continue;X.globalAlpha=b.s/6*.3;X.fillStyle='rgba(150,220,255,.4)';X.beginPath();X.arc(b.x,b.y,b.s,0,Math.PI*2);X.fill()}X.globalAlpha=1;
-// Particles
-for(let p of particles){X.globalAlpha=p.life/30;X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/30),0,Math.PI*2);X.fill()}X.globalAlpha=1;
-// Score popups
-for(let sp of scorePopups){X.globalAlpha=sp.life/40;X.fillStyle='#ffd700';X.font='bold 18px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
-// Level indicator
-X.fillStyle='#fff';X.font='bold 20px "Segoe UI"';X.textAlign='center';X.fillText('Level '+(currentLevel+1)+' / '+LEVELS.length,W/2,25);
-X.restore();
-if(state==='ready'){X.fillStyle='rgba(255,255,255,.85)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('PULL THE PIN',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap pins to drain water',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Collect the key to advance',W/2,H/2+35)}
-if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#2ed573',W/2,H/2-20,110);X.fillStyle='#2ed573';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ALL LEVELS COMPLETE! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);X.fillStyle='#ff4757';X.font='bold 36px "Segoe UI"';X.textAlign='center';X.fillText('GAME OVER',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play'||particles.length>0||scorePopups.length>0||bubbles.length>0||shakeTime>0)needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
+function loadStars(){try{stars=JSON.parse(localStorage.getItem(STORE))||[]}catch(e){stars=[]}}
+function saveStars(){if(SKY.cheated)return;try{localStorage.setItem(STORE,JSON.stringify(stars))}catch(e){}}
+function unlocked(i){return unlockAll||i===0||(stars[i-1]||0)>0}
+const LV=()=>LEVELS[lvl];
+function gemsTotal(){return LV().ch.reduce((s,c)=>s+((c.items||{}).gem||0),0)}
+function lockId(){return LV().ch.findIndex(c=>c.kind==='L')}
+// ---- rules (the solver uses the same functions on a copy) ----
+function exitOf(op,i){for(const p of op)if(LV().pins[p][0]===i)return LV().pins[p][1];return null}
+function any(it){for(const k in it)if(it[k])return true;return false}
+function merge(it,j,add){for(const k in add)it[j][k]=(it[j][k]||0)+add[k]}
+function react(it,j){let c=it[j];if(c.water&&c.lava){c.stone=(c.stone||0)+1;c.water=0;c.lava=0;return 'steam'}
+if(LV().ch[j].kind==='P'){if(c.key)return 'lost';it[j]={};return 'pit'}
+if(c.lava){if(c.key&&!cheat.fire)return 'melt';if(c.gem){c.gem=0;return 'burn'}}return ''}
+// Instant simulation for the solver: returns ['win',gems] | ['melt'|'lost',0] | ['stuck',0].
+function simulate(it0,op0,order){let it=it0.map(o=>Object.assign({},o)),op=op0.slice(),L=lockId();
+function flow(i){let j=exitOf(op,i);if(j===null||!any(it[i]))return '';merge(it,j,it[i]);it[i]={};let r=react(it,j);if(r==='melt'||r==='lost')return r;if(LV().ch[j].kind==='L'||LV().ch[j].kind==='P')return '';return flow(j)}
+for(const p of order){op.push(p);let r=flow(LV().pins[p][0]);if(r)return [r,0];if(it[L].key)return ['win',it[L].gem||0]}return ['stuck',0]}
+function solve(){let free=LV().pins.map((_,i)=>i).filter(i=>!opened.includes(i)),best=null;
+(function rec(order,left){let r=simulate(items,opened,order);if(r[0]==='win'){if(!best||r[1]>best.g||(r[1]===best.g&&order.length<best.o.length))best={o:order.slice(),g:r[1]};return}if(r[0]!=='stuck')return;
+for(let i=0;i<left.length;i++){order.push(left[i]);rec(order,left.slice(0,i).concat(left.slice(i+1)));order.pop()}})([],free);return best}
+// ---- play ----
+function start(i){lvl=i;sel=i;items=LV().ch.map(c=>Object.assign({},c.items||{}));opened=[];hist=[];anim=null;queue=[];result='';usedHint=false;hintPin=-1;hintT=0;particles=[];popups=[];state='play';if(cheat.show)showBest()}
+function showBest(){let b=solve();hintPin=b&&b.o.length?b.o[0]:-1;hintT=cheat.show?1e9:4}
+function pull(p){if(state!=='play'||anim||opened.includes(p))return;hist.push({items:items.map(o=>Object.assign({},o)),opened:opened.slice()});opened.push(p);SKY.sfx('unlock',{volume:.5});
+let pos=pinPos(p);for(let k=0;k<8;k++)particles.push({x:pos.x,y:pos.y,vx:(Math.random()-.5)*4,vy:-Math.random()*3,life:20,s:2+Math.random()*2,col:'#ffd700'});
+hintT=cheat.show?1e9:0;queue.push(LV().pins[p][0]);next()}
+function next(){while(queue.length){let i=queue.shift(),j=exitOf(opened,i);if(j===null||!any(items[i]))continue;anim={from:i,to:j,it:items[i],t:0};items[i]={};return}anim=null;afterMove()}
+function arrive(){let {to:j,it}=anim;merge(items,j,it);let r=react(items,j),c=chPos(j);
+if(r==='steam'){SKY.sfx('splash',{volume:.6});popups.push({x:c.x,y:c.y-20,txt:'STEAM! lava cooled',life:50,col:'#dfe6e9'});for(let k=0;k<14;k++)particles.push({x:c.x,y:c.y,vx:(Math.random()-.5)*3,vy:-Math.random()*3-1,life:40,s:3+Math.random()*4,col:'rgba(220,230,235,.8)'})}
+else if(r==='burn'){SKY.sfx('hit',{volume:.5});popups.push({x:c.x,y:c.y-20,txt:'Gem burnt!',life:45,col:'#ff7f50'})}
+else if(r==='pit'){SKY.sfx('whoosh',{volume:.4})}else SKY.sfx('land',{volume:.4});
+if(r==='melt'||r==='lost'){anim=null;queue=[];result=r;state='over';SKY.sfx('lose');return}
+anim=null;let L=lockId();if(j===L&&items[L].key){win();return}
+if(LV().ch[j].kind==='c'&&exitOf(opened,j)!==null)queue.unshift(j);next()}
+function afterMove(){if(cheat.show)showBest()}
+function win(){gemsSaved=items[lockId()].gem||0;let g=gemsTotal();resultStars=gemsSaved>=g?3:gemsSaved>0?2:1;if(usedHint)resultStars=Math.min(2,resultStars);
+if(!SKY.cheated&&resultStars>(stars[lvl]||0)){stars[lvl]=resultStars;saveStars()}state='done';SKY.sfx('win');let c=chPos(lockId());
+for(let i=0;i<50;i++){let a=Math.random()*Math.PI*2;particles.push({x:c.x,y:c.y,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2)-2,life:50,s:Math.random()*4+2,col:`hsl(${Math.random()*60+30},100%,60%)`})}}
+function undo(){if(anim||!hist.length||(state!=='play'&&state!=='over'))return;let h=hist.pop();items=h.items;opened=h.opened;result='';state='play';queue=[];SKY.sfx('swap',{volume:.4});if(cheat.show)showBest()}
+function hint(){if(state!=='play'||anim)return;let b=solve();if(!b){popups.push({x:W/2,y:BY-10,txt:'No way through from here: press Undo',life:80,col:'#ff6b81'});return}hintPin=b.o[0];hintT=4;usedHint=true;SKY.sfx('powerup',{volume:.4})}
+function toTitle(){state='ready';sel=0;for(let i=0;i<LEVELS.length;i++)if(unlocked(i))sel=i;if(sel<LEVELS.length-1&&(stars[sel]||0)>0)sel++}
+// ---- layout ----
+function chPos(i){let c=LV().ch[i];return {x:BX+(c.x+.5)*CW,y:BY+c.y*RH+RH*.35,w:CW*.78,h:RH*.62}}
+function exitIndex(p){let [f]=LV().pins[p],same=LV().pins.map((q,k)=>[q,k]).filter(([q])=>q[0]===f);return same.length>1?(same.findIndex(([,k])=>k===p)?1:-1):0}
+function pinPos(p){let [f,t]=LV().pins[p],a=chPos(f),s=exitIndex(p);return {x:a.x+s*a.w*.3,y:a.y+a.h/2+10,t:chPos(t)}}
+function pinAt(px,py){let best=-1,bd=34;LV().pins.forEach((_,p)=>{if(opened.includes(p))return;let q=pinPos(p),d=Math.hypot(px-q.x,py-q.y);if(d<bd){bd=d;best=p}});return best}
+function tileRect(i){let cols=4,tw=Math.min(70,(W-60)/cols),gap=(W-cols*tw)/(cols+1);return {x:gap+(i%cols)*(tw+gap),y:H*.44+Math.floor(i/cols)*(tw+14),w:tw,h:tw}}
+function playRect(){return {x:W/2-110,y:H*.27,w:220,h:54}}
+function inR(p,r){return p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h}
+// ---- input ----
+let kSel=0;
+C.addEventListener('pointerdown',e=>{let p={x:e.clientX-CRECT.left,y:e.clientY-CRECT.top};
+if(state==='ready'){if(SKY.tut){start(sel);return}for(let i=0;i<LEVELS.length;i++)if(inR(p,tileRect(i))){if(unlocked(i))start(i);else SKY.sfx('error',{volume:.3});return}if(inR(p,playRect()))start(sel);return}
+if(state==='done'){if(lvl<LEVELS.length-1)start(lvl+1);else toTitle();return}
+if(state==='over')return;let k=pinAt(p.x,p.y);if(k>=0)pull(k)});
+document.addEventListener('keydown',e=>{let k=e.code;
+if(state==='ready'){if(k==='Space'||k==='Enter'){e.preventDefault();if(unlocked(sel))start(sel)}else if(k==='ArrowRight')sel=Math.min(LEVELS.length-1,sel+1);else if(k==='ArrowLeft')sel=Math.max(0,sel-1);return}
+if(state==='done'){if(k==='Space'||k==='Enter'){e.preventDefault();if(lvl<LEVELS.length-1)start(lvl+1);else toTitle()}return}
+if(k==='KeyZ'||k==='Backspace'){e.preventDefault();undo();return}if(k==='KeyH'){hint();return}if(state!=='play')return;
+let free=LV().pins.map((_,i)=>i).filter(i=>!opened.includes(i));if(!free.length)return;
+if(k==='ArrowRight'||k==='ArrowDown'||k==='Tab'){e.preventDefault();kSel=free[(free.indexOf(kSel)+1+free.length)%free.length]}else if(k==='ArrowLeft'||k==='ArrowUp'){e.preventDefault();kSel=free[(free.indexOf(kSel)-1+free.length)%free.length]}
+else if(k==='Space'||k==='Enter'){e.preventDefault();if(!free.includes(kSel))kSel=free[0];pull(kSel)}});
+function update(dt){pulseT+=.05*dt*60;if(hintT>0&&hintT<1e8)hintT-=dt;if(anim){anim.t+=dt/.35;if(anim.t>=1)arrive()}
+for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);for(let q of popups){q.y-=.6;q.life--}prune(popups,pLife)}
+// ---- drawing ----
+function drawKey(x,y,s){X.save();X.translate(x,y);glowAt('#ffd700',0,0,s*1.4);X.strokeStyle='#ffd700';X.fillStyle='#ffd700';X.lineWidth=s*.28;X.beginPath();X.arc(-s*.45,0,s*.35,0,Math.PI*2);X.stroke();X.beginPath();X.moveTo(-s*.1,0);X.lineTo(s*.75,0);X.moveTo(s*.45,0);X.lineTo(s*.45,s*.3);X.moveTo(s*.7,0);X.lineTo(s*.7,s*.3);X.stroke();X.restore()}
+function drawGem(x,y,s){glowAt('#00e5ff',x,y,s*1.3);X.fillStyle='#00e5ff';X.beginPath();X.moveTo(x,y-s*.6);X.lineTo(x+s*.55,y-s*.1);X.lineTo(x,y+s*.6);X.lineTo(x-s*.55,y-s*.1);X.closePath();X.fill();X.fillStyle='rgba(255,255,255,.5)';X.beginPath();X.moveTo(x,y-s*.6);X.lineTo(x+s*.2,y-s*.1);X.lineTo(x-s*.2,y-s*.1);X.closePath();X.fill()}
+function drawContents(it,x,y,w,h){let lv=h*.5;
+if(it.water){X.fillStyle='rgba(0,140,255,.55)';X.fillRect(x-w/2+3,y+h/2-lv,w-6,lv-3);X.strokeStyle='rgba(120,200,255,.6)';X.lineWidth=2;X.beginPath();for(let k=0;k<=w-6;k+=4)X.lineTo(x-w/2+3+k,y+h/2-lv+Math.sin(k*.15+pulseT)*2);X.stroke()}
+if(it.lava){glowAt('#ff6a00',x,y+h/4,w*.5);X.fillStyle='#ff6a00';X.fillRect(x-w/2+3,y+h/2-lv,w-6,lv-3);X.fillStyle='#ffd23f';for(let k=0;k<4;k++){X.beginPath();X.arc(x-w/2+10+((k*23+pulseT*8)%(w-20)),y+h/2-lv+6+Math.sin(pulseT+k)*3,3,0,Math.PI*2);X.fill()}}
+if(it.stone){X.fillStyle='#7f8c8d';for(let k=0;k<4;k++){X.beginPath();X.arc(x-w*.3+k*w*.2,y+h/2-9,8,0,Math.PI*2);X.fill()}}
+let icons=[];if(it.key)icons.push('k');for(let g=0;g<(it.gem||0);g++)icons.push('g');icons.forEach((ic,k)=>{let ix=x+(k-(icons.length-1)/2)*26,iy=y-h*.1;if(ic==='k')drawKey(ix,iy,16);else drawGem(ix,iy,14)})}
+function draw(){X.clearRect(0,0,W,H);X.fillStyle=bgGrad;X.fillRect(0,0,W,H);if(state==='ready'){drawTitle();return}
+let lv=LV();X.textAlign='center';X.fillStyle='#fff';X.font='bold 20px "Segoe UI"';X.fillText('Level '+(lvl+1)+': '+lv.name,W/2,30);
+X.font='bold 14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.75)';X.fillText('Gems in the lock: '+(items[lockId()].gem||0)+' / '+gemsTotal()+'   Pins pulled: '+opened.length,W/2,54);
+// pipes
+lv.pins.forEach(([f,t],p)=>{let a=pinPos(p),b=chPos(t);X.strokeStyle=opened.includes(p)?'rgba(150,200,255,.35)':'rgba(150,200,255,.18)';X.lineWidth=14;X.lineCap='round';X.beginPath();X.moveTo(a.x,a.y-10);X.lineTo(a.x,a.y+6);X.lineTo(b.x,b.y-b.h/2-4);X.stroke()});
+// chambers
+lv.ch.forEach((c,i)=>{let q=chPos(i),x=q.x-q.w/2,y=q.y-q.h/2;
+if(c.kind==='L'){glowAt('#2ed573',q.x,q.y,q.w*.6)}
+X.fillStyle=c.kind==='P'?'#05070a':'rgba(255,255,255,.06)';X.beginPath();X.roundRect(x,y,q.w,q.h,10);X.fill();X.strokeStyle=c.kind==='L'?'#2ed573':c.kind==='P'?'#ff4757':'rgba(160,210,255,.55)';X.lineWidth=2.5;X.stroke();
+if(c.kind==='P'){X.fillStyle='#ff4757';X.font='bold 13px "Segoe UI"';X.fillText('PIT',q.x,q.y+5)}
+if(c.kind==='L'&&!items[i].key){X.strokeStyle='#2ed573';X.lineWidth=3;X.beginPath();X.arc(q.x,q.y-q.h*.18,9,Math.PI,0);X.stroke();X.fillStyle='#2ed573';X.fillRect(q.x-12,q.y-q.h*.18,24,18);X.fillStyle='#0a1a2a';X.fillRect(q.x-2,q.y-q.h*.18+5,4,8)}
+drawContents(items[i],q.x,q.y,q.w,q.h)});
+// pins
+lv.pins.forEach((_,p)=>{if(opened.includes(p))return;let a=pinPos(p),hl=(hintT>0&&p===hintPin),ks=kbd&&p===kSel;if(hl){glowAt('#fff27a',a.x,a.y,34)}
+let sd=exitIndex(p),hw=sd?13:22,hx=a.x+(sd<0?-(hw+4):hw+4);X.fillStyle=hl?'#fff27a':'#ffd700';X.fillRect(a.x-hw,a.y-4,hw*2,8);X.beginPath();X.arc(hx,a.y,8,0,Math.PI*2);X.fill();X.fillStyle='#8a6d00';X.beginPath();X.arc(hx,a.y,3.5,0,Math.PI*2);X.fill();
+if(ks){X.strokeStyle='#fff';X.lineWidth=2;X.strokeRect(a.x-28,a.y-12,64,24)}});
+// falling contents
+if(anim){let a=chPos(anim.from),b=chPos(anim.to),t=anim.t,x=a.x+(b.x-a.x)*t,y=a.y+a.h/2+(b.y-b.h/2-(a.y+a.h/2))*t*t;drawContents(anim.it,x,y,a.w*.6,a.h*.6)}
+for(let p of particles){X.globalAlpha=Math.max(0,p.life/40);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,p.s,0,Math.PI*2);X.fill()}X.globalAlpha=1;
+for(let q of popups){X.globalAlpha=Math.min(1,q.life/30);X.fillStyle=q.col;X.font='bold 16px "Segoe UI"';X.fillText(q.txt,q.x,q.y)}X.globalAlpha=1;
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 34px "Segoe UI"';X.fillText(result==='melt'?'THE KEY MELTED!':'THE KEY FELL IN THE PIT!',W/2,H/2-20);X.fillStyle='#fff';X.font='16px "Segoe UI"';X.fillText('Press Undo to take that pull back,',W/2,H/2+14);X.fillText('or Restart from the pause menu.',W/2,H/2+36)}
+if(state==='done'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ffd700',W/2,H/2-30,110);X.fillStyle='#ffd700';X.font='bold 34px "Segoe UI"';X.fillText('✨ UNLOCKED! ✨',W/2,H/2-40);X.font='bold 34px "Segoe UI"';X.fillText('★'.repeat(resultStars)+'☆'.repeat(3-resultStars),W/2,H/2+4);
+X.fillStyle='#fff';X.font='16px "Segoe UI"';X.fillText(gemsSaved+' of '+gemsTotal()+' gems saved'+(usedHint?' · hint used':''),W/2,H/2+34);X.fillStyle='rgba(255,255,255,.7)';X.fillText(lvl<LEVELS.length-1?'▶ Tap for level '+(lvl+2):'▶ Tap for the level list',W/2,H/2+66)}}
+let kbd=false;document.addEventListener('keydown',e=>{if(/Arrow|Tab/.test(e.code))kbd=true},true);C.addEventListener('pointerdown',()=>{kbd=false},true);
+function drawTitle(){X.textAlign='center';glowAt('#ffd700',W/2,H*.12,110);X.fillStyle='#ffd700';X.font='bold 30px "Segoe UI"';X.fillText('PULL THE PIN',W/2,H*.13);
+X.fillStyle='rgba(255,255,255,.7)';X.font='15px "Segoe UI"';X.fillText('Pull the pins in the right order. Unlock the lock.',W/2,H*.13+28);
+let p=playRect();X.fillStyle='#ffd700';X.beginPath();X.roundRect(p.x,p.y,p.w,p.h,27);X.fill();X.fillStyle='#1a2a3a';X.font='bold 20px "Segoe UI"';X.fillText('▶ PLAY LEVEL '+(sel+1),W/2,p.y+34);
+X.fillStyle='rgba(255,255,255,.6)';X.font='bold 14px "Segoe UI"';X.fillText('LEVELS',W/2,H*.44-14);
+for(let i=0;i<LEVELS.length;i++){let r=tileRect(i),u=unlocked(i);X.fillStyle=i===sel?'rgba(255,215,0,.3)':u?'rgba(255,255,255,.08)':'rgba(255,255,255,.03)';X.beginPath();X.roundRect(r.x,r.y,r.w,r.h,10);X.fill();
+if(i===sel){X.strokeStyle='#ffd700';X.lineWidth=2;X.stroke()}X.fillStyle=u?'#fff':'rgba(255,255,255,.3)';X.font='bold 20px "Segoe UI"';X.fillText(u?(i+1):'🔒',r.x+r.w/2,r.y+r.h/2+2);
+X.fillStyle='#ffd700';X.font='12px "Segoe UI"';X.fillText(stars[i]?'★'.repeat(stars[i])+'☆'.repeat(3-stars[i]):'',r.x+r.w/2,r.y+r.h-6)}
+if(SKY.tut)SKY.drawTut(X,W,H,{title:'PULL THE PIN',color:'#ffd700',gesture:'tap',steps:['Tap a golden pin to pull it: whatever sits in that glass chamber drops down its pipe.','Get the key into the green lock chamber to finish the level.','Lava melts the key and burns gems, but water turns lava into stone. A red PIT swallows anything.','Gems already in the lock when the key lands are your stars. Undo takes a pull back.'],go:'▶ Tap to play level 1'})}
+let last=performance.now();function loop(now){if(document.hidden){last=performance.now();return requestAnimationFrame(loop)}let dt=Math.min(.05,(now-last)/1000);last=now;update(dt);SKY.tick(state,stars.filter(Boolean).length);draw();requestAnimationFrame(loop)}
+SKY.setup({id:'key-unlock',color:'#ffd700',pauseButton:'tr',bestKey:STORE,difficulty:false,scenes:{ready:'title',play:'play',over:'play',done:'over'},
+buttons:[{label:'↶ Undo',aria:'Undo last pull',fn:undo},{label:'💡 Hint',aria:'Hint',fn:hint}],
+onRestart(){start(lvl)},onExit(){toTitle()},
+onHint(){if(state==='ready')return 'Press Play (or Space) to start level '+(sel+1)+'.';if(state==='over')return 'That pull lost the key. Press Undo to take it back.';if(state!=='play')return '';let b=solve();if(!b)return 'The key cannot reach the lock from here: press Undo.';
+let p=b.o[0],[f,t]=LV().pins[p],it=items[f],what=it.key?'the key':it.lava?'the lava':it.water?'the water':it.gem?'the gem':'the empty chamber',to=LV().ch[t].kind==='L'?'the lock':LV().ch[t].kind==='P'?'the pit':'the chamber below';hintPin=p;hintT=4;
+return 'Pull the pin under '+what+' (it drops into '+to+'). '+(b.g<gemsTotal()?'Some gems can no longer be saved.':'That keeps every gem safe.')},
+cheats:{FIREPROOF:['The key survives lava',()=>{cheat.fire=true}],SHOWPIN:['The best next pin always glows',()=>{cheat.show=true;if(state==='play')showBest()}],ALLLEVELS:['Every level unlocked (this session only)',()=>{unlockAll=true}]}});
+loadStars();resize();window.addEventListener('resize',resize);toTitle();requestAnimationFrame(loop);
 </script></body></html>

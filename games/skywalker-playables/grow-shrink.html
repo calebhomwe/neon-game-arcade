@@ -1,53 +1,62 @@
-﻿<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Grow or Shrink</title><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(165,94,234,.3)</style></head>
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Grow or Shrink</title><script src="https://calebhomwe.github.io/arcade/assets/arcade-sdk.js"></script><script src="sky-arcade.js"></script><style>*{margin:0;padding:0}body{background:#0a0a2e;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI',sans-serif;touch-action:none}.c{border-radius:12px;box-shadow:0 0 60px rgba(165,94,234,.3)}</style></head>
 <body><canvas class="c"></canvas>
 <script>
 const C=document.querySelector('canvas'),X=C.getContext('2d');
-let W,H,bgGrad,CRECT,needDraw=true;function resize(){W=C.width=Math.min(window.innerWidth-20,420);H=C.height=Math.min(window.innerHeight-20,720);CRECT=C.getBoundingClientRect();bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#1a1025');bgGrad.addColorStop(1,'#0f0a18');needDraw=true}resize();window.addEventListener('resize',resize);
+let W,H,bgGrad,needDraw=true;function resize(){W=Math.min(window.innerWidth-20,420);H=Math.min(window.innerHeight-20,720);SKY.fit(C,X,W,H);bgGrad=X.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#1a1025');bgGrad.addColorStop(1,'#0f0a18');needDraw=true}resize();window.addEventListener('resize',resize);
 const GLOWC=new Map();function glow(col){let g=GLOWC.get(col);if(!g){g=document.createElement('canvas');g.width=g.height=64;let c=g.getContext('2d'),r=c.createRadialGradient(32,32,2,32,32,32);r.addColorStop(0,col);r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.beginPath();c.arc(32,32,32,0,Math.PI*2);c.fill();if(GLOWC.size>80)GLOWC.clear();GLOWC.set(col,g)}return g}function glowAt(col,x,y,r){X.drawImage(glow(col),x-r,y-r,r*2,r*2)}
 function prune(a,f){let n=0;for(let i=0;i<a.length;i++){let v=a[i];if(f(v))a[n++]=v}a.length=n}function pLife(p){return p.life>0}
-let player,gates,level,state,sizeTimer,mx=W/2,particles=[],scorePopups=[],shakeTime=0,pulseT=0;
-const GCOL=['#ff4757','#ffa502','#2ed573','#1e90ff','#a55eea'];
-function init(){player={x:W/2,y:H-100,r:20};gates=[];level=0;state='ready';sizeTimer=0;particles=[];scorePopups=[];shakeTime=0;pulseT=0}
-function loadGate(){let gateW=70+Math.random()*100;gateSize=gateW*.55+Math.random()*gateW*.15;player.r=18+Math.random()*12;mx=W/2;gates=[{x:W+60,w:gateW,size:gateSize,passed:false,col:GCOL[level%GCOL.length],pulse:0}];state='play'}
-C.addEventListener('pointermove',e=>{mx=e.clientX-CRECT.left;needDraw=true});
-C.addEventListener('pointerdown',()=>{if(state==='over'||state==='win'){init();return}if(state==='ready')loadGate()});
-document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='ready')loadGate()}});
-let gateSize=80;
-function update(){if(state!=='play')return;pulseT+=.03;sizeTimer++;mx+=(W/2-mx)*.05;player.x=mx+Math.sin(sizeTimer*.03)*50;
-for(let g of gates){g.pulse+=.05;g.x-=2;if(!g.passed&&g.x+g.w<player.x){g.passed=true;
-let diff=Math.abs(player.r-g.size/2);if(diff>18){state='over';shakeTime=12;spawnCrashParticles();return}else{level++;scorePopups.push({x:g.x+g.w/2,y:g.y||H*.35,txt:diff<8?'PERFECT!':'PASSED!',life:40,vy:-1.5});
-if(level>=5){state='win';spawnWinParticles()}else{loadGate()}}}}
-if(shakeTime>0)shakeTime--;
-for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--}prune(particles,pLife);
-for(let sp of scorePopups){sp.y+=sp.vy;sp.life--}prune(scorePopups,pLife)}
+// You are the glowing ball at the bottom. A wall with a round door falls towards you.
+// Hold to grow, let go to shrink: when the wall reaches you, your ball must fit the door snugly.
+const GCOL=['#ff4757','#ffa502','#2ed573','#1e90ff','#a55eea'],GOAL=10,RMIN=8,RMAX=70;
+let player,gate,level,state,holding=false,best=0,tol=10,fall=1.6,particles=[],scorePopups=[],shakeTime=0,pulseT=0,endMsg='',cheat={slow:false,loose:false,guide:false};
+function init(){player={x:W/2,y:H-110,r:24};gate=null;level=0;state='ready';holding=false;particles=[];scorePopups=[];shakeTime=0;pulseT=0;best=SKY.best();tol=SKY.pick(14,10,7)+(cheat.loose?8:0);fall=SKY.pick(1.2,1.6,2.1)}
+function newGate(){let r;do{r=16+Math.random()*48}while(Math.abs(r-player.r)<10);gate={y:-30,r,col:GCOL[level%GCOL.length],pulse:0}}
+function start(){init();state='play';newGate()}
+function press(on){if(on&&(state==='over'||state==='win')){init();return}if(on&&state==='ready'){start();return}if(state==='play'){if(on&&!holding)SKY.sfx('tick',{volume:.35});holding=on}}
+C.addEventListener('pointerdown',e=>{press(true)});
+addEventListener('pointerup',()=>press(false));addEventListener('pointercancel',()=>press(false));
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();press(true)}});
+document.addEventListener('keyup',e=>{if(e.code==='Space')press(false)});
+function update(dt){if(state!=='play')return;const f=dt*60;pulseT+=.03*f;
+player.r=Math.max(RMIN,Math.min(RMAX,player.r+(holding?1:-1)*38*dt));
+gate.pulse+=.05*f;gate.y+=fall*(cheat.slow?.5:1)*(1+level*.06)*f;
+if(gate.y>=player.y){let diff=player.r-gate.r;
+if(diff>0.5||diff<-tol){state='over';endMsg=diff>0?'TOO BIG!':'TOO SMALL!';shakeTime=SKY.shake(12);spawnCrashParticles();SKY.sfx('lose');if(SKY.saveBest(level))best=level;return}
+level++;let perfect=diff>-4;scorePopups.push({x:W/2,y:player.y-player.r-20,txt:perfect?'PERFECT!':'PASSED!',life:40,vy:-1.5});SKY.sfx(perfect?'combo':'correct',{volume:.6});
+if(level>=GOAL){state='win';spawnWinParticles();SKY.sfx('win');if(SKY.saveBest(level))best=level}else newGate()}
+if(shakeTime>0)shakeTime-=f;
+for(let p of particles){p.x+=p.vx*f;p.y+=p.vy*f;p.vy+=.05*f;p.life-=f}prune(particles,pLife);
+for(let sp of scorePopups){sp.y+=sp.vy*f;sp.life-=f}prune(scorePopups,pLife)}
 function spawnCrashParticles(){if(particles.length>180)return;for(let i=0;i<20;i++){let a=Math.random()*Math.PI*2;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*(Math.random()*6+2),vy:Math.sin(a)*(Math.random()*6+2),life:30,s:Math.random()*4+2,col:'#ff4757'})}}
 function spawnWinParticles(){if(particles.length>180)return;for(let i=0;i<60;i++){let a=Math.random()*Math.PI*2;particles.push({x:W/2,y:H/2,vx:Math.cos(a)*(Math.random()*8+2),vy:Math.sin(a)*(Math.random()*8+2)-3,life:50,s:Math.random()*5+3,col:`hsl(${Math.random()*360},100%,60%)`})}}
 function draw(){X.save();if(shakeTime>0)X.translate((Math.random()-.5)*shakeTime*2,(Math.random()-.5)*shakeTime*2);
 X.clearRect(-15,-15,W+30,H+30);
-// Background
 X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
-// Size indicator circle (ghost)
-X.strokeStyle='rgba(165,94,234,.1)';X.lineWidth=1;X.beginPath();X.arc(player.x,player.y,player.r+10+Math.sin(pulseT)*3,0,Math.PI*2);X.stroke();
-// Gates
-for(let g of gates){let pulse=1+Math.sin(g.pulse)*.05;X.save();X.translate(g.x+g.w/2,g.y||H*.35);X.scale(pulse,pulse);X.translate(-(g.x+g.w/2),-(g.y||H*.35));
-X.drawImage(glow(g.col),g.x-12,(g.y||H*.35)-12,g.w+24,(g.size||60)+24);X.fillStyle=g.col;X.fillRect(g.x,g.y||H*.35,g.w,(g.size||60));
-X.strokeStyle='#fff';X.lineWidth=2;X.strokeRect(g.x,g.y||H*.35,g.w,(g.size||60));
-X.fillStyle='rgba(255,255,255,.5)';X.font='bold 12px sans-serif';X.textAlign='center';X.fillText((g.size||60).toFixed(0),g.x+g.w/2,(g.y||H*.35)-8);
+// Gate: a wall with a round door
+if(gate){let g=gate,pulse=1+Math.sin(g.pulse)*.03,gy=g.y;X.save();
+X.drawImage(glow(g.col),-20,gy-40,W+40,80);X.fillStyle=g.col;X.globalAlpha=.85;X.beginPath();X.rect(0,gy-14,W,28);X.arc(W/2,gy,g.r*pulse+4,0,Math.PI*2,true);X.fill('evenodd');X.globalAlpha=1;
+X.strokeStyle='#fff';X.lineWidth=2;X.beginPath();X.arc(W/2,gy,g.r+4,0,Math.PI*2);X.stroke();
+if(cheat.guide){X.setLineDash([5,5]);X.strokeStyle='rgba(255,255,255,.6)';X.beginPath();X.arc(W/2,player.y,g.r,0,Math.PI*2);X.stroke();X.setLineDash([])}
 X.restore()}
 // Player
 glowAt('#fff',player.x,player.y,player.r+12);X.fillStyle='#fff';X.beginPath();X.arc(player.x,player.y,player.r,0,Math.PI*2);X.fill();
 X.fillStyle=GCOL[level%GCOL.length];X.beginPath();X.arc(player.x,player.y,player.r*.6,0,Math.PI*2);X.fill();
 X.fillStyle='rgba(255,255,255,.4)';X.beginPath();X.arc(player.x-player.r*.3,player.y-player.r*.3,player.r*.25,0,Math.PI*2);X.fill();
-// Particles
+if(state==='play'){X.fillStyle='rgba(255,255,255,.55)';X.font='14px "Segoe UI"';X.textAlign='center';X.fillText(holding?'GROWING':'shrinking',W/2,H-40)}
 for(let p of particles){let pr=p.s*(p.life/50);X.globalAlpha=p.life/50;glowAt(p.col,p.x,p.y,pr+6);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}X.globalAlpha=1;
-// Score popups
 for(let sp of scorePopups){X.globalAlpha=sp.life/40;X.fillStyle=sp.txt.includes('PERFECT')?'#ffd700':'#fff';X.font=sp.txt.includes('PERFECT')?'bold 20px "Segoe UI"':'bold 16px "Segoe UI"';X.textAlign='center';X.fillText(sp.txt,sp.x,sp.y)}X.globalAlpha=1;
-// HUD
-X.fillStyle='#fff';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText('Gate '+(level+1)+' / 5',W/2,30);
+X.fillStyle='#fff';X.font='bold 22px "Segoe UI"';X.textAlign='center';X.fillText('Gate '+Math.min(level+1,GOAL)+' / '+GOAL,W/2,30);X.font='bold 14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('BEST '+best,W/2,52);
 X.restore();
-if(state==='ready'){X.fillStyle='rgba(255,255,255,.85)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('GROW OR SHRINK',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Match the door size to pass through',W/2,H/2+5);X.font='14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.4)';X.fillText('Tap to start',W/2,H/2+35)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('WRONG SIZE!',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
-if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#a55eea',W/2,H/2-20,110);X.fillStyle='#a55eea';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ALL GATES PASSED! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
-let pState='';function loop(){if(document.hidden)return requestAnimationFrame(loop);update();if(state!==pState){pState=state;needDraw=true}if(state==='play')needDraw=true;if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}init();loop()
+if(state==='ready'&&SKY.tut)SKY.drawTut(X,W,H,{title:'GROW OR SHRINK',color:'#a55eea',gesture:'hold',steps:['A wall with a round door falls towards your ball.','Hold (finger, mouse or Space) to grow. Let go to shrink.','When the wall reaches you, your ball must fit the door: not bigger, and not much smaller.','Pass 10 doors to win.']});
+else if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#a55eea',W/2,H/2-30,110);X.fillStyle='rgba(255,255,255,.9)';X.font='bold 24px "Segoe UI"';X.textAlign='center';X.fillText('GROW OR SHRINK',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Hold to grow, let go to shrink',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('▶ Tap to start',W/2,H/2+35)}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText(endMsg,W/2,H/2-20);X.fillStyle='#fff';X.font='20px "Segoe UI"';X.fillText('Doors passed: '+level+'   Best: '+best,W/2,H/2+14);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('▶ Tap to retry',W/2,H/2+48)}
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#a55eea',W/2,H/2-20,110);X.fillStyle='#a55eea';X.font='bold 30px "Segoe UI"';X.textAlign='center';X.fillText('✨ ALL DOORS PASSED! ✨',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('▶ Tap to play again',W/2,H/2+40)}}
+let last=performance.now(),pState='';function loop(now){requestAnimationFrame(loop);if(document.hidden){last=now||performance.now();return}const dt=Math.min(((now||performance.now())-last)/1000,.05);last=now||performance.now();update(dt);if(state!==pState){pState=state;needDraw=true}if(state==='play'||state==='ready')needDraw=true;SKY.tick(state,level);if(needDraw){needDraw=false;draw()}}
+SKY.setup({id:'grow-shrink',color:'#a55eea',pauseButton:'tr',
+onRestart(){start()},onExit(){init()},onDiff(){init()},
+onHint(){if(state!=='play'||!gate)return 'Tap to start. Then hold to grow and let go to shrink.';let d=Math.round(player.r-gate.r);
+return d>0?'You are '+d+' px too big for this door: let go and shrink.':d<-tol?'You are '+(-d)+' px too small: hold to grow.':'You fit this door right now. Tap-hold briefly to stay the same size until the wall arrives.'},
+cheats:{SLOWWALL:['Walls fall at half speed',()=>{cheat.slow=true}],LOOSEFIT:['8 px more room: slightly small balls still pass',()=>{cheat.loose=true;tol+=8}],SIZEGUIDE:['A dashed ring shows the door size around your ball',()=>{cheat.guide=true}]}});
+init();requestAnimationFrame(loop)
 </script></body></html>
