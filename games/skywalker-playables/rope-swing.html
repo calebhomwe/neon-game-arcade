@@ -81,7 +81,7 @@ const PK=(function(cfg){
 const day=()=>new Date().toISOString().slice(0,10);
 const SKINS=[['Classic',0],['Sunset',12],['Mint',25],['Galaxy',45]],SKINCOL=['#ffd700','#ff7f50','#2ed573','#a55eea'];
 const DEF={best:0,coins:0,xp:0,stars:0,plays:0,wins:0,skins:['Classic'],skin:'Classic',ach:[],daily:'',dailyOK:false,cur:0};
-let S=Object.assign({},DEF),hud,tCard,tShop,tst,tstT=0,lastScore=null,lastScene='',lastSave=0;
+let S=Object.assign({},DEF),hud,tCard,tShop,tst,tstT=0,lastScore=null,lastScene='',lastSave=0,everOver=false,retryB=null;
 function seed(s){let h=9;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),387420489)>>>0;return h}
 function goal(){return cfg.goals[seed(day())%cfg.goals.length]}
 function lvl(){return Math.max(1,Math.floor(Math.sqrt(S.xp/12))+1)}
@@ -130,11 +130,17 @@ function drawTip(X,w,y){X.save();X.globalAlpha=.85;X.fillStyle='#fff';X.font='13
 const tick0=SKY.tick;
 SKY.tick=function(state,score){tick0(state,score);
 const sc=state==='ready'?'title':(state==='over'||state==='win'||state==='done'?'over':'play');
-if(sc!==lastScene){if(lastScene==='play'&&sc==='over')awardRun(score||0,state==='win'||state==='done');lastScene=sc;
-if(tCard)tCard.style.display=sc==='title'?'block':'none';if(tShop)tShop.style.display=sc==='title'?'flex':'none'}
+if(sc!==lastScene){if(lastScene==='play'&&sc==='over'){awardRun(score||0,state==='win'||state==='done');everOver=true;}lastScene=sc;
+if(tCard)tCard.style.display=sc==='title'?'block':'none';if(tShop)tShop.style.display=(sc==='title'&&!everOver)?'flex':'none';if(retryB)retryB.style.display=sc==='over'?'block':'none'}
 if(sc==='play'&&typeof score==='number'&&score!==lastScore){lastScore=score;S.cur=score;
 if(!S.dailyOK&&!cfg.lower&&score>=goal()){S.dailyOK=true;S.coins+=10;S.stars++;toast('\u2600 Daily challenge done! +10 coins \u00B7 +1 star');SKY.sfx('win',{volume:.45});repaint()}
 const n=performance.now();if(n-lastSave>1500){lastSave=n;save()}}};
+retryB=document.createElement('button');retryB.type='button';retryB.id='pkRetry';retryB.textContent='▶ Retry';
+retryB.style.cssText='position:fixed;left:50%;top:62%;transform:translateX(-50%);z-index:7;display:none;min-width:130px;min-height:48px;border-radius:24px;border:2px solid '+cfg.color+';background:rgba(10,10,46,.92);color:#fff;font:900 16px "Segoe UI",sans-serif;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.5)';
+retryB.addEventListener('click',function(e){e.stopPropagation();retryTap();});document.body.appendChild(retryB);
+function retryTap(){var c=document.querySelector('canvas');if(!c)return;var r=c.getBoundingClientRect();var x=r.left+r.width/2,y=r.top+r.height*0.42;
+['pointerdown','pointerup'].forEach(function(t){try{c.dispatchEvent(new PointerEvent(t,{bubbles:true,cancelable:true,clientX:x,clientY:y,pointerId:1,pointerType:'touch',isPrimary:true}))}catch(e){}});
+setTimeout(function(){['pointerdown','pointerup'].forEach(function(t){try{c.dispatchEvent(new PointerEvent(t,{bubbles:true,cancelable:true,clientX:x,clientY:y,pointerId:1,pointerType:'touch',isPrimary:true}))}catch(e){}})},320);}
 load();buildUI();repaint();
 return {color,tip,drawTip,save,state:S};
 })(PKC);
