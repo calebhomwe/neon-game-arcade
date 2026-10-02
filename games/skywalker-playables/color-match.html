@@ -12,10 +12,10 @@ function init(){bucket={x:W/2,y:H-80,w:cheat.big?104:65,color:0};best=SKY.best()
 function changeBucketColor(){bucket.color=(bucket.color+1)%palette.length;if(state==='play')SKY.sfx('swap',{volume:.5})}
 let isDown=false,downX=0,downT=0,moved=false;
 C.addEventListener('pointermove',e=>{const x=e.clientX-CRECT.left;if(isDown&&Math.abs(x-downX)>10)moved=true;mx=x;needDraw=true});
-C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}isDown=true;moved=false;downX=e.clientX-CRECT.left;downT=performance.now();mx=downX});
+C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();state='play';return}if(state==='ready'){state='play';return}isDown=true;moved=false;downX=e.clientX-CRECT.left;downT=performance.now();mx=downX});
 C.addEventListener('pointerup',()=>{if(state==='play'&&isDown&&!moved&&performance.now()-downT<300)changeBucketColor();isDown=false});
 C.addEventListener('pointercancel',()=>{isDown=false});
-document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win')init();else if(state==='ready')state='play';else if(state==='play')changeBucketColor()}});
+document.addEventListener('keydown',e=>{if(e.code==='Space'){if(state==='over'||state==='win'){init();state='play'}else if(state==='ready')state='play';else if(state==='play')changeBucketColor()}});
 function update(dts){if(state!=='play')return;pulseT+=.03*dts;bucket.x+=(mx-bucket.x)*(1-Math.pow(.9,dts));
 if(Math.random()<dts/SKY.pick(36,28,20)&&balls.length<40){let col=COLORS[Math.floor(Math.random()*COLORS.length)];balls.push({x:Math.random()*(W-40)+20,y:-20,vx:(Math.random()-.5)*2,vy:Math.random()*2+2,r:13,col})}
 let fs=(cheat.slow?.5:1)*SKY.pick(.8,1,1.25);for(let b of balls){b.x+=b.vx*dts*fs;b.y+=b.vy*dts*fs;if(b.x<b.r||b.x>W-b.r)b.vx*=-1;
@@ -36,7 +36,7 @@ X.fillStyle=bgGrad;X.fillRect(0,0,W,H);
 for(let b of balls){glowAt(b.col,b.x,b.y,b.r+10);X.fillStyle=b.col;X.beginPath();X.arc(b.x,b.y,b.r,0,Math.PI*2);X.fill();X.fillStyle='rgba(255,255,255,.3)';X.beginPath();X.arc(b.x-3,b.y-3,b.r*.4,0,Math.PI*2);X.fill()}
 // Bucket
 let bc=palette[bucket.color];glowAt(bc,bucket.x,bucket.y,bucket.w/2+15+Math.sin(pulseT*2)*5);X.fillStyle=bc;X.fillRect(bucket.x-bucket.w/2,bucket.y-bucket.w/2,bucket.w,bucket.w);
-X.strokeStyle='rgba(255,255,255,.3)';X.lineWidth=2;X.strokeRect(bucket.x-bucket.w/2,bucket.y-bucket.w/2,bucket.w,bucket.w);
+X.strokeStyle=PK.color();X.lineWidth=2;X.strokeRect(bucket.x-bucket.w/2,bucket.y-bucket.w/2,bucket.w,bucket.w);
 // Color indicator dots
 for(let i=0;i<palette.length;i++){X.fillStyle=palette[i];X.beginPath();X.arc(W/2-palette.length*8+i*16+8,H-15,5,0,Math.PI*2);X.fill();if(i===bucket.color){X.strokeStyle='#fff';X.lineWidth=2;X.beginPath();X.arc(W/2-palette.length*8+i*16+8,H-15,7,0,Math.PI*2);X.stroke()}}
 // Particles
@@ -50,13 +50,78 @@ X.textAlign='center';X.fillStyle='rgba(255,255,255,.4)';X.font='14px "Segoe UI"'
 X.restore();
 if(state==='ready'&&SKY.tut)SKY.drawTut(X,W,H,{title:'COLOR MATCH',color:'#ff6b81',gesture:'drag',steps:['Slide your finger or mouse to move the square bucket.','A quick tap (or Space) changes its colour. The dots at the bottom show the order.','Catch only balls that match the bucket. 20 good catches wins; 3 wrong ones ends the run.']});
 else if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#ff6b81',W/2,H/2-30,110);X.fillStyle='#ff6b81';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('COLOR MATCH',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Move to catch, tap/space to switch color',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('TOO MANY WRONG!',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Caught '+correctCaught+'/20   Best: '+best,W/2,H/2+12);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40)}
-if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff6b81',W/2,H/2-20,110);X.fillStyle='#ff6b81';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 PERFECT MATCH! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40)}}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('TOO MANY WRONG!',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Caught '+correctCaught+'/20   Best: '+best,W/2,H/2+12);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to retry',W/2,H/2+40);PK.drawTip(X,W,H/2+64)}
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff6b81',W/2,H/2-20,110);X.fillStyle='#ff6b81';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 PERFECT MATCH! \u2728',W/2,H/2-20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('\u25B6 Tap to play again',W/2,H/2+40);PK.drawTip(X,W,H/2+64)}}
 let pState='',lastTs=null;function loop(ts){if(document.hidden){lastTs=null;return requestAnimationFrame(loop)}if(lastTs===null)lastTs=ts;let dtMs=ts-lastTs;lastTs=ts;if(dtMs<0)dtMs=0;if(dtMs>50)dtMs=50;const dts=dtMs/1000*60;update(dts);if(state!==pState){pState=state;needDraw=true}if(state==='play'||state==='ready')needDraw=true;SKY.tick(state,correctCaught);if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}SKY.setup({id:'color-match',color:'#ff6b81',pauseButton:'tr',labelAt:'tl',labelTop:58,
 onRestart(){init();state='play'},onExit(){init()},onDiff(){init()},
 onHint(){if(state!=='play')return 'Tap to start, then slide to move the bucket.';let near=balls.filter(b=>b.y<bucket.y).sort((a,b)=>b.y-a.y)[0];if(!near)return 'Nothing is falling yet: get the bucket to the middle.';
 let names={'#ff4757':'red','#ffa502':'orange','#2ed573':'green','#1e90ff':'blue','#a55eea':'purple'},want=names[near.col],have=names[palette[bucket.color]];
 return want===have?'The lowest ball is '+want+', the same as your bucket: slide under it.':'The lowest ball is '+want+' but your bucket is '+have+'. Tap to cycle colours, or dodge it.'},
 cheats:{SLOWFALL:['Balls fall at half speed',()=>{cheat.slow=true}],FORGIVE:['Wrong catches no longer count against you',()=>{cheat.forgive=true}],BIGBUCKET:['The bucket is 60% wider',()=>{cheat.big=true;bucket.w=104}]}});
+const PKC={key:'sky-PK-color-match',color:'#ff6b81',unit:' catches',goals:[10,12,15],lower:false,mile:[6,10,15],shopTop:false,tips:["Tap to cycle only when the lowest ball does not match your bucket.","The dots at the bottom show the current colour order.","Let wrong colours fall past: catching one costs a life."]};
+/* ---- arcade progression kit: player level + XP, coins, stars, a date-seeded daily
+   challenge, small achievements and buyable skins (one localStorage blob per game) ---- */
+const PK=(function(cfg){
+const day=()=>new Date().toISOString().slice(0,10);
+const SKINS=[['Classic',0],['Sunset',12],['Mint',25],['Galaxy',45]],SKINCOL=['#ffd700','#ff7f50','#2ed573','#a55eea'];
+const DEF={best:0,coins:0,xp:0,stars:0,plays:0,wins:0,skins:['Classic'],skin:'Classic',ach:[],daily:'',dailyOK:false,cur:0};
+let S=Object.assign({},DEF),hud,tCard,tShop,tst,tstT=0,lastScore=null,lastScene='',lastSave=0;
+function seed(s){let h=9;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),387420489)>>>0;return h}
+function goal(){return cfg.goals[seed(day())%cfg.goals.length]}
+function lvl(){return Math.max(1,Math.floor(Math.sqrt(S.xp/12))+1)}
+function load(){try{const v=JSON.parse(localStorage.getItem(cfg.key));if(v&&typeof v==='object')Object.assign(S,v)}catch(e){}
+if(S.daily!==day()){S.daily=day();S.dailyOK=false}if(!S.skins.length)S.skins=['Classic']}
+function save(){try{localStorage.setItem(cfg.key,JSON.stringify(S))}catch(e){}}
+function color(){let i=-1;for(let k=0;k<SKINS.length;k++)if(SKINS[k][0]===S.skin)i=k;return i>=0?SKINCOL[i]:cfg.color}
+function tip(){return cfg.tips[S.plays%cfg.tips.length]}
+function toast(m){if(!tst){tst=document.createElement('div');tst.id='pkToast';tst.style.cssText='position:fixed;left:50%;top:15%;transform:translateX(-50%);z-index:9;background:rgba(10,10,46,.92);border:2px solid '+cfg.color+';color:#fff;font:700 14px "Segoe UI",sans-serif;padding:10px 18px;border-radius:22px;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap';document.body.appendChild(tst)}
+tst.textContent=m;tst.style.opacity='1';clearTimeout(tstT);tstT=setTimeout(()=>{tst.style.opacity='0'},2600)}
+function checkAch(){const list=[];for(let i=0;i<cfg.mile.length;i++)list.push(['m'+i,i,4+i*4,'']);
+list.push(['first',-1,4,'First run played'],['rich',-1,6,'Banked 40 coins'],['vet',-1,10,'Reached player level 3']);
+for(const it of list){if(S.ach.indexOf(it[0])>=0)continue;let ok=false,label=it[3];
+if(it[1]>=0){const m=cfg.mile[it[1]];ok=cfg.lower?(S.best>0&&S.best<=m):S.best>=m;label='Milestone: '+m+cfg.unit+' in one run'}
+else if(it[0]==='first')ok=S.plays>=1;else if(it[0]==='rich')ok=S.coins>=40;else ok=lvl()>=3;
+if(ok){S.ach.push(it[0]);S.coins+=it[2];S.stars++;toast('\uD83C\uDFC5 '+label+' \u00B7 +'+it[2]+' coins \u00B7 +1 star');SKY.sfx('unlock',{volume:.5})}}}
+function awardRun(score,won){if(SKY.cheated){save();return}S.plays++;if(won)S.wins++;
+if(!cfg.lower){if(score>S.best)S.best=score}else if(score>0&&(S.best===0||score<S.best))S.best=score;
+checkAch();const g=goal();
+if(!S.dailyOK&&(cfg.lower?(won&&score>0&&score<=g):score>=g)){S.dailyOK=true;S.coins+=10;S.stars++;toast('\u2600 Daily challenge done! +10 coins \u00B7 +1 star');SKY.sfx('win',{volume:.45})}
+const pts=cfg.lower?3:Math.max(1,Math.round(score)),old=lvl();S.xp+=pts+(won?15:0);S.coins+=Math.max(1,Math.round(pts/2))+(won?8:0);
+if(lvl()>old){const n=lvl()-old;S.coins+=5*n;toast('\u2B06 Player level '+lvl()+'! +'+(5*n)+' coins');SKY.sfx('levelup',{volume:.5})}
+checkAch();save();repaint()}
+function el(id,css){const d=document.createElement('div');d.id=id;d.style.cssText=css;document.body.appendChild(d);return d}
+function place(){const c=document.querySelector('canvas');if(!c)return;const r=c.getBoundingClientRect();
+if(tCard)tCard.style.top=(r.top+6)+'px';if(tShop)tShop.style.top=(cfg.shopTop?r.top+58:r.bottom-124)+'px'}
+function buildUI(){hud=el('pkHud','position:fixed;left:10px;bottom:10px;z-index:4;pointer-events:none;font:700 12px "Segoe UI",sans-serif;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);line-height:1.55;text-align:left;white-space:nowrap');
+tCard=el('pkTitle','position:fixed;left:50%;transform:translateX(-50%);z-index:4;pointer-events:none;font:700 13px "Segoe UI",sans-serif;color:#fff;background:rgba(8,8,30,.75);border:1px solid '+cfg.color+';border-radius:16px;padding:5px 14px;text-align:center;white-space:nowrap;line-height:1.5');
+tShop=el('pkShop','position:fixed;left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:8px');
+SKINS.forEach(s=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',s[0]+' skin');
+b.style.cssText='min-width:86px;min-height:40px;border-radius:20px;border:2px solid rgba(255,255,255,.3);background:rgba(10,10,46,.85);color:#fff;font:600 13px "Segoe UI",sans-serif;cursor:pointer;padding:0 10px';
+b.addEventListener('pointerdown',e=>e.stopPropagation());
+b.addEventListener('click',e=>{e.stopPropagation();
+if(S.skins.indexOf(s[0])>=0){S.skin=s[0];SKY.sfx('tap')}
+else if(S.coins>=s[1]){S.coins-=s[1];S.skins.push(s[0]);S.skin=s[0];SKY.sfx('unlock',{volume:.5});toast('\u2728 Skin unlocked: '+s[0])}
+else{SKY.sfx('error',{volume:.35});toast('Need '+(s[1]-S.coins)+' more coins for '+s[0])}
+save();repaint();b.blur()});tShop.appendChild(b)});
+window.addEventListener('resize',place);place()}
+function repaint(){const l=lvl(),a=12*(l-1)*(l-1),b=12*l*l,f=Math.max(1,Math.min(5,Math.round(5*Math.min(1,(S.xp-a)/Math.max(1,b-a))))),g=goal();
+if(hud)hud.innerHTML='LVL '+l+' '+'\u2588'.repeat(f)+'\u2591'.repeat(5-f)+' \u00B7 coins '+S.coins+' \u00B7 \u2605 '+S.stars+' stars<br>Daily: '+(S.dailyOK?'done today \u2713':'reach '+g+cfg.unit+' \u00B7 +10 coins');
+if(tCard)tCard.innerHTML='Best '+S.best+cfg.unit+' \u00B7 LVL '+l+' \u00B7 \u2605 '+S.stars+' \u00B7 coins '+S.coins+'<br>'+(S.dailyOK?'Daily challenge \u2713 done today':'\u2600 Daily: reach '+g+cfg.unit+' \u2192 +10 coins');
+if(tShop)for(let i=0;i<tShop.children.length;i++){const bd=tShop.children[i],s=SKINS[i],own=S.skins.indexOf(s[0])>=0;
+bd.textContent=own?(S.skin===s[0]?s[0]+' \u2713':s[0]):s[0]+' \u00B7 '+s[1]+' coins';
+bd.style.opacity=own||S.coins>=s[1]?'1':'.55';bd.style.borderColor=S.skin===s[0]?cfg.color:'rgba(255,255,255,.3)'}}
+function drawTip(X,w,y){X.save();X.globalAlpha=.85;X.fillStyle='#fff';X.font='13px "Segoe UI",sans-serif';X.textAlign='center';X.fillText('Tip: '+tip(),w/2,y);X.restore()}
+const tick0=SKY.tick;
+SKY.tick=function(state,score){tick0(state,score);
+const sc=state==='ready'?'title':(state==='over'||state==='win'||state==='done'?'over':'play');
+if(sc!==lastScene){if(lastScene==='play'&&sc==='over')awardRun(score||0,state==='win'||state==='done');lastScene=sc;
+if(tCard)tCard.style.display=sc==='title'?'block':'none';if(tShop)tShop.style.display=sc==='title'?'flex':'none'}
+if(sc==='play'&&typeof score==='number'&&score!==lastScore){lastScore=score;S.cur=score;
+if(!S.dailyOK&&!cfg.lower&&score>=goal()){S.dailyOK=true;S.coins+=10;S.stars++;toast('\u2600 Daily challenge done! +10 coins \u00B7 +1 star');SKY.sfx('win',{volume:.45});repaint()}
+const n=performance.now();if(n-lastSave>1500){lastSave=n;save()}}};
+load();buildUI();repaint();
+return {color,tip,drawTip,save,state:S};
+})(PKC);
+
 init();requestAnimationFrame(loop)
 </script></body></html>

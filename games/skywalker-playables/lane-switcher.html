@@ -12,9 +12,9 @@ let best=0,spd=3,gap=38,cheat={ghost:false,magnet:false,slow:false};
 function saveBest(){if(SKY.saveBest(score))best=score}
 function laneX(l){return W*(l*2+1)/6}
 function init(){player={lane:1,x:W/2,y:H-100};obstacles=[];coins=[];frame=0;score=0;coinsCol=0;timeLeft=60;state='ready';best=SKY.best();spd=SKY.pick(2.5,3,3.6);gap=SKY.pick(46,38,30);roadOff=0;particles=[];scorePopups=[];shakeTime=0;neonPulse=0;obsTimer=0;coinTimer=0}
-C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();return}if(state==='ready'){state='play';return}let mx=e.clientX-CRECT.left;move(mx<W/2?-1:1)});
+C.addEventListener('pointerdown',e=>{if(state==='over'||state==='win'){init();state='play';return}if(state==='ready'){state='play';return}let mx=e.clientX-CRECT.left;move(mx<W/2?-1:1)});
 function move(d){let n=Math.max(0,Math.min(2,player.lane+d));if(n!==player.lane){player.lane=n;SKY.sfx('whoosh',{volume:.35})}}
-document.addEventListener('keydown',e=>{if(state==='ready'&&(e.code==='Space'||e.code==='ArrowLeft'||e.code==='ArrowRight')){state='play';return}if((state==='over'||state==='win')&&e.code==='Space'){init();return}if(state!=='play')return;if(e.code==='ArrowLeft'||e.code==='KeyA')move(-1);if(e.code==='ArrowRight'||e.code==='KeyD')move(1)});
+document.addEventListener('keydown',e=>{if(state==='ready'&&(e.code==='Space'||e.code==='ArrowLeft'||e.code==='ArrowRight')){state='play';return}if((state==='over'||state==='win')&&e.code==='Space'){init();state='play';return}if(state!=='play')return;if(e.code==='ArrowLeft'||e.code==='KeyA')move(-1);if(e.code==='ArrowRight'||e.code==='KeyD')move(1)});
 function update(dt){if(state!=='play')return;frame++;roadOff=(roadOff+4*dt)%40;neonPulse+=.05*dt;player.x+=(laneX(player.lane)-player.x)*(1-Math.pow(1-.15,dt));timeLeft-=dt/60;
 obsTimer+=dt;let obsInterval=Math.max(12,gap-score);if(obsTimer>=obsInterval&&obstacles.length<30){obsTimer-=obsInterval;let lane=Math.floor(Math.random()*3);let types=['barrier','cone'];obstacles.push({x:laneX(lane),y:-40,w:45,h:types[lane%2]==='cone'?35:35,lane,type:types[lane%2]})}
 coinTimer+=dt;if(coinTimer>=50&&coins.length<10){coinTimer-=50;let lane=Math.floor(Math.random()*3);coins.push({x:laneX(lane),y:-20,collected:false,bob:Math.random()*Math.PI*2})}
@@ -40,7 +40,7 @@ else{glowAt(oc,o.x,o.y,o.w/2+10);X.fillStyle=oc;X.beginPath();X.moveTo(o.x,o.y-o
 // Coins
 for(let c of coins){if(c.collected)continue;let cy=c.y+Math.sin(c.bob)*3;glowAt('#ffd700',c.x,cy,22);X.fillStyle='#ffd700';X.beginPath();X.arc(c.x,cy,10,0,Math.PI*2);X.fill();X.fillStyle='rgba(255,255,255,.4)';X.beginPath();X.arc(c.x-2,cy-2,4,0,Math.PI*2);X.fill()}
 // Player
-glowAt('#00d2d3',player.x,player.y,29);X.fillStyle='#00d2d3';X.beginPath();X.arc(player.x,player.y,14,0,Math.PI*2);X.fill();
+glowAt(PK.color(),player.x,player.y,29);X.fillStyle=PK.color();X.beginPath();X.arc(player.x,player.y,14,0,Math.PI*2);X.fill();
 X.fillStyle='rgba(255,255,255,.5)';X.beginPath();X.arc(player.x-3,player.y-3,5,0,Math.PI*2);X.fill();
 // Particles
 for(let p of particles){let pr=p.s*(p.life/30);X.globalAlpha=p.life/30;glowAt(p.col,p.x,p.y,pr+6);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,pr,0,Math.PI*2);X.fill()}X.globalAlpha=1;
@@ -52,13 +52,78 @@ X.textAlign='right';X.fillStyle=timeLeft<10?'#ff4757':'#fff';X.font='bold 18px "
 X.restore();
 if(state==='ready'&&SKY.tut)SKY.drawTut(X,W,H,{title:'LANE SWITCHER',color:'#00d2d3',gesture:'swipe',steps:['Tap the left or right half of the road (or press Left / Right) to change lane.','Red barriers and orange cones end the run: switch away before they reach you.','Gold coins are worth 5 points each. Survive 60 seconds to escape.']});
 else if(state==='ready'){X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,W,H);glowAt('#00d2d3',W/2,H/2-30,110);X.fillStyle='#00d2d3';X.font='bold 26px "Segoe UI"';X.textAlign='center';X.fillText('LANE SWITCHER',W/2,H/2-30);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.7)';X.fillText('Tap left/right or use arrow keys',W/2,H/2+5);X.fillStyle='rgba(255,255,255,.5)';X.fillText('\u25B6 Tap to start',W/2,H/2+35)}
-if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('CRASHED!',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Coins: '+coinsCol,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('Best: '+best,W/2,H/2+42);X.fillText('\u25B6 Tap to retry',W/2,H/2+68)}
-if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ESCAPED! \u2728',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Coins: '+coinsCol+'   Score: '+score,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('Best: '+best,W/2,H/2+42);X.fillText('\u25B6 Tap to play again',W/2,H/2+68)}}
+if(state==='over'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#ff4757',W/2,H/2-20,100);X.fillStyle='#ff4757';X.font='bold 38px "Segoe UI"';X.textAlign='center';X.fillText('CRASHED!',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Coins: '+coinsCol,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('Best: '+best,W/2,H/2+42);X.fillText('\u25B6 Tap to retry',W/2,H/2+68);PK.drawTip(X,W,H/2+92)}
+if(state==='win'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#0f0',W/2,H/2-20,110);X.fillStyle='#0f0';X.font='bold 40px "Segoe UI"';X.textAlign='center';X.fillText('\u2728 ESCAPED! \u2728',W/2,H/2-20);X.fillStyle='#fff';X.font='22px "Segoe UI"';X.fillText('Coins: '+coinsCol+'   Score: '+score,W/2,H/2+20);X.font='16px "Segoe UI"';X.fillStyle='rgba(255,255,255,.6)';X.fillText('Best: '+best,W/2,H/2+42);X.fillText('\u25B6 Tap to play again',W/2,H/2+68);PK.drawTip(X,W,H/2+92)}}
 let pState='',lastT=performance.now();function loop(t){if(document.hidden){lastT=performance.now();return requestAnimationFrame(loop)}let dt=Math.min((t-lastT)/1000,.05)*60;lastT=t;update(dt);if(state!==pState){pState=state;needDraw=true}if(state==='play'||state==='ready')needDraw=true;SKY.tick(state,score);if(needDraw){needDraw=false;draw()}requestAnimationFrame(loop)}SKY.setup({id:'lane-switcher',color:'#00d2d3',pauseButton:'tl',
 onRestart(){init();state='play'},onExit(){init()},onDiff(){init()},
 onHint(){if(state!=='play')return 'Tap to start. Tap the side of the road you want to move towards.';let danger=[0,1,2].map(l=>obstacles.filter(o=>o.lane===l&&o.y<player.y&&o.y>player.y-260).length);
 let safe=[0,1,2].filter(l=>!danger[l]);if(danger[player.lane]){let t=safe.sort((a,b)=>Math.abs(a-player.lane)-Math.abs(b-player.lane))[0];return t===undefined?'Every lane is blocked ahead: pick the one whose obstacle is furthest away.':'Something is coming down your lane: move '+(t<player.lane?'left':'right')+' now.'}
 let c=coins.filter(c=>!c.collected&&c.y<player.y).sort((a,b)=>b.y-a.y)[0];return c&&!danger[Math.round((c.x/W*6-1)/2)]?'Your lane is clear. There is a coin in the '+['left','middle','right'][Math.round((c.x/W*6-1)/2)]+' lane.':'Your lane is clear: stay put.'},
 cheats:{GHOSTCAR:['Drive straight through barriers and cones',()=>{cheat.ghost=true}],COINMAGNET:['Collect coins from every lane',()=>{cheat.magnet=true}],SLOWROAD:['Traffic and coins move at 60% speed',()=>{cheat.slow=true}]}});
+const PKC={key:'sky-PK-lane-switcher',color:'#00d2d3',unit:' pts',goals:[40,70,100],lower:false,mile:[30,60,100],shopTop:false,tips:["Coins are worth 5 points each: a small detour is usually safe.","Watch two lanes ahead, not the obstacle next to you.","Traffic gets faster as your score climbs: keep an escape lane."]};
+/* ---- arcade progression kit: player level + XP, coins, stars, a date-seeded daily
+   challenge, small achievements and buyable skins (one localStorage blob per game) ---- */
+const PK=(function(cfg){
+const day=()=>new Date().toISOString().slice(0,10);
+const SKINS=[['Classic',0],['Sunset',12],['Mint',25],['Galaxy',45]],SKINCOL=['#ffd700','#ff7f50','#2ed573','#a55eea'];
+const DEF={best:0,coins:0,xp:0,stars:0,plays:0,wins:0,skins:['Classic'],skin:'Classic',ach:[],daily:'',dailyOK:false,cur:0};
+let S=Object.assign({},DEF),hud,tCard,tShop,tst,tstT=0,lastScore=null,lastScene='',lastSave=0;
+function seed(s){let h=9;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),387420489)>>>0;return h}
+function goal(){return cfg.goals[seed(day())%cfg.goals.length]}
+function lvl(){return Math.max(1,Math.floor(Math.sqrt(S.xp/12))+1)}
+function load(){try{const v=JSON.parse(localStorage.getItem(cfg.key));if(v&&typeof v==='object')Object.assign(S,v)}catch(e){}
+if(S.daily!==day()){S.daily=day();S.dailyOK=false}if(!S.skins.length)S.skins=['Classic']}
+function save(){try{localStorage.setItem(cfg.key,JSON.stringify(S))}catch(e){}}
+function color(){let i=-1;for(let k=0;k<SKINS.length;k++)if(SKINS[k][0]===S.skin)i=k;return i>=0?SKINCOL[i]:cfg.color}
+function tip(){return cfg.tips[S.plays%cfg.tips.length]}
+function toast(m){if(!tst){tst=document.createElement('div');tst.id='pkToast';tst.style.cssText='position:fixed;left:50%;top:15%;transform:translateX(-50%);z-index:9;background:rgba(10,10,46,.92);border:2px solid '+cfg.color+';color:#fff;font:700 14px "Segoe UI",sans-serif;padding:10px 18px;border-radius:22px;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap';document.body.appendChild(tst)}
+tst.textContent=m;tst.style.opacity='1';clearTimeout(tstT);tstT=setTimeout(()=>{tst.style.opacity='0'},2600)}
+function checkAch(){const list=[];for(let i=0;i<cfg.mile.length;i++)list.push(['m'+i,i,4+i*4,'']);
+list.push(['first',-1,4,'First run played'],['rich',-1,6,'Banked 40 coins'],['vet',-1,10,'Reached player level 3']);
+for(const it of list){if(S.ach.indexOf(it[0])>=0)continue;let ok=false,label=it[3];
+if(it[1]>=0){const m=cfg.mile[it[1]];ok=cfg.lower?(S.best>0&&S.best<=m):S.best>=m;label='Milestone: '+m+cfg.unit+' in one run'}
+else if(it[0]==='first')ok=S.plays>=1;else if(it[0]==='rich')ok=S.coins>=40;else ok=lvl()>=3;
+if(ok){S.ach.push(it[0]);S.coins+=it[2];S.stars++;toast('\uD83C\uDFC5 '+label+' \u00B7 +'+it[2]+' coins \u00B7 +1 star');SKY.sfx('unlock',{volume:.5})}}}
+function awardRun(score,won){if(SKY.cheated){save();return}S.plays++;if(won)S.wins++;
+if(!cfg.lower){if(score>S.best)S.best=score}else if(score>0&&(S.best===0||score<S.best))S.best=score;
+checkAch();const g=goal();
+if(!S.dailyOK&&(cfg.lower?(won&&score>0&&score<=g):score>=g)){S.dailyOK=true;S.coins+=10;S.stars++;toast('\u2600 Daily challenge done! +10 coins \u00B7 +1 star');SKY.sfx('win',{volume:.45})}
+const pts=cfg.lower?3:Math.max(1,Math.round(score)),old=lvl();S.xp+=pts+(won?15:0);S.coins+=Math.max(1,Math.round(pts/2))+(won?8:0);
+if(lvl()>old){const n=lvl()-old;S.coins+=5*n;toast('\u2B06 Player level '+lvl()+'! +'+(5*n)+' coins');SKY.sfx('levelup',{volume:.5})}
+checkAch();save();repaint()}
+function el(id,css){const d=document.createElement('div');d.id=id;d.style.cssText=css;document.body.appendChild(d);return d}
+function place(){const c=document.querySelector('canvas');if(!c)return;const r=c.getBoundingClientRect();
+if(tCard)tCard.style.top=(r.top+6)+'px';if(tShop)tShop.style.top=(cfg.shopTop?r.top+58:r.bottom-124)+'px'}
+function buildUI(){hud=el('pkHud','position:fixed;left:10px;bottom:10px;z-index:4;pointer-events:none;font:700 12px "Segoe UI",sans-serif;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);line-height:1.55;text-align:left;white-space:nowrap');
+tCard=el('pkTitle','position:fixed;left:50%;transform:translateX(-50%);z-index:4;pointer-events:none;font:700 13px "Segoe UI",sans-serif;color:#fff;background:rgba(8,8,30,.75);border:1px solid '+cfg.color+';border-radius:16px;padding:5px 14px;text-align:center;white-space:nowrap;line-height:1.5');
+tShop=el('pkShop','position:fixed;left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:8px');
+SKINS.forEach(s=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',s[0]+' skin');
+b.style.cssText='min-width:86px;min-height:40px;border-radius:20px;border:2px solid rgba(255,255,255,.3);background:rgba(10,10,46,.85);color:#fff;font:600 13px "Segoe UI",sans-serif;cursor:pointer;padding:0 10px';
+b.addEventListener('pointerdown',e=>e.stopPropagation());
+b.addEventListener('click',e=>{e.stopPropagation();
+if(S.skins.indexOf(s[0])>=0){S.skin=s[0];SKY.sfx('tap')}
+else if(S.coins>=s[1]){S.coins-=s[1];S.skins.push(s[0]);S.skin=s[0];SKY.sfx('unlock',{volume:.5});toast('\u2728 Skin unlocked: '+s[0])}
+else{SKY.sfx('error',{volume:.35});toast('Need '+(s[1]-S.coins)+' more coins for '+s[0])}
+save();repaint();b.blur()});tShop.appendChild(b)});
+window.addEventListener('resize',place);place()}
+function repaint(){const l=lvl(),a=12*(l-1)*(l-1),b=12*l*l,f=Math.max(1,Math.min(5,Math.round(5*Math.min(1,(S.xp-a)/Math.max(1,b-a))))),g=goal();
+if(hud)hud.innerHTML='LVL '+l+' '+'\u2588'.repeat(f)+'\u2591'.repeat(5-f)+' \u00B7 coins '+S.coins+' \u00B7 \u2605 '+S.stars+' stars<br>Daily: '+(S.dailyOK?'done today \u2713':'reach '+g+cfg.unit+' \u00B7 +10 coins');
+if(tCard)tCard.innerHTML='Best '+S.best+cfg.unit+' \u00B7 LVL '+l+' \u00B7 \u2605 '+S.stars+' \u00B7 coins '+S.coins+'<br>'+(S.dailyOK?'Daily challenge \u2713 done today':'\u2600 Daily: reach '+g+cfg.unit+' \u2192 +10 coins');
+if(tShop)for(let i=0;i<tShop.children.length;i++){const bd=tShop.children[i],s=SKINS[i],own=S.skins.indexOf(s[0])>=0;
+bd.textContent=own?(S.skin===s[0]?s[0]+' \u2713':s[0]):s[0]+' \u00B7 '+s[1]+' coins';
+bd.style.opacity=own||S.coins>=s[1]?'1':'.55';bd.style.borderColor=S.skin===s[0]?cfg.color:'rgba(255,255,255,.3)'}}
+function drawTip(X,w,y){X.save();X.globalAlpha=.85;X.fillStyle='#fff';X.font='13px "Segoe UI",sans-serif';X.textAlign='center';X.fillText('Tip: '+tip(),w/2,y);X.restore()}
+const tick0=SKY.tick;
+SKY.tick=function(state,score){tick0(state,score);
+const sc=state==='ready'?'title':(state==='over'||state==='win'||state==='done'?'over':'play');
+if(sc!==lastScene){if(lastScene==='play'&&sc==='over')awardRun(score||0,state==='win'||state==='done');lastScene=sc;
+if(tCard)tCard.style.display=sc==='title'?'block':'none';if(tShop)tShop.style.display=sc==='title'?'flex':'none'}
+if(sc==='play'&&typeof score==='number'&&score!==lastScore){lastScore=score;S.cur=score;
+if(!S.dailyOK&&!cfg.lower&&score>=goal()){S.dailyOK=true;S.coins+=10;S.stars++;toast('\u2600 Daily challenge done! +10 coins \u00B7 +1 star');SKY.sfx('win',{volume:.45});repaint()}
+const n=performance.now();if(n-lastSave>1500){lastSave=n;save()}}};
+load();buildUI();repaint();
+return {color,tip,drawTip,save,state:S};
+})(PKC);
+
 init();requestAnimationFrame(loop)
 </script></body></html>

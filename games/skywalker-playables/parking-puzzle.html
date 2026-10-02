@@ -70,7 +70,7 @@ function draw(){X.clearRect(0,0,W,H);X.fillStyle=bgGrad;X.fillRect(0,0,W,H);if(s
 X.fillStyle='#fff';X.textAlign='center';X.font='bold 20px "Segoe UI"';X.fillText(pack[0].toUpperCase()+pack.slice(1)+' · Level '+(lvl+1)+' / 8',W/2,30);
 X.font='bold 14px "Segoe UI"';X.fillStyle='rgba(255,255,255,.75)';X.fillText('Moves '+moves+'  ·  best possible '+MIN[pack][lvl]+(tow?'  ·  TOW: tap a car':''),W/2,54);
 // car park
-X.fillStyle='#232323';X.beginPath();X.roundRect(BX-8,BY-8,N*SZ+16,N*SZ+16,12);X.fill();X.strokeStyle='#555';X.lineWidth=3;X.stroke();
+X.fillStyle='#232323';X.beginPath();X.roundRect(BX-8,BY-8,N*SZ+16,N*SZ+16,12);X.fill();X.strokeStyle=PK.color();X.lineWidth=3;X.stroke();
 X.setLineDash([6,8]);X.strokeStyle='rgba(255,255,255,.12)';X.lineWidth=1;for(let i=1;i<N;i++){X.beginPath();X.moveTo(BX+i*SZ,BY);X.lineTo(BX+i*SZ,BY+N*SZ);X.moveTo(BX,BY+i*SZ);X.lineTo(BX+N*SZ,BY+i*SZ);X.stroke()}X.setLineDash([]);
 // exit gap with sparkles
 let ey=BY+2*SZ;X.fillStyle='#2a2a2a';X.fillRect(BX+N*SZ-2,ey+3,14,SZ-6);X.fillStyle='rgba(46,213,115,'+(.5+Math.sin(pulseT)*.3)+')';X.font='bold 14px "Segoe UI"';X.save();X.translate(BX+N*SZ+18,ey+SZ/2);X.rotate(Math.PI/2);X.fillText('EXIT',0,0);X.restore();
@@ -80,7 +80,7 @@ let tx=r.x+r.w/2+(car.horiz?k*SZ:0),ty=r.y+r.h/2+(car.horiz?0:k*SZ);X.setLineDas
 for(let p of particles){X.globalAlpha=Math.max(0,p.life/50);X.fillStyle=p.col;X.beginPath();X.arc(p.x,p.y,p.s*(p.life/50),0,Math.PI*2);X.fill()}X.globalAlpha=1;
 if(state==='done'){X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,0,W,H);glowAt('#2ed573',W/2,H/2-30,110);X.fillStyle='#2ed573';X.font='bold 34px "Segoe UI"';X.textAlign='center';X.fillText('✨ PARKED OUT! ✨',W/2,H/2-40);
 X.fillStyle='#ffd700';X.font='bold 34px "Segoe UI"';X.fillText(starStr(resultStars),W/2,H/2+4);X.fillStyle='#fff';X.font='16px "Segoe UI"';X.fillText(moves+' moves (best possible '+MIN[pack][lvl]+')'+(usedHint?' · hint used':''),W/2,H/2+34);
-X.fillStyle='rgba(255,255,255,.7)';X.fillText(lvl<7?'▶ Tap for level '+(lvl+2):'▶ Tap for the level list',W/2,H/2+66)}}
+X.fillStyle='rgba(255,255,255,.7)';X.fillText(lvl<7?'▶ Tap for level '+(lvl+2):'▶ Tap for the level list',W/2,H/2+66);PK.drawTip(X,W,H/2+88)}}
 let kbd=false;document.addEventListener('keydown',e=>{if(/Arrow|Space|Tab/.test(e.code))kbd=true},true);C.addEventListener('pointerdown',()=>{kbd=false},true);
 function drawTitle(){X.textAlign='center';glowAt('#2ed573',W/2,H*.12,110);X.fillStyle='#2ed573';X.font='bold 30px "Segoe UI"';X.fillText('PARKING PUZZLE',W/2,H*.13);
 X.fillStyle='rgba(255,255,255,.7)';X.font='15px "Segoe UI"';X.fillText('Slide the cars. Get the green car out.',W/2,H*.13+28);
@@ -91,11 +91,76 @@ if(i===sel){X.strokeStyle='#2ed573';X.lineWidth=2;X.stroke()}X.fillStyle=u?'#fff
 X.fillStyle='#ffd700';X.font='12px "Segoe UI"';X.fillText(stars[pack][i]?starStr(stars[pack][i]):'',r.x+r.w/2,r.y+r.h-6)}
 if(SKY.tut)SKY.drawTut(X,W,H,{title:'PARKING PUZZLE',color:'#2ed573',gesture:'drag',steps:['The green car wants to leave by the EXIT on the right.','Drag any car along its length (cars never turn). Keys: Space picks a car, arrows slide it.','Move the blockers out of the way, then slide the green car out.','Finish in the fewest moves for 3 stars. Undo takes a move back; Hint shows a move from a perfect solution.'],go:'▶ Tap to play level 1'})}
 let last=performance.now();function loop(now){if(document.hidden){last=performance.now();return requestAnimationFrame(loop)}let dt=Math.min(.05,(now-last)/1000);last=now;update(dt);SKY.tick(state,moves);draw();requestAnimationFrame(loop)}
-SKY.setup({id:'parking-puzzle',color:'#2ed573',pauseButton:'tr',bestKey:STORE,scenes:{ready:'title',play:'play',out:'play',done:'over'},
+SKY.setup({id:'parking-puzzle',color:'#2ed573',pauseButton:'tr',bestKey:STORE,buttons:[{label:'↶ Undo',aria:'Undo last move',fn:undo},{label:'💡 Hint',aria:'Show a perfect move',fn:hint}],scenes:{ready:'title',play:'play',out:'play',done:'over'},
 buttons:[{label:'↶ Undo',aria:'Undo last move',fn:undo},{label:'💡 Hint',aria:'Hint',fn:hint}],
 onRestart(){start(lvl)},onExit(){toTitle()},onDiff(d){pack=d;toTitle()},
 onHint(){if(state!=='play')return 'Press Play (or Space) to start '+pack+' level '+(sel+1)+'.';let p=solve(board);if(!p)return 'This board cannot be solved from here: press Undo.';let [ch,k]=p[0],car=carsOf(board)[ch];hintMove=p[0];hintT=4;
 return 'Slide the '+(ch==='A'?'green':PAL[ch][1])+' '+(car.len===3?'truck':'car')+' '+(car.horiz?(k>0?'right':'left'):(k>0?'down':'up'))+' '+Math.abs(k)+' space'+(Math.abs(k)>1?'s':'')+'. '+p.length+' moves from here if you play perfectly.'},
 cheats:{TOWTRUCK:['Tap one car to tow it off the board',()=>{tow++}],SHOWMOVE:['The best next move is always outlined in gold',()=>{cheat.show=true;if(state==='play')refreshShow()}],ALLLEVELS:['Every level in every pack unlocked (this session only)',()=>{unlockAll=true}]}});
+const PKC={key:'sky-PK-parking-puzzle',color:'#2ed573',unit:' moves',goals:[8,10,12],lower:true,mile:[],shopTop:false,tips:["Work backwards from the exit: which cars block the green row?","Long trucks block two lanes: shift them early.","Undo is free: try a move and take it back if the board jams."]};
+/* ---- arcade progression kit: player level + XP, coins, stars, a date-seeded daily
+   challenge, small achievements and buyable skins (one localStorage blob per game) ---- */
+const PK=(function(cfg){
+const day=()=>new Date().toISOString().slice(0,10);
+const SKINS=[['Classic',0],['Sunset',12],['Mint',25],['Galaxy',45]],SKINCOL=['#ffd700','#ff7f50','#2ed573','#a55eea'];
+const DEF={best:0,coins:0,xp:0,stars:0,plays:0,wins:0,skins:['Classic'],skin:'Classic',ach:[],daily:'',dailyOK:false,cur:0};
+let S=Object.assign({},DEF),hud,tCard,tShop,tst,tstT=0,lastScore=null,lastScene='',lastSave=0;
+function seed(s){let h=9;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),387420489)>>>0;return h}
+function goal(){return cfg.goals[seed(day())%cfg.goals.length]}
+function lvl(){return Math.max(1,Math.floor(Math.sqrt(S.xp/12))+1)}
+function load(){try{const v=JSON.parse(localStorage.getItem(cfg.key));if(v&&typeof v==='object')Object.assign(S,v)}catch(e){}
+if(S.daily!==day()){S.daily=day();S.dailyOK=false}if(!S.skins.length)S.skins=['Classic']}
+function save(){try{localStorage.setItem(cfg.key,JSON.stringify(S))}catch(e){}}
+function color(){let i=-1;for(let k=0;k<SKINS.length;k++)if(SKINS[k][0]===S.skin)i=k;return i>=0?SKINCOL[i]:cfg.color}
+function tip(){return cfg.tips[S.plays%cfg.tips.length]}
+function toast(m){if(!tst){tst=document.createElement('div');tst.id='pkToast';tst.style.cssText='position:fixed;left:50%;top:15%;transform:translateX(-50%);z-index:9;background:rgba(10,10,46,.92);border:2px solid '+cfg.color+';color:#fff;font:700 14px "Segoe UI",sans-serif;padding:10px 18px;border-radius:22px;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap';document.body.appendChild(tst)}
+tst.textContent=m;tst.style.opacity='1';clearTimeout(tstT);tstT=setTimeout(()=>{tst.style.opacity='0'},2600)}
+function checkAch(){const list=[];for(let i=0;i<cfg.mile.length;i++)list.push(['m'+i,i,4+i*4,'']);
+list.push(['first',-1,4,'First run played'],['rich',-1,6,'Banked 40 coins'],['vet',-1,10,'Reached player level 3']);
+for(const it of list){if(S.ach.indexOf(it[0])>=0)continue;let ok=false,label=it[3];
+if(it[1]>=0){const m=cfg.mile[it[1]];ok=cfg.lower?(S.best>0&&S.best<=m):S.best>=m;label='Milestone: '+m+cfg.unit+' in one run'}
+else if(it[0]==='first')ok=S.plays>=1;else if(it[0]==='rich')ok=S.coins>=40;else ok=lvl()>=3;
+if(ok){S.ach.push(it[0]);S.coins+=it[2];S.stars++;toast('\uD83C\uDFC5 '+label+' \u00B7 +'+it[2]+' coins \u00B7 +1 star');SKY.sfx('unlock',{volume:.5})}}}
+function awardRun(score,won){if(SKY.cheated){save();return}S.plays++;if(won)S.wins++;
+if(!cfg.lower){if(score>S.best)S.best=score}else if(score>0&&(S.best===0||score<S.best))S.best=score;
+checkAch();const g=goal();
+if(!S.dailyOK&&(cfg.lower?(won&&score>0&&score<=g):score>=g)){S.dailyOK=true;S.coins+=10;S.stars++;toast('\u2600 Daily challenge done! +10 coins \u00B7 +1 star');SKY.sfx('win',{volume:.45})}
+const pts=cfg.lower?3:Math.max(1,Math.round(score)),old=lvl();S.xp+=pts+(won?15:0);S.coins+=Math.max(1,Math.round(pts/2))+(won?8:0);
+if(lvl()>old){const n=lvl()-old;S.coins+=5*n;toast('\u2B06 Player level '+lvl()+'! +'+(5*n)+' coins');SKY.sfx('levelup',{volume:.5})}
+checkAch();save();repaint()}
+function el(id,css){const d=document.createElement('div');d.id=id;d.style.cssText=css;document.body.appendChild(d);return d}
+function place(){const c=document.querySelector('canvas');if(!c)return;const r=c.getBoundingClientRect();
+if(tCard)tCard.style.top=(r.top+6)+'px';if(tShop)tShop.style.top=(cfg.shopTop?r.top+58:r.bottom-124)+'px'}
+function buildUI(){hud=el('pkHud','position:fixed;left:10px;bottom:10px;z-index:4;pointer-events:none;font:700 12px "Segoe UI",sans-serif;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);line-height:1.55;text-align:left;white-space:nowrap');
+tCard=el('pkTitle','position:fixed;left:50%;transform:translateX(-50%);z-index:4;pointer-events:none;font:700 13px "Segoe UI",sans-serif;color:#fff;background:rgba(8,8,30,.75);border:1px solid '+cfg.color+';border-radius:16px;padding:5px 14px;text-align:center;white-space:nowrap;line-height:1.5');
+tShop=el('pkShop','position:fixed;left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:8px');
+SKINS.forEach(s=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',s[0]+' skin');
+b.style.cssText='min-width:86px;min-height:40px;border-radius:20px;border:2px solid rgba(255,255,255,.3);background:rgba(10,10,46,.85);color:#fff;font:600 13px "Segoe UI",sans-serif;cursor:pointer;padding:0 10px';
+b.addEventListener('pointerdown',e=>e.stopPropagation());
+b.addEventListener('click',e=>{e.stopPropagation();
+if(S.skins.indexOf(s[0])>=0){S.skin=s[0];SKY.sfx('tap')}
+else if(S.coins>=s[1]){S.coins-=s[1];S.skins.push(s[0]);S.skin=s[0];SKY.sfx('unlock',{volume:.5});toast('\u2728 Skin unlocked: '+s[0])}
+else{SKY.sfx('error',{volume:.35});toast('Need '+(s[1]-S.coins)+' more coins for '+s[0])}
+save();repaint();b.blur()});tShop.appendChild(b)});
+window.addEventListener('resize',place);place()}
+function repaint(){const l=lvl(),a=12*(l-1)*(l-1),b=12*l*l,f=Math.max(1,Math.min(5,Math.round(5*Math.min(1,(S.xp-a)/Math.max(1,b-a))))),g=goal();
+if(hud)hud.innerHTML='LVL '+l+' '+'\u2588'.repeat(f)+'\u2591'.repeat(5-f)+' \u00B7 coins '+S.coins+' \u00B7 \u2605 '+S.stars+' stars<br>Daily: '+(S.dailyOK?'done today \u2713':'reach '+g+cfg.unit+' \u00B7 +10 coins');
+if(tCard)tCard.innerHTML='Best '+S.best+cfg.unit+' \u00B7 LVL '+l+' \u00B7 \u2605 '+S.stars+' \u00B7 coins '+S.coins+'<br>'+(S.dailyOK?'Daily challenge \u2713 done today':'\u2600 Daily: reach '+g+cfg.unit+' \u2192 +10 coins');
+if(tShop)for(let i=0;i<tShop.children.length;i++){const bd=tShop.children[i],s=SKINS[i],own=S.skins.indexOf(s[0])>=0;
+bd.textContent=own?(S.skin===s[0]?s[0]+' \u2713':s[0]):s[0]+' \u00B7 '+s[1]+' coins';
+bd.style.opacity=own||S.coins>=s[1]?'1':'.55';bd.style.borderColor=S.skin===s[0]?cfg.color:'rgba(255,255,255,.3)'}}
+function drawTip(X,w,y){X.save();X.globalAlpha=.85;X.fillStyle='#fff';X.font='13px "Segoe UI",sans-serif';X.textAlign='center';X.fillText('Tip: '+tip(),w/2,y);X.restore()}
+const tick0=SKY.tick;
+SKY.tick=function(state,score){tick0(state,score);
+const sc=state==='ready'?'title':(state==='over'||state==='win'||state==='done'?'over':'play');
+if(sc!==lastScene){if(lastScene==='play'&&sc==='over')awardRun(score||0,state==='win'||state==='done');lastScene=sc;
+if(tCard)tCard.style.display=sc==='title'?'block':'none';if(tShop)tShop.style.display=sc==='title'?'flex':'none'}
+if(sc==='play'&&typeof score==='number'&&score!==lastScore){lastScore=score;S.cur=score;
+if(!S.dailyOK&&!cfg.lower&&score>=goal()){S.dailyOK=true;S.coins+=10;S.stars++;toast('\u2600 Daily challenge done! +10 coins \u00B7 +1 star');SKY.sfx('win',{volume:.45});repaint()}
+const n=performance.now();if(n-lastSave>1500){lastSave=n;save()}}};
+load();buildUI();repaint();
+return {color,tip,drawTip,save,state:S};
+})(PKC);
+
 pack=SKY.diff;loadStars();resize();window.addEventListener('resize',resize);toTitle();requestAnimationFrame(loop);
 </script></body></html>
