@@ -161,7 +161,9 @@ let muted = false;
 let camX = 0, camShake = 0, hitStop = 0;
 let racers = [], player = null;
 let obstacles = [], crates = [], projectiles = [], particles = [];
-let bestTime = parseFloat(localStorage.getItem('critterRush2dBest')||'0')||0;
+// Storage can be blocked (Safari with cookies off, some embeds): then there is simply no best yet.
+let bestTime = 0;
+try { bestTime = parseFloat(localStorage.getItem('critterRush2dBest')) || 0; } catch(e) {}
 let heldItem = null;   // player's item (single source of truth)
 
 // ---------- world ----------
@@ -751,7 +753,7 @@ function onFinish(){
   const myPlace = order.findIndex(r=>r.isPlayer)+1;
   const win = myPlace===1;
   document.getElementById('resTitle').textContent = win? 'YOU WIN! 🏆' : ('YOU PLACED '+ordinal(myPlace));
-  if(win && (bestTime===0 || raceTime<bestTime)){ bestTime=raceTime; localStorage.setItem('critterRush2dBest', bestTime); }
+  if(win && (bestTime===0 || raceTime<bestTime)){ bestTime=raceTime; try{ localStorage.setItem('critterRush2dBest', bestTime); }catch(e){} }
   document.getElementById('posBadge').textContent = ordinal(myPlace);
   setTimeout(()=>{ document.getElementById('results').style.display='flex'; document.getElementById('hud').style.display='none'; }, 700);
 }

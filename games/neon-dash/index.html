@@ -252,7 +252,9 @@
         let coins = 0;
         let combo = 1;
         let comboResetTimer = 0;
-        let bestScore = parseInt(localStorage.getItem('neonDashBest') || '0');
+        // Storage can be blocked (Safari with cookies off, some embeds) or hold junk: start from 0 then.
+        let bestScore = 0;
+        try { bestScore = parseInt(localStorage.getItem('neonDashBest'), 10) || 0; } catch (e) {}
         document.getElementById('best-display').textContent = bestScore;
 
         let speed = PLAYER_SPEED_START;
@@ -1042,7 +1044,7 @@
             const finalScore = Math.floor(score);
             if (finalScore > bestScore) {
                 bestScore = finalScore;
-                localStorage.setItem('neonDashBest', bestScore);
+                try { localStorage.setItem('neonDashBest', bestScore); } catch (e) {}
                 document.getElementById('newbest').style.display = 'block';
             }
             document.getElementById('final-score').textContent = finalScore;

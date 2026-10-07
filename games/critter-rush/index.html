@@ -214,7 +214,9 @@
         let hitStop = 0;
         let countdown = 3;
         let countdownTimer = 0;
-        let bestTime = localStorage.getItem('critterBest') || null;
+        // Storage can be blocked (Safari with cookies off, some embeds): then there is simply no best yet.
+        let bestTime = null;
+        try { bestTime = parseFloat(localStorage.getItem('critterBest')) || null; } catch (e) {}
 
         // --- Track constants ---
         const TRACK_LENGTH = 900;
@@ -1268,7 +1270,7 @@
             if (playerPlace === 1) {
                 document.getElementById('resultTitle').textContent = 'YOU WIN! 🏆';
                 if (!bestTime || raceTime < bestTime) {
-                    localStorage.setItem('critterBest', raceTime);
+                    try { localStorage.setItem('critterBest', raceTime); } catch (e) {}
                     bestTime = raceTime;
                 }
             } else {
