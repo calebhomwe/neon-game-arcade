@@ -605,8 +605,6 @@
                 </div>
             </div>
             <div class="touch-controls" data-game="bridge">
-                <button class="touch-btn" data-action="left">←</button>
-                <button class="touch-btn" data-action="right">→</button>
                 <button class="touch-btn" data-action="up">↑</button>
                 <button class="touch-btn action" data-action="action">●</button>
             </div>
@@ -1077,6 +1075,11 @@
         if (breakoutRAF) { cancelAnimationFrame(breakoutRAF); breakoutRAF = null; }
         if (flappyRAF) { cancelAnimationFrame(flappyRAF); flappyRAF = null; }
         if (shooterRAF) { cancelAnimationFrame(shooterRAF); shooterRAF = null; }
+        // The chess clock and the tetris drop are intervals, not frames: without this they keep
+        // running behind the menu (the clock runs out, pieces lock) and report "over" into whatever
+        // game the player is in by then.
+        if (chessTimer) { clearInterval(chessTimer); chessTimer = null; }
+        if (tetrisDrop) { clearInterval(tetrisDrop); tetrisDrop = null; }
         // NEW-CANCEL-HERE
 
         if (name === 'bridge') {
@@ -3503,6 +3506,17 @@
         restartBtn.addEventListener('click', snakeRestart);
     }
 
+    // On-screen touch buttons (dispatched by the unified .touch-btn handler); same rules as the arrow keys.
+    function touchDir(x, y) {
+        if (currentScreen !== 'snake' || state === STATE_DEAD) return;
+        if (state === STATE_READY) state = STATE_PLAY;
+        setDir(x, y);
+    }
+    window._tc_snake_left = function () { touchDir(-1, 0); };
+    window._tc_snake_right = function () { touchDir(1, 0); };
+    window._tc_snake_up = function () { touchDir(0, -1); };
+    window._tc_snake_down = function () { touchDir(0, 1); };
+
     window.snakeInit = snakeInit;
     window.snakeRestart = snakeRestart;
     window.snakeLoop = snakeLoop;
@@ -4496,6 +4510,17 @@ document.getElementById('boRestart').addEventListener('click', breakoutInit);
         restartBtn.addEventListener('click', flappyRestart);
     }
 
+    // On-screen touch button (dispatched by the unified .touch-btn handler); same rules as tapping the canvas.
+    window._tc_flappy_flap = function () {
+        if (currentScreen !== 'flappy') return;
+        if (state === STATE_DEAD) {
+            if (dieDelay > 0) return;
+            flappyRestart();
+        } else {
+            flap();
+        }
+    };
+
     window.flappyInit = flappyInit;
     window.flappyRestart = flappyRestart;
 })();
@@ -5167,10 +5192,11 @@ document.getElementById('ssRestart').addEventListener('click', shooterInit);
     /* ════════════════════════════════════════════════════════════════
        MENU: play counter + search filter
        ════════════════════════════════════════════════════════════════ */
+    // Storage can be blocked (Safari with cookies off, some embeds): the counters then just stay at 0.
     function trackPlay(game) {
         const key = 'arcade_plays_' + game;
-        const count = parseInt(localStorage.getItem(key) || '0') + 1;
-        localStorage.setItem(key, count);
+        let count = 1;
+        try { count = (parseInt(localStorage.getItem(key), 10) || 0) + 1; localStorage.setItem(key, count); } catch (e) {}
         const badge = document.getElementById('play-' + game);
         if (badge) badge.textContent = count;
         SFX.ui();
@@ -5180,7 +5206,8 @@ document.getElementById('ssRestart').addEventListener('click', shooterInit);
         const games = ['bridge','princess','chess','tetris','snake','breakout','flappy','shooter'];
         for (const g of games) {
             const key = 'arcade_plays_' + g;
-            const count = localStorage.getItem(key) || '0';
+            let count = '0';
+            try { count = String(parseInt(localStorage.getItem(key), 10) || 0); } catch (e) {}
             const badge = document.getElementById('play-' + g);
             if (badge) badge.textContent = count;
         }
@@ -5228,25 +5255,16 @@ document.getElementById('ssRestart').addEventListener('click', shooterInit);
         }, { passive: false });
     });
 
-    // ─── Bridge touch handlers ───
-    window._tc_bridge_left = () => { if (G.running && G.player.grounded) G.keys.left = true; };
-    window._tc_bridge_right = () => { if (G.running && G.player.grounded) G.keys.right = true; };
+    // ─── Bridge touch handlers (auto-runner: jump is the only input) ───
     window._tc_bridge_up = () => { if (G.running && G.player.grounded) { G.player.vy = -8.5; G.player.grounded = false; SFX.jump(); } };
     window._tc_bridge_action = window._tc_bridge_up;
 
-    // ─── Snake touch handlers ───
-    window._tc_snake_left = () => { if (snake.dir.x !== 1) snake.dir = {x:-1,y:0}; SFX.dash(); };
-    window._tc_snake_right = () => { if (snake.dir.x !== -1) snake.dir = {x:1,y:0}; SFX.dash(); };
-    window._tc_snake_up = () => { if (snake.dir.y !== 1) snake.dir = {x:0,y:-1}; SFX.dash(); };
-    window._tc_snake_down = () => { if (snake.dir.y !== -1) snake.dir = {x:0,y:1}; SFX.dash(); };
+    // Snake and Flappy register their own _tc_ handlers inside their IIFEs (their state is private).
 
     // ─── Breakout touch handlers ───
     window._tc_breakout_left = () => { bo.paddle.vx = -6; };
     window._tc_breakout_right = () => { bo.paddle.vx = 6; };
     window._tc_breakout_action = () => { bo.ball.vy = -Math.abs(bo.ball.vy); };
-
-    // ─── Flappy touch handlers ───
-    window._tc_flappy_flap = () => { if (!fp.over && fp.running) { fp.vy = -7; SFX.jump(); } };
 
     // ─── Shooter touch handlers ───
     window._tc_shooter_left = () => { ss.player.vx = -4; };
