@@ -1399,7 +1399,8 @@
             document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
         });
 
-        document.getElementById('play-btn').addEventListener('click', startGame);
+        // The same button reads RESUME while paused (Escape): continue the run instead of wiping it.
+        document.getElementById('play-btn').addEventListener('click', () => { if (gameState === 'pause') resumeGame(); else startGame(); });
         document.getElementById('restart-btn').addEventListener('click', restartGame);
 
         animate();
