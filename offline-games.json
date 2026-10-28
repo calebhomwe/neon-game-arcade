@@ -1,0 +1,161 @@
+{
+  "namespace": "neon-game-arcade-mobile",
+  "games": [
+    {
+      "id": "mini-life-sim",
+      "title": "Mini Life Sim",
+      "entry": "games/mini-life-sim/index.html",
+      "start": "#newBtn"
+    },
+    {
+      "id": "bridge-race-classic",
+      "title": "Bridge Race",
+      "entry": "games/bridge-race-classic.html",
+      "start": "#brPlay"
+    },
+    {
+      "id": "game-arcade-7",
+      "title": "Game Arcade — Bridge Race & Fashion Princess",
+      "entry": "games/neon-arcade.html",
+      "start": ".game-card .card-btn"
+    },
+    {
+      "id": "sky-balance-tile",
+      "title": "Balance Tile",
+      "entry": "games/skywalker-playables/balance-tile.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-breakout",
+      "title": "Brick Breaker",
+      "entry": "games/skywalker-playables/breakout.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-color-match",
+      "title": "Color Match",
+      "entry": "games/skywalker-playables/color-match.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-cut-rope",
+      "title": "Cut the Rope",
+      "entry": "games/skywalker-playables/cut-rope.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-flappy-bird",
+      "title": "Flap & Fly",
+      "entry": "games/skywalker-playables/flappy-bird.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-grow-shrink",
+      "title": "Grow or Shrink",
+      "entry": "games/skywalker-playables/grow-shrink.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-hole-eater",
+      "title": "Hole Eater",
+      "entry": "games/skywalker-playables/hole-eater.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-key-unlock",
+      "title": "Pull the Pin",
+      "entry": "games/skywalker-playables/key-unlock.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-lane-switcher",
+      "title": "Lane Switcher",
+      "entry": "games/skywalker-playables/lane-switcher.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-match-swipe",
+      "title": "Match Swipe",
+      "entry": "games/skywalker-playables/match-swipe.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-maze-runner",
+      "title": "Maze Runner",
+      "entry": "games/skywalker-playables/maze-runner.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-parking-puzzle",
+      "title": "Parking Puzzle",
+      "entry": "games/skywalker-playables/parking-puzzle.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-rope-swing",
+      "title": "Rope Swing",
+      "entry": "games/skywalker-playables/rope-swing.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-slide-runner",
+      "title": "Slide Runner",
+      "entry": "games/skywalker-playables/slide-runner.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-slingshot",
+      "title": "Slingshot",
+      "entry": "games/skywalker-playables/slingshot.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-snake",
+      "title": "Snake",
+      "entry": "games/skywalker-playables/snake.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-sniper-shot",
+      "title": "Sniper Shot",
+      "entry": "games/skywalker-playables/sniper-shot.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-spike-jump",
+      "title": "Spike Jump",
+      "entry": "games/skywalker-playables/spike-jump.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-stack-tower",
+      "title": "Stack Tower",
+      "entry": "games/skywalker-playables/stack-tower.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-swim-dodge",
+      "title": "Swim Dodge",
+      "entry": "games/skywalker-playables/swim-dodge.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-traffic-run",
+      "title": "Traffic Run",
+      "entry": "games/skywalker-playables/traffic-run.html",
+      "start": "key:Space"
+    },
+    {
+      "id": "sky-turret-defense",
+      "title": "Turret Defense",
+      "entry": "games/skywalker-playables/turret-defense.html",
+      "start": "key:Space"
+    }
+  ],
+  "shell": [
+    "index.html",
+    "sw.js",
+    "offline-worker.js"
+  ],
+  "repository": "neon-game-arcade"
+}
